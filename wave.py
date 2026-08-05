@@ -9,7 +9,6 @@ import argparse
 import json
 import os
 import sys
-import shutil
 from pathlib import Path
 
 # Check for requests library
@@ -53,7 +52,7 @@ class MacWaveCLI:
         # install command
         install_parser = subparsers.add_parser(
             "install", 
-            help="Install a package (binary preferred, fallback to source)",
+            help="Install a package (binary preferred)",
             usage="wave install <package_name> [flags]"
         )
         install_parser.add_argument("package_name", help="Name of the package to install")
@@ -104,10 +103,8 @@ class MacWaveCLI:
     
     def _add_global_flags(self, parser):
         """Add global flags to a command parser."""
-        parser.add_argument('--src', action='store_true',
-                          help='Force install from source code (instead of prebuilt binary)')
         parser.add_argument('-D', '--dir', type=str, metavar='string',
-                          help='Specify an output directory (e.g., ~/Desktop) for source downloads')
+                          help='Specify an output directory (e.g., ~/Desktop) for downloads')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
                           help='Resume interrupted downloads (like curl -C -)')
         parser.add_argument('--proxy', type=str, metavar='string',
@@ -151,7 +148,6 @@ class MacWaveCLI:
         self.log_verbose(f"Searching for package: {package_name}")
         
         # Support current array format: {"packages": [...]}
-        # This approach is more scalable for future package additions.
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == package_name:
@@ -212,7 +208,7 @@ class MacWaveCLI:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            # Handle rate limiting (simplified - just adds delay between chunks)
+            # Handle rate limiting
             rate_limit = None
             if args.limit_rate:
                 rate_limit = self._parse_rate_limit(args.limit_rate)
@@ -269,18 +265,6 @@ class MacWaveCLI:
         """Install the downloaded binary to the local MacWave directory."""
         if args.dry_run:
             print(f"🌊 [DRY RUN] Would install {package_name} to {INSTALL_DIR}")
-            return
-        
-        if args.src:
-            # Source installation mode
-            output_dir = Path(args.dir).expanduser() if args.dir else Path.cwd()
-            self.log_verbose(f"Source installation to: {output_dir}")
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Simulate source download and extraction
-            self.log("Downloading source code...", force=True)
-            print(f"🌊 Source code would be extracted to: {output_dir}")
-            self.log("Source installation is not fully implemented yet", force=True)
             return
         
         # Binary installation
