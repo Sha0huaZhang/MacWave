@@ -104,5 +104,11 @@ def main():
         binary_content = download_binary(release["binary_url"], args.package_name)
         install_package(binary_content, args.package_name)
 
+safe_name = args.package_name.lower()
+        
+        release = find_package(repo_data, safe_name)
+        binary_content = download_binary(release["binary_url"], args.package_name)
+        install_package(binary_content, args.package_name)
+
 if __name__ == "__main__":
     main()
