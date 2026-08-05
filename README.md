@@ -48,6 +48,10 @@ Examples:
 For more details, visit: https://macwave.org
 ```
 
+# 🌊 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
 # 🌊 Contact Us
 
 
