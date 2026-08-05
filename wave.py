@@ -342,7 +342,31 @@ class MacWaveCLI:
     
     def handle_info(self, args):
         """Handle the info command."""
-        print(f"🌊 Command 'info' is not implemented yet.")
+        self.log_verbose(f"Info command for package: {args.package_name}")
+        repo_data = self.fetch_repo_data()
+        
+        # Case-insensitive matching
+        safe_name = args.package_name.lower()
+        
+        # Find the package in the array
+        package_info = None
+        if "packages" in repo_data:
+            for pkg in repo_data["packages"]:
+                if pkg.get("name") == safe_name:
+                    package_info = pkg
+                    break
+        
+        if not package_info:
+            print(f"🌊 Error: Package '{safe_name}' not found in repository")
+            sys.exit(1)
+        
+        # Display formatted information
+        print(f"🌊 Name:        {package_info.get('name', 'Unknown')}")
+        print(f"🌊 Version:     {package_info.get('version', 'Unknown')}")
+        print(f"🌊 Author:      {package_info.get('author', 'Unknown')}")
+        print(f"🌊 Description: {package_info.get('description', 'No description')}")
+        if "homepage" in package_info:
+            print(f"🌊 Homepage:    {package_info.get('homepage')}")
     
     def handle_update(self, args):
         """Handle the update command."""
