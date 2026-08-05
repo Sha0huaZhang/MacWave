@@ -23,6 +23,7 @@ REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/rep
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 
 def parse_arguments():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog="wave",
         description="MacWave 🌊 - A lightweight package manager for jailbreak developers"
@@ -33,6 +34,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def fetch_repo_data():
+    """Fetch and parse the remote package index (repo.json)."""
     try:
         response = requests.get(REPO_URL, timeout=10)
         response.raise_for_status()
@@ -45,6 +47,7 @@ def fetch_repo_data():
         sys.exit(1)
 
 def find_package(repo_data, package_name):
+    """Find a package in the repository data by its name."""
     if package_name not in repo_data:
         print(f"🌊 Error: Package '{package_name}' not found in repository")
         sys.exit(1)
@@ -60,6 +63,7 @@ def find_package(repo_data, package_name):
     sys.exit(1)
 
 def download_binary(url, package_name):
+    """Download the binary file from the given URL with a simple progress indicator."""
     print(f"🌊 Downloading {package_name}...")
     try:
         response = requests.get(url, stream=True, timeout=30)
@@ -69,13 +73,14 @@ def download_binary(url, package_name):
             if chunk:
                 content += chunk
                 print(".", end="", flush=True)
-        print(" 🌊")  # Add 🌊 after download
+        print(" 🌊")
         return content
     except requests.exceptions.RequestException as e:
         print(f"\n🌊 Error: Failed to download binary: {e}")
         sys.exit(1)
 
 def install_package(content, package_name):
+    """Install the downloaded binary to the local MacWave directory and set executable permissions."""
     INSTALL_DIR.mkdir(parents=True, exist_ok=True)
     binary_path = INSTALL_DIR / package_name
     try:
@@ -84,7 +89,7 @@ def install_package(content, package_name):
         os.chmod(binary_path, 0o755)
         print(f"🌊 Successfully installed {package_name} to {binary_path}")
         
-        # Check PATH
+        # Check if the installation directory is in the user's PATH
         path_dirs = os.environ.get("PATH", "").split(":")
         if str(INSTALL_DIR) not in path_dirs:
             print(f"🌊 Tip: Add {INSTALL_DIR} to your PATH to use '{package_name}' directly:")
@@ -97,18 +102,22 @@ def install_package(content, package_name):
         sys.exit(1)
 
 def main():
+    """Main entry point of the CLI."""
     args = parse_arguments()
-    if args.command == "install":
-        repo_data = fetch_repo_data()
-        release = find_package(repo_data, args.package_name)
-        binary_content = download_binary(release["binary_url"], args.package_name)
-        install_package(binary_content, args.package_name)
-
-safe_name = args.package_name.lower()
+    
+    # If no subcommand is provided, exit gracefully
+    if not args.command:
+        return
         
+    if args.command == "install":
+        # Convert package name to lowercase for case-insensitive matching
+        safe_name = args.package_name.lower()
+        
+        repo_data = fetch_repo_data()
         release = find_package(repo_data, safe_name)
-        binary_content = download_binary(release["binary_url"], args.package_name)
-        install_package(binary_content, args.package_name)
+        
+        binary_content = download_binary(release["binary_url"], safe_name)
+        install_package(binary_content, safe_name)
 
 if __name__ == "__main__":
     main()
