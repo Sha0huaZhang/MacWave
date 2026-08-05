@@ -48,6 +48,13 @@ Examples:
 For more details, visit: https://macwave.org
 ```
 
+# 🌊 Supported Packages
+(Listed in alphabetical order)
+```
+machox          
+test_001
+```
+
 # 🌊 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
