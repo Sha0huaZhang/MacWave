@@ -5,7 +5,8 @@ A package manager for macOS/Linux jailbreak developers.
 MacWave is a **package manager** that runs on **macOS/Linux**, specifically designed to host **iOS/iPadOS jailbreak-related software packages** for jailbreak developers and researchers. These packages are **typically not included in mainstream package managers**. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
 # 🌊 Install MacWave    
 In the terminal, run the following command:        
-```curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash```    
+```
+    curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash```    
 # 🌊 Download Directory 
 Installed binaries are stored in:    
 ```~/.local/macwave/bin```
