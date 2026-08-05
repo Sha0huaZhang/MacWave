@@ -17,7 +17,6 @@ Installed binaries are stored in:
 # 🌊 Command Reference
 
 ```MacWave 1.0.0 🌊
-
 Usage:
   wave <command> [package] [flags]
 
