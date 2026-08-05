@@ -22,15 +22,15 @@
       "releases": [
         {
           "os": "darwin",
-          "arch": "amd64",
-          "filename": "MachOX",
-          "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_MacPorts_x86_64"
-        },
-        {
-          "os": "darwin",
           "arch": "arm64",
           "filename": "MachOX",
           "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_Homebrew_arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "filename": "MachOX",
+          "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_MacPorts_x86_64"
         }
       ]
     }
