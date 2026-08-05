@@ -10,7 +10,9 @@ In the terminal, run the following command:
 ```    
 # 🌊 Download Directory 
 Installed binaries are stored in:    
-```~/.local/macwave/bin```
+```
+    ~/.local/macwave/bin
+```
 
 # 🌊 Command Reference
 
