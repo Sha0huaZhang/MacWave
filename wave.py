@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import sys
+import platform
 from pathlib import Path
 
 # Check for requests library
@@ -153,11 +154,24 @@ class MacWaveCLI:
                 if pkg.get("name") == package_name:
                     self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
+                    
+                    # Detect current architecture
+                    current_arch = platform.machine().lower()
+                    self.log_verbose(f"Current architecture: {current_arch}")
+                    
+                    # 1. Prefer exact architecture match
+                    for release in releases:
+                        if release.get("arch") == current_arch:
+                            self.log_verbose(f"Found release matching architecture: {current_arch}")
+                            return release
+                    
+                    # 2. Fallback to 'any'
                     for release in releases:
                         if release.get("arch") == "any":
-                            self.log_verbose(f"Found release with arch='any'")
+                            self.log_verbose(f"Found fallback release with arch='any'")
                             return release
-                    print(f"🌊 Error: No 'any' architecture release found for package '{package_name}'")
+                    
+                    print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
                     sys.exit(1)
         
         print(f"🌊 Error: Package '{package_name}' not found in repository")
