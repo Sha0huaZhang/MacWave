@@ -6,7 +6,8 @@ MacWave is a **package manager** that runs on **macOS/Linux**, specifically desi
 # 🌊 Install MacWave    
 In the terminal, run the following command:        
 ```
-    curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash```    
+    curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash
+```    
 # 🌊 Download Directory 
 Installed binaries are stored in:    
 ```~/.local/macwave/bin```
