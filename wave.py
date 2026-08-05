@@ -41,11 +41,23 @@ class MacWaveCLI:
             epilog="For more details, visit: https://macwave.org"
         )
         
-        # Global flags
+        # Global flags (works for all commands)
         parser.add_argument('-V', '--version', action='version', 
                           version=f'MacWave {VERSION} 🌊')
         parser.add_argument('-v', '--verbose', action='store_true',
                           help='Enable verbose output (show detailed logs)')
+        parser.add_argument('-C', '--continue', dest='resume', action='store_true',
+                          help='Resume interrupted downloads (like curl -C -)')
+        parser.add_argument('--proxy', type=str, metavar='string',
+                          help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
+        parser.add_argument('--skipssl', action='store_true',
+                          help='Skip SSL certificate verification (insecure)')
+        parser.add_argument('--limit-rate', type=str, metavar='string',
+                          help='Limit download speed (e.g., 200K, 1M, 5M)')
+        parser.add_argument('--dry-run', action='store_true',
+                          help='Simulate the installation without making changes')
+        parser.add_argument('--json', action='store_true',
+                          help='Output in JSON format (for scripting)')
         
         # Create subparsers for commands
         subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -57,7 +69,7 @@ class MacWaveCLI:
             usage="wave install <package_name> [flags]"
         )
         install_parser.add_argument("package_name", help="Name of the package to install")
-        self._add_global_flags(install_parser)
+        self._add_install_flags(install_parser)
         
         # uninstall command
         uninstall_parser = subparsers.add_parser(
@@ -102,22 +114,10 @@ class MacWaveCLI:
         
         return parser
     
-    def _add_global_flags(self, parser):
-        """Add global flags to a command parser."""
+    def _add_install_flags(self, parser):
+        """Add flags specific to the install command."""
         parser.add_argument('-D', '--dir', type=str, metavar='string',
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
-        parser.add_argument('-C', '--continue', dest='resume', action='store_true',
-                          help='Resume interrupted downloads (like curl -C -)')
-        parser.add_argument('--proxy', type=str, metavar='string',
-                          help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
-        parser.add_argument('--skipssl', action='store_true',
-                          help='Skip SSL certificate verification (insecure)')
-        parser.add_argument('--limit-rate', type=str, metavar='string',
-                          help='Limit download speed (e.g., 200K, 1M, 5M)')
-        parser.add_argument('--dry-run', action='store_true',
-                          help='Simulate the installation without making changes')
-        parser.add_argument('--json', action='store_true',
-                          help='Output in JSON format (for scripting)')
     
     def log(self, message, force=False):
         """Print log messages. Only prints if verbose mode is enabled or forced."""
@@ -129,11 +129,31 @@ class MacWaveCLI:
         if self.verbose:
             print(f"🌊 Verbose: {message}")
     
-    def fetch_repo_data(self):
+    def fetch_repo_data(self, args=None):
         """Fetch and parse the remote package index (repo.json)."""
         self.log_verbose("Fetching repo from URL: " + REPO_URL)
         try:
-            response = requests.get(REPO_URL, timeout=10)
+            # Prepare request parameters
+            request_kwargs = {
+                'timeout': 10
+            }
+            
+            # Handle proxy if provided in args
+            if args and args.proxy:
+                self.log_verbose(f"Using proxy: {args.proxy}")
+                request_kwargs['proxies'] = {
+                    'http': args.proxy,
+                    'https': args.proxy
+                }
+            
+            # Handle SSL verification if provided in args
+            if args and args.skipssl:
+                self.log_verbose("SSL verification disabled")
+                request_kwargs['verify'] = False
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            response = requests.get(REPO_URL, **request_kwargs)
             response.raise_for_status()
             self.log_verbose("Successfully fetched and parsed repo.json")
             return response.json()
@@ -333,7 +353,7 @@ class MacWaveCLI:
             return
         
         self.log_verbose(f"Install command for package: {args.package_name}")
-        repo_data = self.fetch_repo_data()
+        repo_data = self.fetch_repo_data(args)
         
         # Convert package name to lowercase for case-insensitive matching
         safe_name = args.package_name.lower()
@@ -357,7 +377,7 @@ class MacWaveCLI:
     def handle_info(self, args):
         """Handle the info command."""
         self.log_verbose(f"Info command for package: {args.package_name}")
-        repo_data = self.fetch_repo_data()
+        repo_data = self.fetch_repo_data(args)
         
         # Case-insensitive matching
         safe_name = args.package_name.lower()
