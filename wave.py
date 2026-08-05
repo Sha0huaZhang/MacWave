@@ -364,7 +364,38 @@ class MacWaveCLI:
     
     def handle_uninstall(self, args):
         """Handle the uninstall command."""
-        print(f"🌊 Command 'uninstall' is not implemented yet.")
+        safe_name = args.package_name.lower()
+        
+        # 1. Check if installed
+        if not INSTALLED_DB.exists():
+            print(f"🌊 No packages installed. Nothing to uninstall.")
+            return
+        
+        try:
+            with open(INSTALLED_DB, 'r') as f:
+                installed = json.load(f)
+            
+            if safe_name not in installed:
+                print(f"🌊 Error: Package '{safe_name}' is not installed.")
+                return
+            
+            # 2. Remove binary file
+            binary_path = INSTALL_DIR / safe_name
+            if binary_path.exists():
+                binary_path.unlink()
+                print(f"🌊 Removed binary: {binary_path}")
+            else:
+                print(f"🌊 Warning: Binary file not found, but removing from database.")
+            
+            # 3. Remove record from database
+            del installed[safe_name]
+            with open(INSTALLED_DB, 'w') as f:
+                json.dump(installed, f, indent=2)
+            
+            print(f"🌊 Successfully uninstalled '{safe_name}'.")
+            
+        except Exception as e:
+            print(f"🌊 Error: Failed to uninstall package: {e}")
     
     def handle_list(self, args):
         """Handle the list command."""
@@ -385,7 +416,7 @@ class MacWaveCLI:
     def handle_search(self, args):
         """Handle the search command."""
         query = args.query.lower()
-        repo_data = self.fetch_repo_data(self.parser.parse_args([]))  # 用空参数拉取，避免歧义
+        repo_data = self.fetch_repo_data(self.parser.parse_args([]))  # Use empty args to avoid ambiguity
         
         matches = []
         if "packages" in repo_data:
@@ -435,11 +466,54 @@ class MacWaveCLI:
     
     def handle_update(self, args):
         """Handle the update command."""
-        print(f"🌊 Command 'update' is not implemented yet.")
+        print("🌊 Updating package index...")
+        try:
+            # Fetch the latest repo.json (use empty args to avoid ambiguity)
+            repo_data = self.fetch_repo_data(self.parser.parse_args([]))
+            print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
+        except Exception as e:
+            print(f"🌊 Error: Failed to update package index: {e}")
     
     def handle_upgrade(self, args):
         """Handle the upgrade command."""
-        print(f"🌊 Command 'upgrade' is not implemented yet.")
+        safe_name = args.package_name.lower()
+        
+        # 1. Check if installed
+        if not INSTALLED_DB.exists():
+            print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
+            return
+        
+        try:
+            with open(INSTALLED_DB, 'r') as f:
+                installed = json.load(f)
+            
+            if safe_name not in installed:
+                print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
+                return
+            
+            # 2. Fetch the latest package info from remote
+            repo_data = self.fetch_repo_data(args)
+            release = self.find_package(repo_data, safe_name)
+            new_version = release.get("version", "unknown")
+            
+            print(f"🌊 Upgrading '{safe_name}' to version {new_version}...")
+            
+            # 3. Remove old binary
+            binary_path = INSTALL_DIR / safe_name
+            if binary_path.exists():
+                binary_path.unlink()
+            
+            # 4. Remove old record from database
+            del installed[safe_name]
+            with open(INSTALLED_DB, 'w') as f:
+                json.dump(installed, f, indent=2)
+            
+            # 5. Reinstall the latest version
+            binary_content = self.download_binary(release["binary_url"], safe_name, args)
+            self.install_package(binary_content, safe_name, args)
+            
+        except Exception as e:
+            print(f"🌊 Error: Failed to upgrade package: {e}")
     
     def handle_doctor(self, args):
         """Handle the doctor command."""
