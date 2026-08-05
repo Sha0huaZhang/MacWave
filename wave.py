@@ -368,11 +368,42 @@ class MacWaveCLI:
     
     def handle_list(self, args):
         """Handle the list command."""
-        print(f"🌊 Command 'list' is not implemented yet.")
+        if not INSTALLED_DB.exists():
+            print("🌊 No packages installed yet.")
+            return
+        
+        try:
+            with open(INSTALLED_DB, 'r') as f:
+                installed = json.load(f)
+            
+            print("🌊 Installed packages:")
+            for pkg_name, info in installed.items():
+                print(f"  - {pkg_name} (installed at {info.get('installed_at', 'unknown')})")
+        except Exception as e:
+            print(f"🌊 Error: Could not read installed packages: {e}")
     
     def handle_search(self, args):
         """Handle the search command."""
-        print(f"🌊 Command 'search' is not implemented yet.")
+        query = args.query.lower()
+        repo_data = self.fetch_repo_data(self.parser.parse_args([]))  # 用空参数拉取，避免歧义
+        
+        matches = []
+        if "packages" in repo_data:
+            for pkg in repo_data["packages"]:
+                name = pkg.get("name", "").lower()
+                desc = pkg.get("description", "").lower()
+                if query in name or query in desc:
+                    matches.append(pkg)
+        
+        if not matches:
+            print(f"🌊 No packages found matching '{args.query}'")
+            return
+        
+        print(f"🌊 Found {len(matches)} package(s) matching '{args.query}':")
+        for pkg in matches:
+            name = pkg.get("name", "Unknown")
+            desc = pkg.get("description", "No description")
+            print(f"  - {name}: {desc}")
     
     def handle_info(self, args):
         """Handle the info command."""
