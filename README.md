@@ -26,7 +26,7 @@ Installed binaries are stored in:
 
 # 🌊 Command Reference
 
-```MacWave 1.0.0 🌊
+```
 Usage:
   wave <command> [package] [flags]
 
@@ -57,6 +57,7 @@ Global Flags (can be used with any command):
 Examples:
   wave install machox
   wave search choma
+  wave search ldid -f
   wave info trollresigner
 
 For more details, visit: https://macwave.org
