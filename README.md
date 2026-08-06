@@ -2,7 +2,7 @@
 A package manager for macOS/Linux jailbreak developers.
 # 🌊 Official Website
 
-[https://macwave.org](macwave.org)
+[macwave.org](https://macwave.org)
 
 # 🌊 What is MacWave? 
 
