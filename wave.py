@@ -41,16 +41,18 @@ class MacWaveCLI:
             epilog="For more details, visit: https://macwave.org"
         )
         
-        # Global flags (works for all commands)
+        # Global flags
         parser.add_argument('-V', '--version', action='version', 
                           version=f'MacWave {VERSION} 🌊')
         parser.add_argument('-v', '--verbose', action='store_true',
                           help='Enable verbose output (show detailed logs)')
+        parser.add_argument('-B', '--beta-version', action='store_true',
+                          help='Install the latest beta version (if available)')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
                           help='Resume interrupted downloads (like curl -C -)')
         parser.add_argument('--proxy', type=str, metavar='string',
                           help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
-        parser.add_argument('--skipssl', action='store_true',
+        parser.add_argument('--skip-ssl', action='store_true',
                           help='Skip SSL certificate verification (insecure)')
         parser.add_argument('--limit-rate', type=str, metavar='string',
                           help='Limit download speed (e.g., 200K, 1M, 5M)')
@@ -65,7 +67,7 @@ class MacWaveCLI:
         # install command
         install_parser = subparsers.add_parser(
             "install", 
-            help="Install a package (binary preferred)",
+            help="Install a package",
             usage="wave install <package_name> [flags]"
         )
         install_parser.add_argument("package_name", help="Name of the package to install")
@@ -120,6 +122,8 @@ class MacWaveCLI:
         """Add flags specific to the install command."""
         parser.add_argument('-D', '--dir', type=str, metavar='string',
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
+        parser.add_argument('--ver', type=str, metavar='string',
+                          help='Install a specific version of the package (e.g., --ver 1.0.0)')
     
     def log(self, message, force=False):
         """Print log messages. Only prints if verbose mode is enabled or forced."""
@@ -135,12 +139,11 @@ class MacWaveCLI:
         """Fetch and parse the remote package index (repo.json)."""
         self.log_verbose("Fetching repo from URL: " + REPO_URL)
         try:
-            # Prepare request parameters
             request_kwargs = {
                 'timeout': 10
             }
             
-            # Handle proxy if provided in args
+            # Handle proxy
             if args and args.proxy:
                 self.log_verbose(f"Using proxy: {args.proxy}")
                 request_kwargs['proxies'] = {
@@ -148,8 +151,8 @@ class MacWaveCLI:
                     'https': args.proxy
                 }
             
-            # Handle SSL verification if provided in args
-            if args and args.skipssl:
+            # Handle SSL
+            if args and args.skip_ssl:
                 self.log_verbose("SSL verification disabled")
                 request_kwargs['verify'] = False
                 import urllib3
@@ -166,28 +169,44 @@ class MacWaveCLI:
             print("🌊 Error: Invalid JSON data received from repository")
             sys.exit(1)
     
-    def find_package(self, repo_data, package_name):
-        """Find a package in the repository data by its name."""
+    def find_package(self, repo_data, package_name, args=None):
+        """Find a package. Respects --ver and -B flags."""
         self.log_verbose(f"Searching for package: {package_name}")
         
-        # Support current array format: {"packages": [...]}
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == package_name:
                     self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
                     
-                    # Detect current architecture
-                    current_arch = platform.machine().lower()
-                    self.log_verbose(f"Current architecture: {current_arch}")
+                    # 1. If user specified a version via --ver
+                    if args and args.ver:
+                        requested_version = args.ver
+                        self.log_verbose(f"User requested version: {requested_version}")
+                        for release in releases:
+                            if release.get("version") == requested_version:
+                                arch = platform.machine().lower()
+                                if release.get("arch") == arch or release.get("arch") == "any":
+                                    self.log_verbose(f"Found matching release for version {requested_version}")
+                                    return release
+                        print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
+                        sys.exit(1)
                     
-                    # 1. Prefer exact architecture match
+                    # 2. If user requested beta version
+                    if args and args.beta_version:
+                        self.log_verbose("User requested beta version.")
+                        for release in releases:
+                            if release.get("arch") == "beta":
+                                self.log_verbose("Found beta release.")
+                                return release
+                        return None
+                    
+                    # 3. Regular stable release (match architecture)
+                    current_arch = platform.machine().lower()
                     for release in releases:
                         if release.get("arch") == current_arch:
                             self.log_verbose(f"Found release matching architecture: {current_arch}")
                             return release
-                    
-                    # 2. Fallback to 'any'
                     for release in releases:
                         if release.get("arch") == "any":
                             self.log_verbose(f"Found fallback release with arch='any'")
@@ -208,13 +227,11 @@ class MacWaveCLI:
         self.log_verbose(f"Downloading from: {url}")
         print(f"🌊 Downloading {package_name}...")
         
-        # Prepare request parameters
         request_kwargs = {
             'stream': True,
             'timeout': 30
         }
         
-        # Handle proxy
         if args.proxy:
             self.log_verbose(f"Using proxy: {args.proxy}")
             request_kwargs['proxies'] = {
@@ -222,14 +239,12 @@ class MacWaveCLI:
                 'https': args.proxy
             }
         
-        # Handle SSL verification
-        if args.skipssl:
+        if args.skip_ssl:
             self.log_verbose("SSL verification disabled")
             request_kwargs['verify'] = False
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        # Handle resume
         headers = {}
         if args.resume:
             temp_file = INSTALL_DIR / f"{package_name}.partial"
@@ -244,7 +259,6 @@ class MacWaveCLI:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            # Handle rate limiting
             rate_limit = None
             if args.limit_rate:
                 rate_limit = self._parse_rate_limit(args.limit_rate)
@@ -261,18 +275,15 @@ class MacWaveCLI:
                     content += chunk
                     print(".", end="", flush=True)
                     
-                    # Save progress for resume
                     if args.resume:
                         temp_file = INSTALL_DIR / f"{package_name}.partial"
                         with open(temp_file, 'ab') as f:
                             f.write(chunk)
                     
-                    # Simple rate limiting
                     if rate_limit:
                         import time
                         time.sleep(len(chunk) / rate_limit)
             
-            # Clean up partial file
             if args.resume and temp_file.exists():
                 temp_file.unlink()
             
@@ -288,7 +299,6 @@ class MacWaveCLI:
         """Parse rate limit string to bytes per second."""
         rate_str = rate_str.upper()
         multipliers = {'K': 1024, 'M': 1024**2, 'G': 1024**3}
-        
         try:
             if rate_str[-1] in multipliers:
                 return float(rate_str[:-1]) * multipliers[rate_str[-1]]
@@ -303,7 +313,6 @@ class MacWaveCLI:
             print(f"🌊 [DRY RUN] Would install {package_name} to {INSTALL_DIR}")
             return
         
-        # Binary installation
         INSTALL_DIR.mkdir(parents=True, exist_ok=True)
         binary_path = INSTALL_DIR / package_name
         
@@ -313,10 +322,8 @@ class MacWaveCLI:
             os.chmod(binary_path, 0o755)
             print(f"🌊 Successfully installed {package_name} to {binary_path}")
             
-            # Record installation with version
             self._record_installation(package_name, release_version=None)
             
-            # Check PATH
             path_dirs = os.environ.get("PATH", "").split(":")
             if str(INSTALL_DIR) not in path_dirs:
                 print(f"🌊 Tip: Add {INSTALL_DIR} to your PATH to use '{package_name}' directly:")
@@ -356,46 +363,57 @@ class MacWaveCLI:
         
         self.log_verbose(f"Install command for package: {args.package_name}")
         repo_data = self.fetch_repo_data(args)
-        
-        # Convert package name to lowercase for case-insensitive matching
         safe_name = args.package_name.lower()
         
-        release = self.find_package(repo_data, safe_name)
+        # 1. If user specified a version via --ver
+        if args.ver:
+            release = self.find_package(repo_data, safe_name, args)
+            if release:
+                binary_content = self.download_binary(release["binary_url"], safe_name, args)
+                self.install_package(binary_content, safe_name, args)
+            return
+        
+        # 2. If user requested beta version
+        if args.beta_version:
+            beta_release = self.find_package(repo_data, safe_name, args)
+            if beta_release:
+                binary_content = self.download_binary(beta_release["binary_url"], safe_name, args)
+                self.install_package(binary_content, safe_name, args)
+                return
+            else:
+                print(f"🌊 No beta version found for '{safe_name}'.")
+                response = input(f"🌊 Do you want to install the latest stable version instead? [Y/n] ")
+                if response.lower() not in ['y', 'yes', '']:
+                    print("🌊 Installation cancelled.")
+                    return
+        
+        # 3. Regular stable release
+        release = self.find_package(repo_data, safe_name, args)
         binary_content = self.download_binary(release["binary_url"], safe_name, args)
         self.install_package(binary_content, safe_name, args)
     
     def handle_uninstall(self, args):
         """Handle the uninstall command."""
         safe_name = args.package_name.lower()
-        
-        # 1. Check if installed
         if not INSTALLED_DB.exists():
             print(f"🌊 No packages installed. Nothing to uninstall.")
             return
-        
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
-            
             if safe_name not in installed:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
                 return
-            
-            # 2. Remove binary file
             binary_path = INSTALL_DIR / safe_name
             if binary_path.exists():
                 binary_path.unlink()
                 print(f"🌊 Removed binary: {binary_path}")
             else:
                 print(f"🌊 Warning: Binary file not found, but removing from database.")
-            
-            # 3. Remove record from database
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
-            
             print(f"🌊 Successfully uninstalled '{safe_name}'.")
-            
         except Exception as e:
             print(f"🌊 Error: Failed to uninstall package: {e}")
     
@@ -404,11 +422,9 @@ class MacWaveCLI:
         if not INSTALLED_DB.exists():
             print("🌊 No packages installed yet.")
             return
-        
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
-            
             print("🌊 Installed packages:")
             for pkg_name, info in installed.items():
                 version = info.get('version', 'unknown')
@@ -420,26 +436,20 @@ class MacWaveCLI:
         """Handle the search command."""
         query = args.query.lower()
         repo_data = self.fetch_repo_data(self.parser.parse_args([]))
-        
         matches = []
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 name = pkg.get("name", "").lower()
                 desc = pkg.get("description", "").lower()
-                
                 if args.fuzzy:
-                    # Fuzzy match: query can be anywhere
                     if query in name or query in desc:
                         matches.append(pkg)
                 else:
-                    # Exact match: query must be at the start of name or description
                     if name.startswith(query) or desc.startswith(query):
                         matches.append(pkg)
-        
         if not matches:
             print(f"🌊 No packages found matching '{args.query}'")
             return
-        
         print(f"🌊 Found {len(matches)} package(s) matching '{args.query}':")
         for pkg in matches:
             name = pkg.get("name", "Unknown")
@@ -450,23 +460,16 @@ class MacWaveCLI:
         """Handle the info command."""
         self.log_verbose(f"Info command for package: {args.package_name}")
         repo_data = self.fetch_repo_data(args)
-        
-        # Case-insensitive matching
         safe_name = args.package_name.lower()
-        
-        # Find the package in the array
         package_info = None
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == safe_name:
                     package_info = pkg
                     break
-        
         if not package_info:
             print(f"🌊 Error: Package '{safe_name}' not found in repository")
             sys.exit(1)
-        
-        # Display formatted information
         print(f"🌊 Name:        {package_info.get('name', 'Unknown')}")
         print(f"🌊 Version:     {package_info.get('version', 'Unknown')}")
         print(f"🌊 Author:      {package_info.get('author', 'Unknown')}")
@@ -478,7 +481,6 @@ class MacWaveCLI:
         """Handle the update command."""
         print("🌊 Updating package index...")
         try:
-            # Fetch the latest repo.json
             repo_data = self.fetch_repo_data(self.parser.parse_args([]))
             print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
         except Exception as e:
@@ -487,51 +489,33 @@ class MacWaveCLI:
     def handle_upgrade(self, args):
         """Handle the upgrade command."""
         safe_name = args.package_name.lower()
-        
-        # 1. Check if installed
         if not INSTALLED_DB.exists():
             print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
             return
-        
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
-            
             if safe_name not in installed:
                 print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
                 return
-            
             local_version = installed[safe_name].get('version', '0.0.0')
-            # Fix: Convert None to a valid string for comparison
             if local_version is None:
                 local_version = '0.0.0'
-            
-            # 2. Fetch the latest package info from remote
             repo_data = self.fetch_repo_data(args)
             release = self.find_package(repo_data, safe_name)
             remote_version = release.get("version", "unknown")
-            
-            # 3. Compare versions
             if local_version >= remote_version:
                 print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
                 return
-            
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
-            
-            # 4. Remove old binary
             binary_path = INSTALL_DIR / safe_name
             if binary_path.exists():
                 binary_path.unlink()
-            
-            # 5. Remove old record from database
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
-            
-            # 6. Reinstall the latest version
             binary_content = self.download_binary(release["binary_url"], safe_name, args)
             self.install_package(binary_content, safe_name, args)
-            
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
     
@@ -542,15 +526,10 @@ class MacWaveCLI:
     def run(self):
         """Main entry point of the CLI."""
         args = self.parser.parse_args()
-        
-        # Set verbose mode
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
-        
-        # Handle commands
         if not args.command:
             self.parser.print_help()
             return
-        
         command_handlers = {
             "install": self.handle_install,
             "uninstall": self.handle_uninstall,
@@ -561,7 +540,6 @@ class MacWaveCLI:
             "upgrade": self.handle_upgrade,
             "doctor": self.handle_doctor,
         }
-        
         handler = command_handlers.get(args.command)
         if handler:
             handler(args)
