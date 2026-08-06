@@ -1,5 +1,9 @@
 # 🌊 MacWave 
 A package manager for macOS/Linux jailbreak developers.
+# 🌊 Official Website
+
+[https://macwave.org](macwave.org)
+
 # 🌊 What is MacWave? 
 
 MacWave is a **package manager** that runs on **macOS/Linux**, specifically designed to host **iOS/iPadOS jailbreak-related software packages** for jailbreak developers and researchers. These packages are **typically not included in mainstream package managers**. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
