@@ -33,6 +33,28 @@
           "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_MacPorts_x86_64"
         }
       ]
+    },
+    {
+      "name": "ldid",
+      "version": "2.1.5-procursus7",
+      "license": "MIT",
+      "description": "Fake sign Mach-O binaries. Essential for jailbreak development.",
+      "author": "Jay Freeman (saurik) / Procursus Team",
+      "homepage": "https://github.com/ProcursusTeam/ldid",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "filename": "ldid",
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "filename": "ldid",
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64"
+        }
+      ]
     }
   ]
 }
