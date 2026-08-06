@@ -65,11 +65,12 @@ For more details, visit: https://macwave.org
 
 # 🌊 Supported Packages
 (Listed in alphabetical order)
-```
-machox          
-test_001
-```
 
+```
+machox          by Sha0huaZhang
+ldid            by Jay Freeman (saurik) / Procursus Team
+test_001        by Sha0huaZhang
+```
 # 🌊 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
