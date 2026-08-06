@@ -502,6 +502,9 @@ class MacWaveCLI:
                 return
             
             local_version = installed[safe_name].get('version', '0.0.0')
+            # Fix: Convert None to a valid string for comparison
+            if local_version is None:
+                local_version = '0.0.0'
             
             # 2. Fetch the latest package info from remote
             repo_data = self.fetch_repo_data(args)
