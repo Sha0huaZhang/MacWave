@@ -64,7 +64,7 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Code and Copy Button */
+        /* Code block and copy button styles */
         .code-container {
             position: relative;
             margin-bottom: 20px;
@@ -92,7 +92,7 @@
             font-weight: bold;
         }
 
-        /* Copy Button */
+        /* Homebrew-style copy button */
         .copy-btn {
             position: absolute;
             top: 12px;
@@ -112,14 +112,14 @@
             background-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* CSS Square Icon */
+        /* Pure CSS overlapping squares icon */
         .copy-icon {
             position: relative;
             width: 18px;
             height: 18px;
         }
 
-        .copy-icon .square-back {
+        .square-back {
             position: absolute;
             top: 0;
             left: 0;
@@ -128,9 +128,16 @@
             border: 1.5px solid #a0b0d0;
             border-radius: 2px;
             opacity: 0.7;
+            transition: all 0.2s ease;
         }
 
-        .copy-icon .square-front {
+        /* 
+           Geometric alignment:
+           The 25% offset of a 14px square is 3.5px.
+           This places the top-left corner of the front square exactly at the midpoint 
+           between the center and top-left corner of the back square.
+        */
+        .square-front {
             position: absolute;
             bottom: 0;
             right: 0;
@@ -139,6 +146,8 @@
             border: 1.5px solid #a0b0d0;
             border-radius: 2px;
             background-color: rgba(30, 42, 74, 0.4);
+            transition: all 0.2s ease;
+            transform: translate(-3.5px, -3.5px); /* Precise 25% offset */
         }
 
         .copy-btn:hover .square-back,
@@ -146,12 +155,15 @@
             border-color: #ffffff;
         }
 
+        /* Copied animation: fill both squares with solid blue */
         .copy-btn.copied .square-back,
         .copy-btn.copied .square-front {
+            background-color: #4a90e2;
             border-color: #4a90e2;
+            opacity: 1;
         }
 
-        /* ---------- Contact Us ---------- */
+        /* Contact Us */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
