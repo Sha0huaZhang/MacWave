@@ -19,7 +19,12 @@
             padding: 20px;
         }
 
-        /* White rounded card for logo (optimized for 11-inch iPad) */
+        /* 
+           Embed-safe logo container:
+           - max-width prevents overflow
+           - width: 100% lets it shrink safely on small screens
+           - box-sizing ensures padding doesn't push it outside
+        */
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
@@ -30,6 +35,12 @@
             gap: 0;
             margin-bottom: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            
+            /* key embedding styles */
+            max-width: 100%;
+            width: auto;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .logo-img {
@@ -37,6 +48,11 @@
             width: auto;
             display: block;
             border-radius: 0;
+            
+            /* ensure images shrink gracefully */
+            max-width: 100%;
+            height: auto;
+            flex-shrink: 1;
         }
 
         p {
@@ -64,7 +80,6 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Code blocks */
         pre {
             background-color: #1e2a4a;
             border-radius: 12px;
@@ -86,7 +101,6 @@
             font-weight: bold;
         }
 
-        /* Contact Us */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -145,7 +159,6 @@
 </head>
 <body>
 
-    <!-- Logo Section -->
     <div class="logo-wrapper">
         <img src="logo1.jpg" alt="MW Icon" class="logo-img">
         <img src="logo2.jpg" alt="MacWave Text" class="logo-img">
@@ -155,7 +168,6 @@
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
 
-    <!-- Main Content -->
     <div class="content-section" style="margin: 0 auto; padding: 20px; color: #ffffff; text-align: left;">
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px;">What is MacWave?</h2>
@@ -240,7 +252,6 @@ test_001        by Sha0huaZhang</pre>
 
     </div>
 
-    <!-- Contact Us -->
     <div class="contact-section">
         <h2>Contact Us</h2>
         <div class="contact-items">
