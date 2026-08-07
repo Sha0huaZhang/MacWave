@@ -23,20 +23,20 @@
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
-            padding: 15px 40px;
+            padding: 15px 20px;      /* 👈 左右边距缩小到 20px */
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0;                /* Zero gap: images touch perfectly */
+            gap: 0;
             margin-bottom: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .logo-img {
-            height: 80px;
+            height: 60px;            /* 👈 原高度 80px 的 75% */
             width: auto;
             display: block;
-            border-radius: 0;      /* Let the white card provide the rounded corners */
+            border-radius: 0;
         }
 
         p {
@@ -81,11 +81,11 @@
         /* Mobile adjustments */
         @media (max-width: 600px) {
             .logo-wrapper {
-                padding: 10px 30px;
+                padding: 10px 15px;  /* 手机上边距继续缩小 */
                 border-radius: 20px;
             }
             .logo-img {
-                height: 60px;
+                height: 45px;        /* 手机端高度也降为 60px 的 75% */
             }
         }
     </style>
