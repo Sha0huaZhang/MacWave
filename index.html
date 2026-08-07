@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>MacWave 🌊</title>
     <style>
         body {
@@ -19,11 +19,11 @@
             padding: 20px;
         }
 
-        /* White rounded card for logo */
+        /* White rounded card for logo (optimized for 11-inch iPad) */
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
-            padding: 15px 40px;
+            padding: 12px 25px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -33,7 +33,7 @@
         }
 
         .logo-img {
-            height: 60px;
+            height: 50px;
             width: auto;
             display: block;
             border-radius: 0;
@@ -64,17 +64,17 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Global code block styles — scrollable on all devices */
+        /* Code blocks */
         pre {
             background-color: #1e2a4a;
             border-radius: 12px;
             padding: 20px;
-            overflow-x: auto;        /* Horizontal scroll when too long */
+            overflow-x: auto;
             color: #d4d4d4;
             font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
             border: 1px solid #3a4a6a;
             font-size: 0.9rem;
-            white-space: pre;        /* Preserve line breaks and enable scrolling */
+            white-space: pre;
             text-align: left;
             max-width: 100%;
             box-sizing: border-box;
@@ -140,80 +140,6 @@
             color: #ffffff;
             opacity: 0.7;
             margin-top: 4px;
-        }
-
-        /* ======================================================== */
-        /*           Responsive rules for all screen sizes          */
-        /* ======================================================== */
-
-        /* Very large desktops / external displays */
-        @media (min-width: 1367px) {
-            .logo-wrapper { padding: 15px 40px; }
-            .logo-img { height: 60px; }
-        }
-
-        /* 13-inch / 14-inch laptops */
-        @media (min-width: 1025px) and (max-width: 1366px) {
-            .logo-wrapper { padding: 15px 30px; border-radius: 28px; }
-            .logo-img { height: 55px; }
-            .content-section { padding: 0 60px; max-width: 750px; }
-        }
-
-        /* Standard iPads (10-11"), foldables */
-        @media (min-width: 821px) and (max-width: 1024px) {
-            .logo-wrapper { 
-                padding: 12px 25px; 
-                border-radius: 28px; 
-                max-width: 95%;
-            }
-            .logo-img { height: 50px; }
-            .content-section { padding: 0 30px; }
-        }
-
-        /* iPad mini, some landscape phones */
-        @media (min-width: 601px) and (max-width: 820px) {
-            .logo-wrapper { 
-                padding: 10px 20px; 
-                border-radius: 24px; 
-                max-width: 95%;
-            }
-            .logo-img { height: 48px; }
-            .content-section { padding: 0 20px; }
-        }
-
-        /* Mainstream large phones (6.1" ~ 6.9") */
-        @media (min-width: 376px) and (max-width: 600px) {
-            .logo-wrapper { 
-                padding: 10px 20px;
-                border-radius: 20px; 
-                max-width: 100%;
-            }
-            .logo-img { height: 45px; }
-            .content-section { padding: 0 15px; }
-            pre { 
-                font-size: 0.8rem; 
-                white-space: pre;
-            }
-        }
-
-        /* Small phones (iPhone SE, 5.8") */
-        @media (max-width: 375px) {
-            .logo-wrapper { 
-                padding: 8px 12px; 
-                border-radius: 16px; 
-                margin-bottom: 18px;
-                max-width: 100%;
-            }
-            .logo-img { height: 36px; }
-            .content-section { padding: 0 6px; }
-            p { font-size: 0.95rem; line-height: 1.5; }
-            h2 { font-size: 1.4rem !important; padding-bottom: 6px !important; margin-top: 25px !important; }
-            .btn-github { padding: 10px 24px; font-size: 0.95rem; }
-            pre { 
-                font-size: 0.7rem !important; 
-                padding: 12px !important; 
-                white-space: pre;
-            }
         }
     </style>
 </head>
