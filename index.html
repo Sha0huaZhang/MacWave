@@ -64,7 +64,7 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Code block and copy button styles */
+        /* Code and Copy Button */
         .code-container {
             position: relative;
             margin-bottom: 20px;
@@ -84,7 +84,7 @@
             white-space: pre;
             text-align: left;
             margin: 0;
-            padding-right: 70px; /* Leave space for the copy button */
+            padding-right: 70px;
         }
 
         .code-dollar {
@@ -92,34 +92,66 @@
             font-weight: bold;
         }
 
+        /* Copy Button */
         .copy-btn {
             position: absolute;
             top: 12px;
             right: 12px;
-            background-color: #2a3a5a;
-            color: #a0b0d0;
-            border: 1px solid #3a4a6a;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 0.8rem;
+            background: transparent;
+            border: none;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: inherit;
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .copy-btn:hover {
-            background-color: #3a4a6a;
-            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* CSS Square Icon */
+        .copy-icon {
+            position: relative;
+            width: 18px;
+            height: 18px;
+        }
+
+        .copy-icon .square-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #a0b0d0;
+            border-radius: 2px;
+            opacity: 0.7;
+        }
+
+        .copy-icon .square-front {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #a0b0d0;
+            border-radius: 2px;
+            background-color: rgba(30, 42, 74, 0.4);
+        }
+
+        .copy-btn:hover .square-back,
+        .copy-btn:hover .square-front {
+            border-color: #ffffff;
+        }
+
+        .copy-btn.copied .square-back,
+        .copy-btn.copied .square-front {
             border-color: #4a90e2;
         }
 
-        .copy-btn.copied {
-            background-color: #4a90e2;
-            color: #ffffff;
-            border-color: #4a90e2;
-        }
-
-        /* Contact Us */
+        /* ---------- Contact Us ---------- */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -201,7 +233,12 @@
             In the terminal, run the following command:
         </p>
         <div class="code-container">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <button class="copy-btn" onclick="copyCode(this)">
+                <div class="copy-icon">
+                    <div class="square-back"></div>
+                    <div class="square-front"></div>
+                </div>
+            </button>
             <pre><span class="code-dollar">$</span> curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash</pre>
         </div>
 
@@ -213,7 +250,12 @@
                 After installation, <strong>restart your terminal</strong> or <strong>run the following command</strong> to apply PATH changes immediately:
             </p>
             <div class="code-container" style="margin-top: 10px;">
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <button class="copy-btn" onclick="copyCode(this)">
+                    <div class="copy-icon">
+                        <div class="square-back"></div>
+                        <div class="square-front"></div>
+                    </div>
+                </button>
                 <pre><span class="code-dollar">$</span> source ~/.zshrc</pre>
             </div>
             <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
@@ -226,7 +268,12 @@
             Installed binaries are stored in:
         </p>
         <div class="code-container">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <button class="copy-btn" onclick="copyCode(this)">
+                <div class="copy-icon">
+                    <div class="square-back"></div>
+                    <div class="square-front"></div>
+                </div>
+            </button>
             <pre>~/.local/macwave/bin</pre>
         </div>
 
@@ -306,11 +353,8 @@ test_001        by Sha0huaZhang</pre>
             let text = pre.textContent;
             text = text.replace(/^\$\s/, '');
             navigator.clipboard.writeText(text).then(() => {
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 setTimeout(() => {
-                    btn.textContent = originalText;
                     btn.classList.remove('copied');
                 }, 2000);
             }).catch(err => {
