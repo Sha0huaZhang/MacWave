@@ -19,11 +19,11 @@
             padding: 20px;
         }
 
-        /* Unified white rounded card container */
+        /* White rounded card container for the logo */
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
-            padding: 15px 20px;
+            padding: 15px 40px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -40,10 +40,11 @@
         }
 
         p {
-            font-size: 1.2rem;
-            opacity: 0.8;
-            margin-bottom: 40px;
-            max-width: 600px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.9;
+            max-width: 800px;
+            text-align: left;
         }
 
         .btn-github {
@@ -67,11 +68,11 @@
             margin-top: 50px;
             font-size: 0.9rem;
             opacity: 0.5;
+            text-align: center;
         }
 
-        /* Email styling: white color */
         .footer a {
-            color: #ffffff;      /* Change to white */
+            color: #4a90e2;
             text-decoration: none;
         }
 
@@ -79,8 +80,61 @@
             text-decoration: underline;
         }
 
-        /* Mobile adjustments */
-        @media (max-width: 600px) {
+        /* ---- Large Desktop / Ultra-wide (> 1366px) ---- */
+        @media (min-width: 1367px) {
+            .logo-wrapper {
+                padding: 15px 40px;
+            }
+            .logo-img {
+                height: 60px;
+            }
+        }
+
+        /* ---- 13-inch Laptop (1025px ~ 1366px) ---- */
+        @media (min-width: 1025px) and (max-width: 1366px) {
+            .logo-wrapper {
+                padding: 15px 30px;
+                border-radius: 28px;
+            }
+            .logo-img {
+                height: 55px;
+            }
+            .content-section {
+                padding: 0 60px;
+                max-width: 750px;
+            }
+        }
+
+        /* ---- Standard iPad (821px ~ 1024px) ---- */
+        @media (min-width: 821px) and (max-width: 1024px) {
+            .logo-wrapper {
+                padding: 12px 25px;
+                border-radius: 24px;
+            }
+            .logo-img {
+                height: 50px;
+            }
+            .content-section {
+                padding: 0 30px;
+            }
+        }
+
+        /* ---- iPad mini (601px ~ 820px) ---- */
+        @media (min-width: 601px) and (max-width: 820px) {
+            .logo-wrapper {
+                padding: 12px 20px;
+                border-radius: 22px;
+            }
+            .logo-img {
+                height: 48px;
+            }
+            .content-section {
+                padding: 0 20px;
+            }
+        }
+
+        /* ---- Standard / Mainstream phones (376px ~ 600px) ---- */
+        @media (min-width: 376px) and (max-width: 600px) {
             .logo-wrapper {
                 padding: 10px 15px;
                 border-radius: 20px;
@@ -88,12 +142,54 @@
             .logo-img {
                 height: 45px;
             }
+            .content-section {
+                padding: 0 10px;
+            }
+        }
+
+        /* ---- Small phones / iPhone SE (≤ 375px) ---- */
+        @media (max-width: 375px) {
+            .logo-wrapper {
+                padding: 8px 12px;
+                border-radius: 16px;
+                margin-bottom: 18px;
+            }
+            .logo-img {
+                height: 36px;
+            }
+            .content-section {
+                padding: 0 6px;
+            }
+            p {
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+            h2 {
+                font-size: 1.4rem !important;
+                padding-bottom: 6px !important;
+                margin-top: 25px !important;
+            }
+            .btn-github {
+                padding: 10px 24px;
+                font-size: 0.95rem;
+            }
+            .footer {
+                font-size: 0.8rem;
+                margin-top: 30px;
+            }
+            pre {
+                padding: 12px !important;
+                font-size: 0.8rem !important;
+            }
+            .warning-box {
+                padding: 10px 14px !important;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Unified white rounded card with two seamlessly joined logos -->
+    <!-- Logo Section -->
     <div class="logo-wrapper">
         <img src="logo1.jpg" alt="MW Icon" class="logo-img">
         <img src="logo2.jpg" alt="MacWave Text" class="logo-img">
@@ -103,8 +199,103 @@
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
 
-    <div class="footer">
-        Email: <a href="mailto:hi@macwave.org">hi@macwave.org</a>
+    <!-- Page Content -->
+    <div class="content-section" style="margin: 0 auto; padding: 20px; color: #ffffff; text-align: left;">
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px;">What is MacWave?</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
+            MacWave is a <strong>package manager</strong> that runs on <strong>macOS/Linux</strong>, specifically designed to host <strong>iOS/iPadOS jailbreak-related software packages</strong> for jailbreak developers and researchers. These packages are <strong>typically not included in mainstream package managers</strong>. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
+        </p>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Install MacWave</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
+            In the terminal, run the following command:
+        </p>
+        <pre style="background-color: #1e2a4a; border-radius: 12px; padding: 20px; overflow-x: auto; color: #d4d4d4; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; border: 1px solid #3a4a6a;">
+            <code style="color: #d4d4d4;">$ curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash</code>
+        </pre>
+
+        <div class="warning-box" style="background-color: #1e2a4a; border-left: 6px solid #f1c40f; padding: 15px 20px; border-radius: 8px; margin-top: 20px;">
+            <p style="margin: 0; font-size: 1rem; line-height: 1.5; color: #f1c40f; font-weight: bold;">
+                Important:
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #ffffff;">
+                After installation, <strong>restart your terminal</strong> or <strong>run the following command</strong> to apply PATH changes immediately:
+            </p>
+            <pre style="background-color: #0f1a30; border-radius: 8px; padding: 15px; margin-top: 10px; overflow-x: auto; color: #d4d4d4; font-family: 'Menlo', 'Monaco', 'Courier New', monospace;">
+                <code style="color: #d4d4d4;">$ source ~/.zshrc</code>
+            </pre>
+            <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
+                (If you are using bash instead of zsh, run <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">source ~/.bashrc</code>)
+            </p>
+        </div>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Download Directory</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
+            Installed binaries are stored in:
+        </p>
+        <pre style="background-color: #1e2a4a; border-radius: 12px; padding: 20px; overflow-x: auto; color: #d4d4d4; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; border: 1px solid #3a4a6a;">
+            <code style="color: #d4d4d4;">~/.local/macwave/bin</code>
+        </pre>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
+        <div style="background-color: #ffffff; border-radius: 16px; padding: 20px; color: #1a1a1a; border: 1px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 0.95rem; white-space: pre-wrap;">
+            <span style="color: #1a1a1a;">
+Usage:
+  wave <command> [package] [flags]
+
+Commands:
+  install     Install a package
+  uninstall   Uninstall a package
+  list        List installed packages
+  search      Search for a package in the index
+  info        Display detailed information about a package
+  update      Update the package index
+  upgrade     Upgrade an installed package to the latest version
+  doctor      Check your system for missing dependencies
+
+Flags:
+  -h, --help              Show help for any command
+  -V, --version           Print version information
+  -v, --verbose           Enable verbose output (show detailed logs)
+
+Global Flags (can be used with any command):
+  -B, --beta-version      Install the latest beta version (if available)
+  -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads
+  -C, --continue          Resume interrupted downloads (like curl -C -)
+      --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
+      --skip-ssl          Skip SSL certificate verification (insecure)
+      --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
+      --dry-run           Simulate the installation without making changes
+      --json              Output in JSON format (for scripting)
+      --ver string        Install a specific version of the package
+
+Examples:
+  wave install machox
+  wave install ldid --ver 2.1.5
+  wave install machox -B
+  wave search choma -f
+  wave info trollresigner
+            </span>
+        </div>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported Packages</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">(Listed in alphabetical order)</p>
+        <pre style="background-color: #1e2a4a; border-radius: 12px; padding: 20px; overflow-x: auto; color: #d4d4d4; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; border: 1px solid #3a4a6a;">
+machox          by Sha0huaZhang
+ldid            by Jay Freeman (saurik) / Procursus Team
+test_001        by Sha0huaZhang
+        </pre>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">License</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
+            This project is licensed under the <strong>MIT License</strong>.
+        </p>
+
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #2a3a5a; text-align: center; font-size: 1rem; opacity: 0.7;">
+            Email: <a href="mailto:hi@macwave.org" style="color: #4a90e2; text-decoration: none;">hi@macwave.org</a>
+        </div>
+
     </div>
 
 </body>
