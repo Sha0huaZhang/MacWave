@@ -19,7 +19,7 @@
             padding: 20px;
         }
 
-        /* White rounded card for logo (optimized for 11-inch iPad) */
+        /* White rounded card for logo */
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
@@ -64,7 +64,14 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Code blocks */
+        /* ---------- 代码块与复制按钮样式 ---------- */
+        .code-container {
+            position: relative;
+            margin-bottom: 20px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
         pre {
             background-color: #1e2a4a;
             border-radius: 12px;
@@ -76,9 +83,8 @@
             font-size: 0.9rem;
             white-space: pre;
             text-align: left;
-            max-width: 100%;
-            box-sizing: border-box;
             margin: 0;
+            padding-right: 70px; /* 为右侧按钮留出空间 */
         }
 
         .code-dollar {
@@ -86,7 +92,34 @@
             font-weight: bold;
         }
 
-        /* Contact Us */
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background-color: #2a3a5a;
+            color: #a0b0d0;
+            border: 1px solid #3a4a6a;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .copy-btn:hover {
+            background-color: #3a4a6a;
+            color: #ffffff;
+            border-color: #4a90e2;
+        }
+
+        .copy-btn.copied {
+            background-color: #4a90e2;
+            color: #ffffff;
+            border-color: #4a90e2;
+        }
+
+        /* ---------- Contact Us ---------- */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -167,7 +200,10 @@
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             In the terminal, run the following command:
         </p>
-        <pre><span class="code-dollar">$</span> curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash</pre>
+        <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><span class="code-dollar">$</span> curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash</pre>
+        </div>
 
         <div class="warning-box" style="background-color: #1e2a4a; border-left: 6px solid #f1c40f; padding: 15px 20px; border-radius: 8px; margin-top: 20px;">
             <p style="margin: 0; font-size: 1rem; line-height: 1.5; color: #f1c40f; font-weight: bold;">
@@ -176,7 +212,10 @@
             <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #ffffff;">
                 After installation, <strong>restart your terminal</strong> or <strong>run the following command</strong> to apply PATH changes immediately:
             </p>
-            <pre><span class="code-dollar">$</span> source ~/.zshrc</pre>
+            <div class="code-container" style="margin-top: 10px;">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre><span class="code-dollar">$</span> source ~/.zshrc</pre>
+            </div>
             <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
                 (If you are using bash instead of zsh, run <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">source ~/.bashrc</code>)
             </p>
@@ -186,10 +225,15 @@
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             Installed binaries are stored in:
         </p>
-        <pre>~/.local/macwave/bin</pre>
+        <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>~/.local/macwave/bin</pre>
+        </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
-        <pre>
+        <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>
 Usage:
   wave &lt;command&gt; [package] [flags]
 
@@ -225,13 +269,17 @@ Examples:
   wave install machox -B
   wave search choma -f
   wave info trollresigner</pre>
+        </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported Packages</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">(Listed in alphabetical order)</p>
-        <pre>
+        <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>
 machox          by Sha0huaZhang
 ldid            by Jay Freeman (saurik) / Procursus Team
 test_001        by Sha0huaZhang</pre>
+        </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">License</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
@@ -255,6 +303,35 @@ test_001        by Sha0huaZhang</pre>
         </div>
         <div class="contact-hint">Click the links to open.</div>
     </div>
+
+    <!-- JavaScript for Copy Functionality -->
+    <script>
+        function copyCode(btn) {
+            // Find the <pre> element immediately preceding the button
+            const pre = btn.parentElement.querySelector('pre');
+            if (!pre) return;
+
+            // Get text content, remove the "$ " prefix for cleaner copying
+            let text = pre.textContent;
+            // Remove leading "$ " if present
+            text = text.replace(/^\$\s/, '');
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+    </script>
 
 </body>
 </html>
