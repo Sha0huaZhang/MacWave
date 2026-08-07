@@ -19,25 +19,24 @@
             padding: 20px;
         }
 
-        /* Logo container: responsive width, side margins about 1.8rem */
-        .logo-container {
+        /* Unified white rounded card container */
+        .logo-wrapper {
+            background-color: #ffffff;
+            border-radius: 30px;
+            padding: 15px 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 25px;            /* Space between the two logos */
+            gap: 0;                /* Zero gap: images touch perfectly */
             margin-bottom: 25px;
-            padding: 0 1.8rem;    /* Side margins, adjustable */
-            box-sizing: border-box;
-            width: 100%;
-            max-width: 550px;     /* Prevent logos from stretching too wide on large screens */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        /* Both logos forced to the same height */
         .logo-img {
-            height: 90px;
+            height: 80px;
             width: auto;
-            border-radius: 15px;
-            flex-shrink: 1;       /* Prevent logos from being squeezed */
+            display: block;
+            border-radius: 0;      /* Let the white card provide the rounded corners */
         }
 
         p {
@@ -81,21 +80,20 @@
 
         /* Mobile adjustments */
         @media (max-width: 600px) {
-            .logo-img {
-                height: 70px;
+            .logo-wrapper {
+                padding: 10px 30px;
+                border-radius: 20px;
             }
-            .logo-container {
-                gap: 15px;
-                padding: 0 1.2rem;
-                max-width: 100%;
+            .logo-img {
+                height: 60px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- Two split logos, forced to the same height -->
-    <div class="logo-container">
+    <!-- Unified white rounded card with two seamlessly joined logos -->
+    <div class="logo-wrapper">
         <img src="logo1.jpg" alt="MW Icon" class="logo-img">
         <img src="logo2.jpg" alt="MacWave Text" class="logo-img">
     </div>
