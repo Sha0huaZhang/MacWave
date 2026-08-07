@@ -69,17 +69,20 @@
             background-color: #1e2a4a;
             border-radius: 12px;
             padding: 20px;
-            overflow-x: auto;
+            overflow-x: auto;        /* Enable horizontal scrolling */
             color: #d4d4d4;
             font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
             border: 1px solid #3a4a6a;
-            font-size: 0.9rem;          /* Reduced to 75% of original 1.2rem */
-            white-space: pre-wrap;
+            font-size: 0.9rem;
+            white-space: pre;        /* Preserve line breaks, enable scrolling */
             text-align: left;
+            max-width: 100%;         /* Stay within container */
+            box-sizing: border-box;
+            margin: 0;
         }
 
         .code-dollar {
-            color: #ffffff;             /* White and bold */
+            color: #ffffff;
             font-weight: bold;
         }
 
@@ -139,45 +142,78 @@
             margin-top: 4px;
         }
 
-        /* Responsive adjustments */
+        /* ======================================================== */
+        /*           Responsive rules for all screen sizes          */
+        /* ======================================================== */
+
+        /* Very large desktops / external displays */
         @media (min-width: 1367px) {
             .logo-wrapper { padding: 15px 40px; }
             .logo-img { height: 60px; }
         }
 
+        /* 13-inch / 14-inch laptops */
         @media (min-width: 1025px) and (max-width: 1366px) {
             .logo-wrapper { padding: 15px 30px; border-radius: 28px; }
             .logo-img { height: 55px; }
             .content-section { padding: 0 60px; max-width: 750px; }
         }
 
+        /* Standard iPads (10-11"), foldables */
         @media (min-width: 821px) and (max-width: 1024px) {
-            .logo-wrapper { padding: 12px 25px; border-radius: 24px; }
+            .logo-wrapper { 
+                padding: 12px 25px; 
+                border-radius: 28px; 
+                max-width: 95%;
+            }
             .logo-img { height: 50px; }
             .content-section { padding: 0 30px; }
         }
 
+        /* iPad mini, some landscape phones */
         @media (min-width: 601px) and (max-width: 820px) {
-            .logo-wrapper { padding: 12px 20px; border-radius: 22px; }
+            .logo-wrapper { 
+                padding: 10px 20px; 
+                border-radius: 24px; 
+                max-width: 95%;
+            }
             .logo-img { height: 48px; }
             .content-section { padding: 0 20px; }
         }
 
+        /* Mainstream large phones (6.1" ~ 6.9") */
         @media (min-width: 376px) and (max-width: 600px) {
-            .logo-wrapper { padding: 10px 15px; border-radius: 20px; }
+            .logo-wrapper { 
+                padding: 10px 20px;
+                border-radius: 20px; 
+                max-width: 100%;
+            }
             .logo-img { height: 45px; }
-            .content-section { padding: 0 10px; }
-            pre { font-size: 0.8rem; }
+            .content-section { padding: 0 15px; }
+            pre { 
+                font-size: 0.8rem; 
+                white-space: pre;
+            }
         }
 
+        /* Small phones (iPhone SE, 5.8") */
         @media (max-width: 375px) {
-            .logo-wrapper { padding: 8px 12px; border-radius: 16px; margin-bottom: 18px; }
+            .logo-wrapper { 
+                padding: 8px 12px; 
+                border-radius: 16px; 
+                margin-bottom: 18px;
+                max-width: 100%;
+            }
             .logo-img { height: 36px; }
             .content-section { padding: 0 6px; }
             p { font-size: 0.95rem; line-height: 1.5; }
             h2 { font-size: 1.4rem !important; padding-bottom: 6px !important; margin-top: 25px !important; }
             .btn-github { padding: 10px 24px; font-size: 0.95rem; }
-            pre { font-size: 0.7rem !important; padding: 12px !important; }
+            pre { 
+                font-size: 0.7rem !important; 
+                padding: 12px !important; 
+                white-space: pre;
+            }
         }
     </style>
 </head>
