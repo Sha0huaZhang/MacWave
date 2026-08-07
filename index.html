@@ -131,11 +131,6 @@
             transition: all 0.2s ease;
         }
 
-        /* 
-           Geometric alignment:
-           25% offset of a 14px square is 3.5px.
-           You can change this value to move the front square further.
-        */
         .square-front {
             position: absolute;
             bottom: 0;
@@ -146,7 +141,7 @@
             border-radius: 2px;
             background-color: rgba(30, 42, 74, 0.4);
             transition: all 0.2s ease;
-            transform: translate(-4.5px, -4.5px); /* Adjusted further to the bottom-right */
+            transform: translate(-4.5px, -4.5px);
         }
 
         .copy-btn:hover .square-back,
@@ -157,9 +152,71 @@
         /* Copied animation: fill both squares with solid white, borders transparent */
         .copy-btn.copied .square-back,
         .copy-btn.copied .square-front {
-            background-color: #ffffff;  /* White fill */
-            border-color: transparent;   /* Transparent border */
+            background-color: #ffffff;
+            border-color: transparent;
             opacity: 1;
+        }
+
+        /* Contact Us - Large white title, blue line directly below it */
+        .contact-section {
+            margin-top: 40px;
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .contact-section h2 {
+            font-size: 2rem;
+            color: #ffffff;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        /* Thin blue line under the title */
+        .contact-divider {
+            width: 60px;
+            height: 2px;
+            background-color: #4a90e2;
+            margin: 0 auto 20px auto;
+        }
+
+        .contact-items {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ffffff;
+            font-size: 1.1rem;
+        }
+
+        .contact-label {
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .contact-item a {
+            color: #ffffff;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .contact-item a:hover {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+
+        .contact-hint {
+            font-size: 0.85rem;
+            color: #ffffff;
+            opacity: 0.7;
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -287,6 +344,7 @@ test_001        by Sha0huaZhang</pre>
     <!-- Contact Us -->
     <div class="contact-section">
         <h2>Contact Us</h2>
+        <div class="contact-divider"></div>
         <div class="contact-items">
             <div class="contact-item">
                 <span class="contact-label">Twitter</span>
