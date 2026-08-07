@@ -21,13 +21,20 @@ curl -fsSL -o "$INSTALL_DIR/wave" "$WAVE_URL"
 # 3. Make it executable
 chmod +x "$INSTALL_DIR/wave"
 
-# 4. Install Python dependency: requests
+# 4. Install Python dependencies: requests and packaging
 echo "🌊 Checking Python dependencies..."
 if ! python3 -c "import requests" 2>/dev/null; then
     echo "🌊 Installing 'requests' library..."
     pip3 install requests --quiet
 else
     echo "🌊 'requests' library is already installed."
+fi
+
+if ! python3 -c "from packaging.version import parse" 2>/dev/null; then
+    echo "🌊 Installing 'packaging' library..."
+    pip3 install packaging --quiet
+else
+    echo "🌊 'packaging' library is already installed."
 fi
 
 # 5. Add to PATH in .zshrc / .bashrc
@@ -48,8 +55,15 @@ else
     echo "🌊 MacWave is already in your PATH."
 fi
 
-# 6. Final success message
+# 6. Final message with colored prompt
 echo ""
 echo "🌊 Installation complete!"
-echo "🌊 Try it now: wave install test_001"
-echo "🌊 To apply PATH changes, run: source $RC_FILE"
+echo ""
+echo "🌊 To use 'wave' immediately in this terminal, run:"
+echo -e "\033[33m    source ~/.zshrc\033[0m"
+echo "🌊 (If you are using bash, run:"
+echo -e "\033[33m    source ~/.bashrc\033[0m"
+echo "🌊 Or simply open a new terminal window to apply changes automatically."
+echo ""
+echo "🌊 Try it now after refreshing:"
+echo "    wave install test_001"
