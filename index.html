@@ -23,7 +23,7 @@
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
-            padding: 15px 20px;      /* 👈 左右边距缩小到 20px */
+            padding: 15px 20px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -33,7 +33,7 @@
         }
 
         .logo-img {
-            height: 60px;            /* 👈 原高度 80px 的 75% */
+            height: 60px;
             width: auto;
             display: block;
             border-radius: 0;
@@ -69,8 +69,9 @@
             opacity: 0.5;
         }
 
+        /* Email styling: white color */
         .footer a {
-            color: #4a90e2;
+            color: #ffffff;      /* Change to white */
             text-decoration: none;
         }
 
@@ -81,11 +82,11 @@
         /* Mobile adjustments */
         @media (max-width: 600px) {
             .logo-wrapper {
-                padding: 10px 15px;  /* 手机上边距继续缩小 */
+                padding: 10px 15px;
                 border-radius: 20px;
             }
             .logo-img {
-                height: 45px;        /* 手机端高度也降为 60px 的 75% */
+                height: 45px;
             }
         }
     </style>
@@ -103,7 +104,7 @@
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
 
     <div class="footer">
-        <a href="mailto:hi@macwave.org">hi@macwave.org</a>
+        Email: <a href="mailto:hi@macwave.org">hi@macwave.org</a>
     </div>
 
 </body>
