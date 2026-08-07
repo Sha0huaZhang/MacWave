@@ -64,7 +64,7 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* ---------- 代码块与复制按钮样式 ---------- */
+        /* Code block and copy button styles */
         .code-container {
             position: relative;
             margin-bottom: 20px;
@@ -84,7 +84,7 @@
             white-space: pre;
             text-align: left;
             margin: 0;
-            padding-right: 70px; /* 为右侧按钮留出空间 */
+            padding-right: 70px; /* Leave space for the copy button */
         }
 
         .code-dollar {
@@ -119,7 +119,7 @@
             border-color: #4a90e2;
         }
 
-        /* ---------- Contact Us ---------- */
+        /* Contact Us */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -231,9 +231,7 @@
         </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
-        <div class="code-container">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            <pre>
+        <pre>
 Usage:
   wave &lt;command&gt; [package] [flags]
 
@@ -269,17 +267,13 @@ Examples:
   wave install machox -B
   wave search choma -f
   wave info trollresigner</pre>
-        </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported Packages</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">(Listed in alphabetical order)</p>
-        <div class="code-container">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            <pre>
+        <pre>
 machox          by Sha0huaZhang
 ldid            by Jay Freeman (saurik) / Procursus Team
 test_001        by Sha0huaZhang</pre>
-        </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">License</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
@@ -307,22 +301,14 @@ test_001        by Sha0huaZhang</pre>
     <!-- JavaScript for Copy Functionality -->
     <script>
         function copyCode(btn) {
-            // Find the <pre> element immediately preceding the button
             const pre = btn.parentElement.querySelector('pre');
             if (!pre) return;
-
-            // Get text content, remove the "$ " prefix for cleaner copying
             let text = pre.textContent;
-            // Remove leading "$ " if present
             text = text.replace(/^\$\s/, '');
-
-            // Copy to clipboard
             navigator.clipboard.writeText(text).then(() => {
-                // Visual feedback
                 const originalText = btn.textContent;
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
-                
                 setTimeout(() => {
                     btn.textContent = originalText;
                     btn.classList.remove('copied');
