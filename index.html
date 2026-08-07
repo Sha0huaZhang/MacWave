@@ -133,9 +133,8 @@
 
         /* 
            Geometric alignment:
-           The 25% offset of a 14px square is 3.5px.
-           This places the top-left corner of the front square exactly at the midpoint 
-           between the center and top-left corner of the back square.
+           25% offset of a 14px square is 3.5px.
+           You can change this value to move the front square further.
         */
         .square-front {
             position: absolute;
@@ -147,7 +146,7 @@
             border-radius: 2px;
             background-color: rgba(30, 42, 74, 0.4);
             transition: all 0.2s ease;
-            transform: translate(-3.5px, -3.5px); /* Precise 25% offset */
+            transform: translate(-4.5px, -4.5px); /* Adjusted further to the bottom-right */
         }
 
         .copy-btn:hover .square-back,
@@ -155,68 +154,12 @@
             border-color: #ffffff;
         }
 
-        /* Copied animation: fill both squares with solid blue */
+        /* Copied animation: fill both squares with solid white, borders transparent */
         .copy-btn.copied .square-back,
         .copy-btn.copied .square-front {
-            background-color: #4a90e2;
-            border-color: #4a90e2;
+            background-color: #ffffff;  /* White fill */
+            border-color: transparent;   /* Transparent border */
             opacity: 1;
-        }
-
-        /* Contact Us */
-        .contact-section {
-            margin-top: 40px;
-            padding: 20px 0;
-            border-top: 1px solid #2a3a5a;
-            text-align: center;
-            font-size: 1rem;
-            opacity: 1;
-        }
-
-        .contact-section h2 {
-            font-size: 1.4rem;
-            border-bottom: 2px solid #4a90e2;
-            padding-bottom: 8px;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-
-        .contact-items {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 12px;
-        }
-
-        .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #ffffff;
-        }
-
-        .contact-label {
-            font-weight: bold;
-            color: #ffffff;
-        }
-
-        .contact-item a {
-            color: #ffffff;
-            text-decoration: none;
-            transition: opacity 0.2s;
-        }
-
-        .contact-item a:hover {
-            text-decoration: underline;
-            opacity: 0.8;
-        }
-
-        .contact-hint {
-            font-size: 0.85rem;
-            color: #ffffff;
-            opacity: 0.7;
-            margin-top: 4px;
         }
     </style>
 </head>
