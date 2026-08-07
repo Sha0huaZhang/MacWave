@@ -19,29 +19,25 @@
             padding: 20px;
         }
 
-        /* White rounded card container */
+        /* Logo container: responsive width, side margins about 1.8rem */
         .logo-container {
-            background-color: #ffffff;
-            padding: 25px 45px;
-            border-radius: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            gap: 25px;            /* Space between the two logos */
+            margin-bottom: 25px;
+            padding: 0 1.8rem;    /* Side margins, adjustable */
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 550px;     /* Prevent logos from stretching too wide on large screens */
         }
 
+        /* Both logos forced to the same height */
         .logo-img {
-            height: 55px;
+            height: 90px;
             width: auto;
-            display: block;
-        }
-
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin: 10px 0;
-            letter-spacing: -1px;
+            border-radius: 15px;
+            flex-shrink: 1;       /* Prevent logos from being squeezed */
         }
 
         p {
@@ -85,24 +81,25 @@
 
         /* Mobile adjustments */
         @media (max-width: 600px) {
-            .logo-container {
-                padding: 15px 30px;
-                border-radius: 20px;
-            }
             .logo-img {
-                height: 45px;
+                height: 70px;
+            }
+            .logo-container {
+                gap: 15px;
+                padding: 0 1.2rem;
+                max-width: 100%;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- White rounded card container -->
+    <!-- Two split logos, forced to the same height -->
     <div class="logo-container">
-        <img src="logo.jpg" alt="MacWave Logo" class="logo-img">
+        <img src="logo1.jpg" alt="MW Icon" class="logo-img">
+        <img src="logo2.jpg" alt="MacWave Text" class="logo-img">
     </div>
 
-    <h1>MacWave</h1>
     <p>A package manager for macOS/Linux jailbreak developers.</p>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
