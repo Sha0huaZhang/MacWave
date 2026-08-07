@@ -10,20 +10,33 @@ import json
 import os
 import sys
 import platform
+import time
+import fcntl
 from pathlib import Path
 
 # Check for requests library
 try:
     import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
 except ImportError:
     print("🌊 Error: 'requests' library is not installed.")
     print("🌊 Please install it using: pip3 install requests")
+    sys.exit(1)
+
+# Check for packaging library (used for safe version comparison)
+try:
+    from packaging.version import parse as parse_version
+except ImportError:
+    print("🌊 Error: 'packaging' library is not installed.")
+    print("🌊 Please install it using: pip3 install packaging")
     sys.exit(1)
 
 VERSION = "1.0.0"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"
+REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"
 
 
 class MacWaveCLI:
@@ -136,14 +149,42 @@ class MacWaveCLI:
             print(f"🌊 Verbose: {message}")
     
     def fetch_repo_data(self, args=None):
-        """Fetch and parse the remote package index (repo.json)."""
-        self.log_verbose("Fetching repo from URL: " + REPO_URL)
+        """Fetch and parse the remote package index (repo.json) with local caching."""
+        # Ensure cache directory exists
+        REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Check if cache is valid (5 minutes)
+        cache_valid = False
+        if REPO_CACHE.exists():
+            mtime = REPO_CACHE.stat().st_mtime
+            if (time.time() - mtime) < 300:
+                cache_valid = True
+        
+        # If cache is valid, use it
+        if cache_valid:
+            self.log_verbose("Using cached repo.json")
+            try:
+                with open(REPO_CACHE, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                self.log_verbose("Cache corrupted, falling back to network")
+                pass
+        
+        self.log_verbose("Fetching fresh repo.json from network")
+        session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["GET"]
+        )
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        
         try:
             request_kwargs = {
                 'timeout': 10
             }
             
-            # Handle proxy
             if args and args.proxy:
                 self.log_verbose(f"Using proxy: {args.proxy}")
                 request_kwargs['proxies'] = {
@@ -151,19 +192,25 @@ class MacWaveCLI:
                     'https': args.proxy
                 }
             
-            # Handle SSL
             if args and args.skip_ssl:
                 self.log_verbose("SSL verification disabled")
                 request_kwargs['verify'] = False
                 import urllib3
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
-            response = requests.get(REPO_URL, **request_kwargs)
+            response = session.get(REPO_URL, **request_kwargs)
             response.raise_for_status()
-            self.log_verbose("Successfully fetched and parsed repo.json")
-            return response.json()
+            data = response.json()
+            
+            # Write to cache
+            with open(REPO_CACHE, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            self.log_verbose("Fetched and cached fresh repo.json")
+            return data
+            
         except requests.exceptions.RequestException as e:
-            print(f"🌊 Error: Failed to fetch repository data: {e}")
+            print(f"🌊 Error: Failed to fetch repository data after 3 retries: {e}")
             sys.exit(1)
         except json.JSONDecodeError:
             print("🌊 Error: Invalid JSON data received from repository")
@@ -219,38 +266,47 @@ class MacWaveCLI:
         sys.exit(1)
     
     def download_binary(self, url, package_name, args):
-        """Download the binary file from the given URL with progress indicator."""
+        """Download binary to disk directly with streaming. Handles Ctrl+C gracefully."""
         if args.dry_run:
             print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
-            return b"dry-run-content"
+            return
         
         self.log_verbose(f"Downloading from: {url}")
         print(f"🌊 Downloading {package_name}...")
         
+        # Target and temporary paths
+        final_path = INSTALL_DIR / package_name
+        temp_path = INSTALL_DIR / f"{package_name}.partial"
+        
+        # Ensure directory exists
+        INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure partial file exists as a placeholder
+        if not temp_path.exists():
+            temp_path.touch()
+        
+        # Prepare request parameters
         request_kwargs = {
             'stream': True,
             'timeout': 30
         }
         
         if args.proxy:
-            self.log_verbose(f"Using proxy: {args.proxy}")
-            request_kwargs['proxies'] = {
-                'http': args.proxy,
-                'https': args.proxy
-            }
+            request_kwargs['proxies'] = {'http': args.proxy, 'https': args.proxy}
         
         if args.skip_ssl:
-            self.log_verbose("SSL verification disabled")
             request_kwargs['verify'] = False
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
+        # Handle resume
         headers = {}
+        resume_pos = 0
         if args.resume:
-            temp_file = INSTALL_DIR / f"{package_name}.partial"
-            if temp_file.exists():
-                self.log_verbose(f"Resuming download from byte {temp_file.stat().st_size}")
-                headers['Range'] = f"bytes={temp_file.stat().st_size}-"
+            resume_pos = temp_path.stat().st_size
+            if resume_pos > 0:
+                headers['Range'] = f"bytes={resume_pos}-"
+                self.log_verbose(f"Resuming download from byte {resume_pos}")
         
         if headers:
             request_kwargs['headers'] = headers
@@ -259,37 +315,29 @@ class MacWaveCLI:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            rate_limit = None
-            if args.limit_rate:
-                rate_limit = self._parse_rate_limit(args.limit_rate)
-                self.log_verbose(f"Rate limit set to: {args.limit_rate}")
+            # If server doesn't support resume, reset position
+            if response.status_code == 200 and headers and resume_pos > 0:
+                resume_pos = 0
+                self.log_verbose("Server does not support resume, starting from beginning.")
             
-            content = b""
-            if args.resume and temp_file.exists():
-                with open(temp_file, 'rb') as f:
-                    content = f.read()
-                self.log_verbose(f"Resumed with {len(content)} existing bytes")
-            
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    content += chunk
-                    print(".", end="", flush=True)
-                    
-                    if args.resume:
-                        temp_file = INSTALL_DIR / f"{package_name}.partial"
-                        with open(temp_file, 'ab') as f:
+            # Write to disk directly
+            mode = 'ab' if resume_pos > 0 else 'wb'
+            with open(temp_path, mode) as f:
+                try:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
                             f.write(chunk)
-                    
-                    if rate_limit:
-                        import time
-                        time.sleep(len(chunk) / rate_limit)
+                            if self.verbose:
+                                print(".", end="", flush=True)
+                except KeyboardInterrupt:
+                    print("\n🌊 Download interrupted. Use -C to resume later.")
+                    return
             
-            if args.resume and temp_file.exists():
-                temp_file.unlink()
-            
+            # Rename to final file
+            temp_path.rename(final_path)
+            os.chmod(final_path, 0o755)
             print(" 🌊")
-            self.log_verbose(f"Downloaded {len(content)} bytes")
-            return content
+            self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes")
             
         except requests.exceptions.RequestException as e:
             print(f"\n🌊 Error: Failed to download binary: {e}")
@@ -307,21 +355,19 @@ class MacWaveCLI:
             self.log("Invalid rate limit format, ignoring", force=True)
             return None
     
-    def install_package(self, content, package_name, args):
-        """Install the downloaded binary to the local MacWave directory."""
+    def install_package(self, package_name, args):
+        """Finalize installation (check PATH and record)."""
         if args.dry_run:
             print(f"🌊 [DRY RUN] Would install {package_name} to {INSTALL_DIR}")
             return
         
-        INSTALL_DIR.mkdir(parents=True, exist_ok=True)
         binary_path = INSTALL_DIR / package_name
+        if not binary_path.exists():
+            print(f"🌊 Error: Binary file not found after download.")
+            sys.exit(1)
         
         try:
-            with open(binary_path, "wb") as f:
-                f.write(content)
-            os.chmod(binary_path, 0o755)
             print(f"🌊 Successfully installed {package_name} to {binary_path}")
-            
             self._record_installation(package_name, release_version=None)
             
             path_dirs = os.environ.get("PATH", "").split(":")
@@ -336,21 +382,31 @@ class MacWaveCLI:
             sys.exit(1)
     
     def _record_installation(self, package_name, release_version=None):
-        """Record installed package in the local database."""
+        """Record installed package in the local database with file lock."""
         try:
-            installed = {}
-            if INSTALLED_DB.exists():
-                with open(INSTALLED_DB, 'r') as f:
-                    installed = json.load(f)
-            
-            installed[package_name] = {
-                "version": release_version,
-                "binary_path": str(INSTALL_DIR / package_name)
-            }
-            
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-            with open(INSTALLED_DB, 'w') as f:
+            
+            # Open file with exclusive lock
+            with open(INSTALLED_DB, 'a+') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                
+                f.seek(0)
+                try:
+                    content = f.read()
+                    installed = json.loads(content) if content else {}
+                except json.JSONDecodeError:
+                    installed = {}
+                
+                installed[package_name] = {
+                    "version": release_version,
+                    "binary_path": str(INSTALL_DIR / package_name)
+                }
+                
+                f.seek(0)
+                f.truncate()
                 json.dump(installed, f, indent=2)
+                
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
                 
         except Exception as e:
             self.log(f"Warning: Could not record installation: {e}", force=True)
@@ -369,16 +425,16 @@ class MacWaveCLI:
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
-                binary_content = self.download_binary(release["binary_url"], safe_name, args)
-                self.install_package(binary_content, safe_name, args)
+                self.download_binary(release["binary_url"], safe_name, args)
+                self.install_package(safe_name, args)
             return
         
         # 2. If user requested beta version
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
-                binary_content = self.download_binary(beta_release["binary_url"], safe_name, args)
-                self.install_package(binary_content, safe_name, args)
+                self.download_binary(beta_release["binary_url"], safe_name, args)
+                self.install_package(safe_name, args)
                 return
             else:
                 print(f"🌊 No beta version found for '{safe_name}'.")
@@ -389,8 +445,8 @@ class MacWaveCLI:
         
         # 3. Regular stable release
         release = self.find_package(repo_data, safe_name, args)
-        binary_content = self.download_binary(release["binary_url"], safe_name, args)
-        self.install_package(binary_content, safe_name, args)
+        self.download_binary(release["binary_url"], safe_name, args)
+        self.install_package(safe_name, args)
     
     def handle_uninstall(self, args):
         """Handle the uninstall command."""
@@ -399,21 +455,34 @@ class MacWaveCLI:
             print(f"🌊 No packages installed. Nothing to uninstall.")
             return
         try:
+            # Read with shared lock
             with open(INSTALLED_DB, 'r') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            
             if safe_name not in installed:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
                 return
+            
             binary_path = INSTALL_DIR / safe_name
             if binary_path.exists():
                 binary_path.unlink()
                 print(f"🌊 Removed binary: {binary_path}")
             else:
                 print(f"🌊 Warning: Binary file not found, but removing from database.")
-            del installed[safe_name]
+            
+            # Write with exclusive lock
             with open(INSTALLED_DB, 'w') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                del installed[safe_name]
+                f.seek(0)
+                f.truncate()
                 json.dump(installed, f, indent=2)
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            
             print(f"🌊 Successfully uninstalled '{safe_name}'.")
+            
         except Exception as e:
             print(f"🌊 Error: Failed to uninstall package: {e}")
     
@@ -478,9 +547,11 @@ class MacWaveCLI:
             print(f"🌊 Homepage:    {package_info.get('homepage')}")
     
     def handle_update(self, args):
-        """Handle the update command."""
-        print("🌊 Updating package index...")
+        """Handle the update command (force refresh the cache)."""
+        print("🌊 Forcing update: fetching fresh package index...")
         try:
+            if REPO_CACHE.exists():
+                REPO_CACHE.unlink()
             repo_data = self.fetch_repo_data(self.parser.parse_args([]))
             print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
         except Exception as e:
@@ -504,9 +575,19 @@ class MacWaveCLI:
             repo_data = self.fetch_repo_data(args)
             release = self.find_package(repo_data, safe_name)
             remote_version = release.get("version", "unknown")
-            if local_version >= remote_version:
-                print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
-                return
+            
+            # Safe semantic version comparison
+            try:
+                local_v = parse_version(local_version)
+                remote_v = parse_version(remote_version)
+                if local_v >= remote_v:
+                    print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
+                    return
+            except Exception:
+                if local_version >= remote_version:
+                    print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
+                    return
+            
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
             binary_path = INSTALL_DIR / safe_name
             if binary_path.exists():
@@ -514,8 +595,8 @@ class MacWaveCLI:
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
-            binary_content = self.download_binary(release["binary_url"], safe_name, args)
-            self.install_package(binary_content, safe_name, args)
+            self.download_binary(release["binary_url"], safe_name, args)
+            self.install_package(safe_name, args)
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
     
