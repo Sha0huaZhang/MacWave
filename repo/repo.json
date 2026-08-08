@@ -65,7 +65,7 @@
       "name": "trollrestore",
       "version": "1.0",
       "license": "MIT",
-      "description": "TrollStore installer for iOS 15.2 - 16.7 RC & 17.0 using CVE-2024-44252.",
+      "description": "TrollStore installer for iOS 15.2 - 16.7 RC & 17.0.",
       "author": "JJTech0130",
       "homepage": "https://github.com/JJTech0130/TrollRestore",
       "releases": [
