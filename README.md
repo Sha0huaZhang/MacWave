@@ -48,7 +48,7 @@ Flags:
 Global Flags (can be used with any command):
   -B, --beta-version      Install the latest beta version (if available)
   -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads
-  -C, --continue          Resume interrupted downloads (like curl -C -)
+  -C, --continue          Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)
       --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
       --skip-ssl          Skip SSL certificate verification (insecure)
       --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
