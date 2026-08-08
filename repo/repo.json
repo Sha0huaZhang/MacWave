@@ -60,6 +60,26 @@
           "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64"
         }
       ]
+    },
+    {
+      "name": "trollrestore",
+      "version": "1.0",
+      "license": "MIT",
+      "description": "TrollStore installer for iOS 15.2 - 16.7 RC & 17.0 using CVE-2024-44252.",
+      "author": "JJTech0130",
+      "homepage": "https://github.com/JJTech0130/TrollRestore",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "binary_url": "https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_macOS_arm64.zip"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "binary_url": "https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_macOS_amd64.zip"
+        }
+      ]
     }
   ]
 }
