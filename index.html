@@ -72,6 +72,7 @@
             box-sizing: border-box;
         }
 
+        /* 修复换行核心：white-space: pre-wrap; 允许长代码自动换行 */
         pre {
             background-color: #1e2a4a;
             border-radius: 12px;
@@ -81,7 +82,8 @@
             font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
             border: 1px solid #3a4a6a;
             font-size: 0.9rem;
-            white-space: pre;
+            white-space: pre-wrap;  /* 允许代码自动换行 */
+            word-break: break-word; /* 确保长单词/命令能断行 */
             text-align: left;
             margin: 0;
             padding-right: 70px;
