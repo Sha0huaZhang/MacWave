@@ -1,3 +1,6 @@
+好的，这是 修复了 -C 参数识别问题 的完整版 wave.py（已包含您最近要求的所有其他功能）。请直接复制下面的代码，覆盖您 GitHub 上的 wave.py 文件，然后重新运行安装脚本。
+
+```python
 #!/usr/bin/env python3
 """
 MacWave 🌊
@@ -637,3 +640,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
