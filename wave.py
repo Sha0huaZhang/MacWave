@@ -62,7 +62,7 @@ class MacWaveCLI:
         parser.add_argument('-B', '--beta-version', action='store_true',
                           help='Install the latest beta version (if available)')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
-                          help='Resume interrupted downloads (like curl -C -)')
+                          help='Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)')
         parser.add_argument('--proxy', type=str, metavar='string',
                           help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
         parser.add_argument('--skip-ssl', action='store_true',
