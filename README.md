@@ -18,6 +18,17 @@ source ~/.zshrc
 ```
 
 (If you are using bash instead of zsh, run ```source ~/.bashrc```)
+
+# Uninstall MacWave
+
+In the terminal, run the following command:     
+
+```
+/bin/bash -c "INSTALL_DIR=\"\$HOME/.local/macwave\"; echo -e \"\033[31mYou are deleting MacWave, are you sure? [Y/n]\033[0m\"; read -n 1 -r; echo; if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then echo \"🌊 Uninstall cancelled.\"; exit 0; fi; if [ -d \"\$INSTALL_DIR\" ]; then echo \"🌊 Removing \$INSTALL_DIR...\"; rm -rf \"\$INSTALL_DIR\"; else echo \"🌊 MacWave installation directory not found. Skipping.\"; fi; for RC_FILE in \"\$HOME/.zshrc\" \"\$HOME/.bashrc\"; do if [ -f \"\$RC_FILE\" ]; then sed -i '' '/# MacWave/d' \"\$RC_FILE\" 2>/dev/null || true; sed -i '' '/export PATH=\".*macwave\\/bin/d' \"\$RC_FILE\" 2>/dev/null || true; echo \"🌊 Removed MacWave PATH entries from \$RC_FILE\"; fi; done; echo \"\"; echo \"🌊 MacWave has been uninstalled.\"; echo \"🌊 Please restart your terminal to apply changes.\""
+```
+
+⚠️ **Important:** This command **permanently removes MacWave and its configuration files**. Make sure you have **copied the entire command correctly** before pressing Enter.
+
 # 🌊 Download Directory 
 Installed binaries are stored in:    
 ```
