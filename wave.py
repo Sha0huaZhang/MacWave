@@ -32,7 +32,7 @@ except ImportError:
     print("🌊 Please install it using: pip3 install packaging")
     sys.exit(1)
 
-VERSION = "1.0.1"
+VERSION = "1.0.0"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"
