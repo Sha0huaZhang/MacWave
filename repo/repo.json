@@ -41,7 +41,7 @@
       "name": "ldid",
       "version": "2.1.5-procursus7",
       "license": "MIT",
-      "description": "Fake sign Mach-O binaries. Essential for jailbreak development.",
+      "description": "Link Identity Editor. Put real or fake signatures in a Mach-O.",
       "author": "Jay Freeman (saurik) / Procursus Team",
       "homepage": "https://github.com/ProcursusTeam/ldid",
       "releases": [
@@ -78,6 +78,198 @@
           "os": "darwin",
           "arch": "amd64",
           "binary_url": "https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_macOS_amd64.zip"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.0",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.0",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.0",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.0.1",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.0.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.1/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.0.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.1/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.0.2",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.0.2",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.2/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.0.2",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.2/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.1",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.1/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.1/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.2",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.2",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.2",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.2.1",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.2.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2.1/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.2.1",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2.1/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.3",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.3",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.3/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.3",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.3/palera1n-macos-x86_64"
+        }
+      ]
+    },
+    {
+      "name": "palera1n",
+      "version": "2.4",
+      "license": "MIT",
+      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
+      "author": "palera1n Team",
+      "homepage": "https://github.com/palera1n/palera1n",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "version": "2.4",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.4/palera1n-macos-arm64"
+        },
+        {
+          "os": "darwin",
+          "arch": "amd64",
+          "version": "2.4",
+          "filename": "palera1n",
+          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.4/palera1n-macos-x86_64"
         }
       ]
     }
