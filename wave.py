@@ -302,11 +302,16 @@ class MacWaveCLI:
         # Handle resume
         headers = {}
         resume_pos = 0
+        
+        # 关键修复：只有当 args.resume 为 True 时，才尝试读取 .partial 文件
         if args.resume:
-            resume_pos = temp_path.stat().st_size
-            if resume_pos > 0:
-                headers['Range'] = f"bytes={resume_pos}-"
-                self.log_verbose(f"Resuming download from byte {resume_pos}")
+            if temp_path.exists():
+                resume_pos = temp_path.stat().st_size
+                if resume_pos > 0:
+                    headers['Range'] = f"bytes={resume_pos}-"
+                    self.log_verbose(f"Resuming download from byte {resume_pos}")
+            else:
+                self.log_verbose("No partial file found, starting from beginning.")
         
         if headers:
             request_kwargs['headers'] = headers
