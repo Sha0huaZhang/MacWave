@@ -2,7 +2,7 @@
 """
 MacWave 🌊
 A package manager for macOS/Linux jailbreak developers.
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import argparse
@@ -32,7 +32,7 @@ except ImportError:
     print("🌊 Please install it using: pip3 install packaging")
     sys.exit(1)
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"
@@ -48,7 +48,7 @@ class MacWaveCLI:
         """Create the main argument parser with all commands and flags."""
         parser = argparse.ArgumentParser(
             prog="wave",
-            description="MacWave 1.0.0 🌊\nA package manager for macOS/Linux jailbreak developers.",
+            description="MacWave 1.0.1 🌊\nA package manager for macOS/Linux jailbreak developers.",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             usage="wave <command> [package] [flags]",
             epilog="For more details, visit: https://macwave.org"
@@ -61,8 +61,7 @@ class MacWaveCLI:
                           help='Enable verbose output (show detailed logs)')
         parser.add_argument('-B', '--beta-version', action='store_true',
                           help='Install the latest beta version (if available)')
-        parser.add_argument('-C', '--continue', dest='resume', action='store_true',
-                          help="Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)")
+        # -C 已移到 install 子命令中
         parser.add_argument('--proxy', type=str, metavar='string',
                           help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
         parser.add_argument('--skip-ssl', action='store_true',
@@ -137,6 +136,9 @@ class MacWaveCLI:
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
         parser.add_argument('--ver', type=str, metavar='string',
                           help='Install a specific version of the package (e.g., --ver 1.0.0)')
+        # 修复：-C 参数现在属于 install 子命令
+        parser.add_argument('-C', '--continue', dest='resume', action='store_true',
+                          help='Resume interrupted downloads (use with install command)')
     
     def log(self, message, force=False):
         """Print log messages. Only prints if verbose mode is enabled or forced."""
@@ -265,8 +267,11 @@ class MacWaveCLI:
         print(f"🌊 Error: Package '{package_name}' not found in repository")
         sys.exit(1)
     
-    def download_binary(self, url, package_name, args):
+    def download_binary(self, url, package_name, args, install_dir=None):
         """Download binary to disk directly with streaming. Handles Ctrl+C gracefully."""
+        if install_dir is None:
+            install_dir = INSTALL_DIR
+        
         if args.dry_run:
             print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
             return
@@ -275,15 +280,11 @@ class MacWaveCLI:
         print(f"🌊 Downloading {package_name}...")
         
         # Target and temporary paths
-        final_path = INSTALL_DIR / package_name
-        temp_path = INSTALL_DIR / f"{package_name}.partial"
+        final_path = install_dir / package_name
+        temp_path = install_dir / f"{package_name}.partial"
         
         # Ensure directory exists
-        INSTALL_DIR.mkdir(parents=True, exist_ok=True)
-        
-        # Ensure partial file exists as a placeholder
-        if not temp_path.exists():
-            temp_path.touch()
+        install_dir.mkdir(parents=True, exist_ok=True)
         
         # Prepare request parameters
         request_kwargs = {
@@ -299,19 +300,26 @@ class MacWaveCLI:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        # Handle resume
+        # Handle resume - 修复：安全检查
         headers = {}
         resume_pos = 0
+        should_resume = args.resume and temp_path.exists()
         
-        # 关键修复：只有当 args.resume 为 True 时，才尝试读取 .partial 文件
-        if args.resume:
-            if temp_path.exists():
+        if should_resume:
+            try:
                 resume_pos = temp_path.stat().st_size
                 if resume_pos > 0:
                     headers['Range'] = f"bytes={resume_pos}-"
                     self.log_verbose(f"Resuming download from byte {resume_pos}")
-            else:
-                self.log_verbose("No partial file found, starting from beginning.")
+                    print(f"🌊 Resuming from {resume_pos} bytes")
+                else:
+                    # 文件存在但大小为0，从头开始
+                    self.log_verbose("Partial file exists but is empty, starting from beginning")
+                    temp_path.unlink()  # 删除空文件
+                    should_resume = False
+            except (FileNotFoundError, OSError) as e:
+                self.log_verbose(f"Cannot read partial file: {e}, starting from beginning")
+                should_resume = False
         
         if headers:
             request_kwargs['headers'] = headers
@@ -320,32 +328,63 @@ class MacWaveCLI:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            # If server doesn't support resume, reset position
-            if response.status_code == 200 and headers and resume_pos > 0:
-                resume_pos = 0
-                self.log_verbose("Server does not support resume, starting from beginning.")
+            # 修复：检查正确的状态码
+            is_resume = False
+            if should_resume and headers:
+                if response.status_code == 206:  # Partial Content
+                    is_resume = True
+                    self.log_verbose(f"Server supports resume, continuing from {resume_pos}")
+                elif response.status_code == 200:
+                    # 服务器不支持续传，从头开始
+                    self.log_verbose("Server does not support resume, starting from beginning")
+                    resume_pos = 0
+                    # 覆盖临时文件
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    # 移除Range头，重新请求
+                    if 'Range' in request_kwargs.get('headers', {}):
+                        del request_kwargs['headers']['Range']
+                    response = requests.get(url, **request_kwargs)
+                    response.raise_for_status()
+                else:
+                    self.log_verbose(f"Unexpected status code: {response.status_code}")
+                    resume_pos = 0
             
             # Write to disk directly
-            mode = 'ab' if resume_pos > 0 else 'wb'
+            mode = 'ab' if is_resume else 'wb'
+            downloaded = 0
+            
             with open(temp_path, mode) as f:
                 try:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             f.write(chunk)
+                            downloaded += len(chunk)
                             if self.verbose:
                                 print(".", end="", flush=True)
                 except KeyboardInterrupt:
-                    print("\n🌊 Download interrupted. Use -C to resume later.")
+                    print("\n🌊 Download interrupted.")
+                    if temp_path.exists() and temp_path.stat().st_size > 0:
+                        print(f"🌊 Partial file saved at: {temp_path}")
+                        print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+                    else:
+                        if temp_path.exists():
+                            temp_path.unlink()
                     return
             
             # Rename to final file
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
-            print(" 🌊")
+            if self.verbose:
+                print(" 🌊")
             self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes")
+            print(f"🌊 Download complete!")
             
         except requests.exceptions.RequestException as e:
             print(f"\n🌊 Error: Failed to download binary: {e}")
+            # 保留临时文件以便续传
+            if temp_path.exists() and temp_path.stat().st_size > 0:
+                print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
     
     def _parse_rate_limit(self, rate_str):
@@ -360,25 +399,28 @@ class MacWaveCLI:
             self.log("Invalid rate limit format, ignoring", force=True)
             return None
     
-    def install_package(self, package_name, args):
+    def install_package(self, package_name, args, version=None, install_dir=None):
         """Finalize installation (check PATH and record)."""
+        if install_dir is None:
+            install_dir = INSTALL_DIR
+        
         if args.dry_run:
-            print(f"🌊 [DRY RUN] Would install {package_name} to {INSTALL_DIR}")
+            print(f"🌊 [DRY RUN] Would install {package_name} to {install_dir}")
             return
         
-        binary_path = INSTALL_DIR / package_name
+        binary_path = install_dir / package_name
         if not binary_path.exists():
             print(f"🌊 Error: Binary file not found after download.")
             sys.exit(1)
         
         try:
             print(f"🌊 Successfully installed {package_name} to {binary_path}")
-            self._record_installation(package_name, release_version=None)
+            self._record_installation(package_name, version, install_dir)
             
             path_dirs = os.environ.get("PATH", "").split(":")
-            if str(INSTALL_DIR) not in path_dirs:
-                print(f"🌊 Tip: Add {INSTALL_DIR} to your PATH to use '{package_name}' directly:")
-                print(f"🌊   export PATH=\"{INSTALL_DIR}:$PATH\"")
+            if str(install_dir) not in path_dirs:
+                print(f"🌊 Tip: Add {install_dir} to your PATH to use '{package_name}' directly:")
+                print(f"🌊   export PATH=\"{install_dir}:$PATH\"")
             else:
                 print(f"🌊 Ready to ride! You can now run: {package_name}")
                 
@@ -386,8 +428,11 @@ class MacWaveCLI:
             print(f"🌊 Error: Failed to install package: {e}")
             sys.exit(1)
     
-    def _record_installation(self, package_name, release_version=None):
+    def _record_installation(self, package_name, release_version=None, install_dir=None):
         """Record installed package in the local database with file lock."""
+        if install_dir is None:
+            install_dir = INSTALL_DIR
+        
         try:
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
             
@@ -404,7 +449,7 @@ class MacWaveCLI:
                 
                 installed[package_name] = {
                     "version": release_version,
-                    "binary_path": str(INSTALL_DIR / package_name)
+                    "binary_path": str(install_dir / package_name)
                 }
                 
                 f.seek(0)
@@ -426,20 +471,26 @@ class MacWaveCLI:
         repo_data = self.fetch_repo_data(args)
         safe_name = args.package_name.lower()
         
+        # 处理 --dir 标志
+        install_dir = INSTALL_DIR
+        if args.dir:
+            install_dir = Path(args.dir).expanduser().resolve()
+            self.log_verbose(f"Using custom install directory: {install_dir}")
+        
         # 1. If user specified a version via --ver
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
-                self.download_binary(release["binary_url"], safe_name, args)
-                self.install_package(safe_name, args)
+                self.download_binary(release["binary_url"], safe_name, args, install_dir)
+                self.install_package(safe_name, args, release.get("version"), install_dir)
             return
         
         # 2. If user requested beta version
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
-                self.download_binary(beta_release["binary_url"], safe_name, args)
-                self.install_package(safe_name, args)
+                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir)
+                self.install_package(safe_name, args, beta_release.get("version"), install_dir)
                 return
             else:
                 print(f"🌊 No beta version found for '{safe_name}'.")
@@ -450,8 +501,8 @@ class MacWaveCLI:
         
         # 3. Regular stable release
         release = self.find_package(repo_data, safe_name, args)
-        self.download_binary(release["binary_url"], safe_name, args)
-        self.install_package(safe_name, args)
+        self.download_binary(release["binary_url"], safe_name, args, install_dir)
+        self.install_package(safe_name, args, release.get("version"), install_dir)
     
     def handle_uninstall(self, args):
         """Handle the uninstall command."""
@@ -509,7 +560,8 @@ class MacWaveCLI:
     def handle_search(self, args):
         """Handle the search command."""
         query = args.query.lower()
-        repo_data = self.fetch_repo_data(self.parser.parse_args([]))
+        # 修复：传递实际的 args 而不是空列表
+        repo_data = self.fetch_repo_data(args)
         matches = []
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
@@ -557,7 +609,8 @@ class MacWaveCLI:
         try:
             if REPO_CACHE.exists():
                 REPO_CACHE.unlink()
-            repo_data = self.fetch_repo_data(self.parser.parse_args([]))
+            # 修复：传递实际的 args
+            repo_data = self.fetch_repo_data(args)
             print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
         except Exception as e:
             print(f"🌊 Error: Failed to update package index: {e}")
@@ -601,7 +654,7 @@ class MacWaveCLI:
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
             self.download_binary(release["binary_url"], safe_name, args)
-            self.install_package(safe_name, args)
+            self.install_package(safe_name, args, release.get("version"))
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
     
