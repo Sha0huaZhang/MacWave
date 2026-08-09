@@ -67,3 +67,15 @@ echo "🌊 Or simply open a new terminal window to apply changes automatically."
 echo ""
 echo "🌊 Try it now after refreshing:"
 echo "    wave install test_001"
+
+# 7. License Agreement Confirmation
+echo ""
+echo -e "\033[33mPlease read the agreement before use (see bottom of https://macwave.org).\033[0m"
+read -p "Have you read and agreed to the agreement? [Y/n] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "\033[32mYou have agreed to the agreement. Installation continues.\033[0m"
+else
+    echo -e "\033[31mYou do not agree to the agreement. Installation stopped.\033[0m"
+    exit 1
+fi
