@@ -48,7 +48,7 @@ class MacWaveCLI:
         """Create the main argument parser with all commands and flags."""
         parser = argparse.ArgumentParser(
             prog="wave",
-            description="MacWave 1.0.1 🌊\nA package manager for macOS/Linux jailbreak developers.",
+            description="MacWave 1.0.0 🌊\nA package manager for macOS/Linux jailbreak developers.",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             usage="wave <command> [package] [flags]",
             epilog="For more details, visit: https://macwave.org"
