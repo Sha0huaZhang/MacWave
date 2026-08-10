@@ -79,14 +79,24 @@ Examples:
 (Listed in alphabetical order)
 
 ```
-machox          by Sha0huaZhang
 ldid            by Jay Freeman (saurik) / Procursus Team
+machox          by Sha0huaZhang
+palera1n        by palera1n Team (versions 2.0–2.4)
 test_001        by Sha0huaZhang
+trollrestore    by JJTech0130
 ```
 # 🌊 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
+# 🌊 Credits
+```
+cURL            by Haxx (Daniel Stenberg, Linus, Bjorn, Kjell, et al.)
+ldid            by Jay Freeman (saurik) / Procursus Team
+MachOX          by Sha0huaZhang (WAVRS Dev Team)
+palera1n        by palera1n Team
+TrollRestore    by JJTech0130
+```
 # 🌊 Contact Us
 
 Email：[hi@macwave.org](mailto:hi@macwave.org)
