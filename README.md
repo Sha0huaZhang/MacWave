@@ -88,7 +88,8 @@ trollrestore    by JJTech0130
 # 🌊 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
+# 🌊 Special Thanks to
+**Haxx** (Daniel Stenberg, Linus, Bjorn, Kjell, et al.) for **cURL**
 # 🌊 Credits
 ```
 cURL            by Haxx (Daniel Stenberg, Linus, Bjorn, Kjell, et al.)
