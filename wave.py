@@ -12,13 +12,17 @@ import sys
 import platform
 import time
 import fcntl
+import logging
 from pathlib import Path
+from typing import Optional, Dict, Any, Union
 
 # Check for requests library
 try:
     import requests
     from requests.adapters import HTTPAdapter
     from urllib3.util.retry import Retry
+    from urllib3.exceptions import InsecureRequestWarning
+    import urllib3
 except ImportError:
     print("🌊 Error: 'requests' library is not installed.")
     print("🌊 Please install it using: pip3 install requests")
@@ -43,7 +47,14 @@ class MacWaveCLI:
     def __init__(self):
         self.parser = self._create_parser()
         self.verbose = False
-        
+        # Initialize a fallback logger
+        self._logger = logging.getLogger("MacWave")
+        if not self._logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter('%(message)s'))
+            self._logger.addHandler(handler)
+            self._logger.setLevel(logging.INFO)
+
     def _create_parser(self):
         """Create the main argument parser with all commands and flags."""
         parser = argparse.ArgumentParser(
@@ -61,7 +72,6 @@ class MacWaveCLI:
                           help='Enable verbose output (show detailed logs)')
         parser.add_argument('-B', '--beta-version', action='store_true',
                           help='Install the latest beta version (if available)')
-        # -C 已移到 install 子命令中
         parser.add_argument('--proxy', type=str, metavar='string',
                           help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
         parser.add_argument('--skip-ssl', action='store_true',
@@ -136,88 +146,107 @@ class MacWaveCLI:
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
         parser.add_argument('--ver', type=str, metavar='string',
                           help='Install a specific version of the package (e.g., --ver 1.0.0)')
-        # 修复：-C 参数现在属于 install 子命令
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
                           help='Resume interrupted downloads (use with install command)')
     
+    def _log(self, message: str, level: str = "info", force: bool = False):
+        """
+        Centralized logging with fallback. Ensures log_verbose doesn't break.
+        """
+        if self.verbose or force or level == "error":
+            log_func = getattr(self._logger, level, self._logger.info)
+            log_func(f"🌊 {message}")
+
     def log(self, message, force=False):
-        """Print log messages. Only prints if verbose mode is enabled or forced."""
-        if self.verbose or force:
-            print(f"🌊 {message}")
-    
+        """Legacy log method for compatibility."""
+        self._log(message, "info", force)
+
     def log_verbose(self, message):
-        """Print verbose-only messages."""
+        """Verbose-only logging."""
         if self.verbose:
-            print(f"🌊 Verbose: {message}")
-    
+            self._log(message, "debug")
+
     def fetch_repo_data(self, args=None):
-        """Fetch and parse the remote package index (repo.json) with local caching."""
-        # Ensure cache directory exists
+        """
+        Fetch and parse the remote package index (repo.json) with intelligent caching.
+        - 5 min fresh cache: return directly.
+        - 1 hour stale cache: use as fallback on network failure.
+        - Raises RuntimeError on fatal failure.
+        """
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Check if cache is valid (5 minutes)
-        cache_valid = False
+
+        # Load cache and check age
+        cache_data: Optional[Dict[str, Any]] = None
+        cache_age: Optional[float] = None
+
         if REPO_CACHE.exists():
-            mtime = REPO_CACHE.stat().st_mtime
-            if (time.time() - mtime) < 300:
-                cache_valid = True
-        
-        # If cache is valid, use it
-        if cache_valid:
-            self.log_verbose("Using cached repo.json")
             try:
                 with open(REPO_CACHE, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                self.log_verbose("Cache corrupted, falling back to network")
-                pass
-        
-        self.log_verbose("Fetching fresh repo.json from network")
+                    cache_data = json.load(f)
+                cache_age = time.time() - REPO_CACHE.stat().st_mtime
+                self.log_verbose(f"Cache exists, age: {cache_age:.1f}s")
+            except (json.JSONDecodeError, OSError) as e:
+                self._log(f"Cache corrupted: {e}", "warning")
+                cache_data = None
+
+        # 1. Fresh cache (5 min): return immediately
+        if cache_data is not None and cache_age is not None and cache_age < 300:
+            self.log_verbose("Using fresh cache")
+            return cache_data
+
+        # Prepare session and request parameters
         session = requests.Session()
+        # 7. Set User-Agent
+        session.headers.update({'User-Agent': 'MacWave/1.0.0'})
+        # 6. Add 429 to retry statuses
         retries = Retry(
             total=3,
             backoff_factor=0.5,
-            status_forcelist=[500, 502, 503, 504],
+            status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET"]
         )
         session.mount('https://', HTTPAdapter(max_retries=retries))
-        
+
+        request_kwargs = {'timeout': 10}
+
+        # 5. Improved proxy support (handles http/https, warns on others)
+        if args and getattr(args, 'proxy', None):
+            proxy = args.proxy
+            self.log_verbose(f"Using proxy: {proxy}")
+            if proxy.startswith(('http://', 'https://')):
+                request_kwargs['proxies'] = {'http': proxy, 'https': proxy}
+            else:
+                self._log(f"Proxy protocol '{proxy.split(':')[0]}' may not be supported. Use http:// or https://", "warning")
+
+        if args and getattr(args, 'skip_ssl', False):
+            self.log_verbose("SSL verification disabled")
+            request_kwargs['verify'] = False
+            urllib3.disable_warnings(InsecureRequestWarning)
+
+        # Network fetch with fallback
         try:
-            request_kwargs = {
-                'timeout': 10
-            }
-            
-            if args and args.proxy:
-                self.log_verbose(f"Using proxy: {args.proxy}")
-                request_kwargs['proxies'] = {
-                    'http': args.proxy,
-                    'https': args.proxy
-                }
-            
-            if args and args.skip_ssl:
-                self.log_verbose("SSL verification disabled")
-                request_kwargs['verify'] = False
-                import urllib3
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            
+            self.log_verbose("Fetching fresh repo.json from network")
             response = session.get(REPO_URL, **request_kwargs)
             response.raise_for_status()
             data = response.json()
-            
+
             # Write to cache
             with open(REPO_CACHE, 'w') as f:
                 json.dump(data, f, indent=2)
-            
             self.log_verbose("Fetched and cached fresh repo.json")
             return data
-            
+
         except requests.exceptions.RequestException as e:
-            print(f"🌊 Error: Failed to fetch repository data after 3 retries: {e}")
-            sys.exit(1)
-        except json.JSONDecodeError:
-            print("🌊 Error: Invalid JSON data received from repository")
-            sys.exit(1)
-    
+            # 1. Stale cache fallback (1 hour)
+            if cache_data is not None and cache_age is not None and cache_age < 3600:
+                self._log(f"Network failed, using stale cache (age: {cache_age:.1f}s): {e}", "warning")
+                return cache_data
+            # 2. Raise RuntimeError instead of sys.exit
+            raise RuntimeError(f"Failed to fetch repository data after retries: {e}") from e
+        except json.JSONDecodeError as e:
+            # 2. Raise RuntimeError
+            raise RuntimeError(f"Invalid JSON data received from repository: {e}") from e
+
     def find_package(self, repo_data, package_name, args=None):
         """Find a package. Respects --ver and -B flags."""
         self.log_verbose(f"Searching for package: {package_name}")
@@ -229,7 +258,7 @@ class MacWaveCLI:
                     releases = pkg.get("releases", [])
                     
                     # 1. If user specified a version via --ver
-                    if args and args.ver:
+                    if args and getattr(args, 'ver', None):
                         requested_version = args.ver
                         self.log_verbose(f"User requested version: {requested_version}")
                         for release in releases:
@@ -242,7 +271,7 @@ class MacWaveCLI:
                         sys.exit(1)
                     
                     # 2. If user requested beta version
-                    if args and args.beta_version:
+                    if args and getattr(args, 'beta_version', False):
                         self.log_verbose("User requested beta version.")
                         for release in releases:
                             if release.get("arch") == "beta":
@@ -300,7 +329,7 @@ class MacWaveCLI:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        # Handle resume - 修复：安全检查
+        # Handle resume
         headers = {}
         resume_pos = 0
         should_resume = args.resume and temp_path.exists()
@@ -313,9 +342,8 @@ class MacWaveCLI:
                     self.log_verbose(f"Resuming download from byte {resume_pos}")
                     print(f"🌊 Resuming from {resume_pos} bytes")
                 else:
-                    # 文件存在但大小为0，从头开始
                     self.log_verbose("Partial file exists but is empty, starting from beginning")
-                    temp_path.unlink()  # 删除空文件
+                    temp_path.unlink()
                     should_resume = False
             except (FileNotFoundError, OSError) as e:
                 self.log_verbose(f"Cannot read partial file: {e}, starting from beginning")
@@ -328,20 +356,16 @@ class MacWaveCLI:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            # 修复：检查正确的状态码
             is_resume = False
             if should_resume and headers:
                 if response.status_code == 206:  # Partial Content
                     is_resume = True
                     self.log_verbose(f"Server supports resume, continuing from {resume_pos}")
                 elif response.status_code == 200:
-                    # 服务器不支持续传，从头开始
                     self.log_verbose("Server does not support resume, starting from beginning")
                     resume_pos = 0
-                    # 覆盖临时文件
                     if temp_path.exists():
                         temp_path.unlink()
-                    # 移除Range头，重新请求
                     if 'Range' in request_kwargs.get('headers', {}):
                         del request_kwargs['headers']['Range']
                     response = requests.get(url, **request_kwargs)
@@ -382,7 +406,6 @@ class MacWaveCLI:
             
         except requests.exceptions.RequestException as e:
             print(f"\n🌊 Error: Failed to download binary: {e}")
-            # 保留临时文件以便续传
             if temp_path.exists() and temp_path.stat().st_size > 0:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
@@ -468,16 +491,19 @@ class MacWaveCLI:
             return
         
         self.log_verbose(f"Install command for package: {args.package_name}")
-        repo_data = self.fetch_repo_data(args)
+        try:
+            repo_data = self.fetch_repo_data(args)
+        except RuntimeError as e:
+            print(f"🌊 {e}")
+            sys.exit(1)
+            
         safe_name = args.package_name.lower()
         
-        # 处理 --dir 标志
         install_dir = INSTALL_DIR
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
             self.log_verbose(f"Using custom install directory: {install_dir}")
         
-        # 1. If user specified a version via --ver
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
@@ -485,7 +511,6 @@ class MacWaveCLI:
                 self.install_package(safe_name, args, release.get("version"), install_dir)
             return
         
-        # 2. If user requested beta version
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
@@ -499,7 +524,6 @@ class MacWaveCLI:
                     print("🌊 Installation cancelled.")
                     return
         
-        # 3. Regular stable release
         release = self.find_package(repo_data, safe_name, args)
         self.download_binary(release["binary_url"], safe_name, args, install_dir)
         self.install_package(safe_name, args, release.get("version"), install_dir)
@@ -560,8 +584,12 @@ class MacWaveCLI:
     def handle_search(self, args):
         """Handle the search command."""
         query = args.query.lower()
-        # 修复：传递实际的 args 而不是空列表
-        repo_data = self.fetch_repo_data(args)
+        try:
+            repo_data = self.fetch_repo_data(args)
+        except RuntimeError as e:
+            print(f"🌊 {e}")
+            sys.exit(1)
+            
         matches = []
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
@@ -585,7 +613,12 @@ class MacWaveCLI:
     def handle_info(self, args):
         """Handle the info command."""
         self.log_verbose(f"Info command for package: {args.package_name}")
-        repo_data = self.fetch_repo_data(args)
+        try:
+            repo_data = self.fetch_repo_data(args)
+        except RuntimeError as e:
+            print(f"🌊 {e}")
+            sys.exit(1)
+            
         safe_name = args.package_name.lower()
         package_info = None
         if "packages" in repo_data:
@@ -609,9 +642,11 @@ class MacWaveCLI:
         try:
             if REPO_CACHE.exists():
                 REPO_CACHE.unlink()
-            # 修复：传递实际的 args
             repo_data = self.fetch_repo_data(args)
             print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
+        except RuntimeError as e:
+            print(f"🌊 {e}")
+            sys.exit(1)
         except Exception as e:
             print(f"🌊 Error: Failed to update package index: {e}")
     
@@ -630,7 +665,13 @@ class MacWaveCLI:
             local_version = installed[safe_name].get('version', '0.0.0')
             if local_version is None:
                 local_version = '0.0.0'
-            repo_data = self.fetch_repo_data(args)
+            
+            try:
+                repo_data = self.fetch_repo_data(args)
+            except RuntimeError as e:
+                print(f"🌊 {e}")
+                sys.exit(1)
+                
             release = self.find_package(repo_data, safe_name)
             remote_version = release.get("version", "unknown")
             
