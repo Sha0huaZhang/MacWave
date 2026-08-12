@@ -191,9 +191,9 @@ class MacWaveCLI:
     
     def _add_install_flags(self, parser):
         """为 install 子命令添加专属参数。"""
-        parser.add_argument('-D', '--dir', type=str,
+        parser.add_argument('-D', '--dir', type=str, metavar='string',
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
-        parser.add_argument('--ver', type=str,
+        parser.add_argument('--ver', type=str, metavar='string',
                           help='Install a specific version of the package (e.g., --ver 1.0.0)')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
                           help='Resume interrupted downloads (use with install command)')
