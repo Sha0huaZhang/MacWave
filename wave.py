@@ -37,6 +37,23 @@ except ImportError:
     print("🌊 Please install it using: pip3 install packaging")
     sys.exit(1)
 
+# Check for rich library (used for progress bar)
+try:
+    from rich.progress import (
+        Progress,
+        BarColumn,
+        DownloadColumn,
+        TextColumn,
+        TransferSpeedColumn,
+        TimeRemainingColumn,
+    )
+    from rich.console import Console
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+    # Fallback: rich not available, download will work without progress bar
+    pass
+
 VERSION = "1.0.0"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
@@ -331,7 +348,7 @@ class MacWaveCLI:
         sys.exit(1)
     
     def download_binary(self, url, package_name, args, install_dir=None, release=None):
-        """Download binary to disk directly with streaming. Handles Ctrl+C gracefully."""
+        """Download binary to disk with a curl-style progress bar."""
         if install_dir is None:
             install_dir = INSTALL_DIR
         
@@ -347,6 +364,7 @@ class MacWaveCLI:
         
         install_dir.mkdir(parents=True, exist_ok=True)
         
+        # Prepare request parameters
         request_kwargs = {
             'stream': True,
             'timeout': 30
@@ -360,6 +378,7 @@ class MacWaveCLI:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
+        # Handle resume
         headers = {}
         resume_pos = 0
         should_resume = args.resume and temp_path.exists()
@@ -404,26 +423,80 @@ class MacWaveCLI:
                     self.log_verbose(f"Unexpected status code: {response.status_code}")
                     resume_pos = 0
             
-            mode = 'ab' if is_resume else 'wb'
-            downloaded = 0
+            total_size = int(response.headers.get('content-length', 0)) + resume_pos
+            if total_size == 0:
+                total_size = None
             
-            with open(temp_path, mode) as f:
-                try:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            if self.verbose:
-                                print(".", end="", flush=True)
-                except KeyboardInterrupt:
-                    print("\n🌊 Download interrupted.")
-                    if temp_path.exists() and temp_path.stat().st_size > 0:
-                        print(f"🌊 Partial file saved at: {temp_path}")
-                        print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+            # Use rich progress bar if available
+            if RICH_AVAILABLE:
+                console = Console()
+                progress_columns = [
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(bar_width=None),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    DownloadColumn(),
+                    TextColumn("•"),
+                    TransferSpeedColumn(),
+                    TextColumn("•"),
+                    TimeRemainingColumn(),
+                ]
+                
+                with Progress(*progress_columns, console=console, transient=False) as progress:
+                    task_id = progress.add_task(
+                        description=package_name,
+                        total=total_size if total_size else None,
+                        start=False
+                    )
+                    if total_size:
+                        progress.update(task_id, description=f"{package_name}", total=total_size)
                     else:
-                        if temp_path.exists():
-                            temp_path.unlink()
-                    return
+                        progress.update(task_id, description=f"{package_name} (unknown size)", total=None)
+                    
+                    progress.start_task(task_id)
+                    
+                    mode = 'ab' if is_resume else 'wb'
+                    downloaded = resume_pos
+                    
+                    with open(temp_path, mode) as f:
+                        try:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                                    chunk_size_bytes = len(chunk)
+                                    downloaded += chunk_size_bytes
+                                    progress.update(task_id, advance=chunk_size_bytes)
+                        except KeyboardInterrupt:
+                            console.print("\n🌊 Download interrupted.")
+                            if temp_path.exists() and temp_path.stat().st_size > 0:
+                                console.print(f"🌊 Partial file saved at: {temp_path}")
+                                console.print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+                            else:
+                                if temp_path.exists():
+                                    temp_path.unlink()
+                            return
+            else:
+                # Fallback: simple progress indicator
+                mode = 'ab' if is_resume else 'wb'
+                downloaded = resume_pos
+                with open(temp_path, mode) as f:
+                    try:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if self.verbose:
+                                    print(".", end="", flush=True)
+                    except KeyboardInterrupt:
+                        print("\n🌊 Download interrupted.")
+                        if temp_path.exists() and temp_path.stat().st_size > 0:
+                            print(f"🌊 Partial file saved at: {temp_path}")
+                            print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+                        else:
+                            if temp_path.exists():
+                                temp_path.unlink()
+                        return
+                if self.verbose:
+                    print(" 🌊")
             
             # SHA256 verification
             if release and release.get("sha256"):
@@ -447,8 +520,6 @@ class MacWaveCLI:
             
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
-            if self.verbose:
-                print(" 🌊")
             self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes")
             print(f"🌊 Download complete!")
             
@@ -749,7 +820,8 @@ class MacWaveCLI:
     
     def run(self):
         """Main entry point of the CLI."""
-        args = self.parser.parse_args()
+        # Parse known args to handle global flags properly
+        args, unknown = self.parser.parse_known_args()
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
         
         # Handle --skip-ssl confirmation
@@ -759,6 +831,7 @@ class MacWaveCLI:
         if not args.command:
             self.parser.print_help()
             return
+        
         command_handlers = {
             "install": self.handle_install,
             "uninstall": self.handle_uninstall,
