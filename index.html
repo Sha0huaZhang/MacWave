@@ -243,6 +243,33 @@
             padding-left: 2em;
             text-indent: -2em;
         }
+
+        /* --- 新增样式：与 "In the terminal..." 完全一致的纯白色字体 --- */
+        .install-note {
+            font-size: 1.1rem;          /* 与 p 标签一致 (1.1rem) */
+            line-height: 1.6;
+            opacity: 0.9;
+            max-width: 800px;
+            text-align: left;
+            color: #ffffff;             /* 纯白色 */
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .install-note strong {
+            font-weight: bold;
+            color: #ffffff;             /* 保持纯白 */
+        }
+        .install-note .small-link-text {
+            font-size: 0.825rem;        /* 1.1rem * 0.75 = 0.825rem */
+            display: inline-block;      /* 保证内联但能正确应用字体大小 */
+        }
+        .install-note a {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+        .install-note a:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -277,6 +304,12 @@
         </p>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Install MacWave(latest version)</h2>
+        
+        <!-- ====== 新增：Before installing ... 提示，完全与 "In the terminal..." 样式一致 ====== -->
+        <p class="install-note">
+            Before installing MacWave, you need to install <strong>Python</strong>（3.13 and above），view at <a href="https://python.org" target="_blank">python.org</a> <span class="small-link-text">(Click link to open)</span>
+        </p>
+
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             In the terminal, run the following command:
         </p>
