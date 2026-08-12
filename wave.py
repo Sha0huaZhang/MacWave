@@ -13,6 +13,7 @@ import platform
 import time
 import fcntl
 import logging
+import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
@@ -166,6 +167,49 @@ class MacWaveCLI:
         if self.verbose:
             self._log(message, "debug")
 
+    def _confirm_skip_ssl(self, args) -> bool:
+        """Handle --skip-ssl interactive confirmation"""
+        if not getattr(args, 'skip_ssl', False):
+            return True
+        
+        RED = '\033[91m'
+        GREEN = '\033[92m'
+        RESET = '\033[0m'
+        
+        print(f"{RED}--skip-ssl parameter will skip SSL certificate verification, it is insecure. Do you want to continue?{RESET}")
+        response = input(f"{RED}[Y/n]{RESET} ").strip().lower()
+        
+        if response in ['y', 'yes', '']:
+            print(f"{RED}Install continue{RESET}")
+            return True
+        else:
+            print(f"{GREEN}Install stopped{RESET}")
+            return False
+
+    def _confirm_missing_sha256(self) -> bool:
+        """Handle missing SHA256 interactive confirmation"""
+        RED = '\033[91m'
+        GREEN = '\033[92m'
+        RESET = '\033[0m'
+        
+        print(f"{RED}Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Do you want to continue?{RESET}")
+        response = input(f"{RED}[Y/n]{RESET} ").strip().lower()
+        
+        if response in ['y', 'yes', '']:
+            print(f"{RED}Install continue with SHA256 skipped{RESET}")
+            return True
+        else:
+            print(f"{GREEN}Install stopped{RESET}")
+            return False
+
+    def _calculate_sha256(self, filepath: Path) -> str:
+        """Calculate SHA256 hash of a file"""
+        sha256_hash = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+
     def fetch_repo_data(self, args=None):
         """
         Fetch and parse the remote package index (repo.json) with intelligent caching.
@@ -196,9 +240,7 @@ class MacWaveCLI:
 
         # Prepare session and request parameters
         session = requests.Session()
-        # 7. Set User-Agent
         session.headers.update({'User-Agent': 'MacWave/1.0.0'})
-        # 6. Add 429 to retry statuses
         retries = Retry(
             total=3,
             backoff_factor=0.5,
@@ -209,7 +251,6 @@ class MacWaveCLI:
 
         request_kwargs = {'timeout': 10}
 
-        # 5. Improved proxy support (handles http/https, warns on others)
         if args and getattr(args, 'proxy', None):
             proxy = args.proxy
             self.log_verbose(f"Using proxy: {proxy}")
@@ -230,21 +271,17 @@ class MacWaveCLI:
             response.raise_for_status()
             data = response.json()
 
-            # Write to cache
             with open(REPO_CACHE, 'w') as f:
                 json.dump(data, f, indent=2)
             self.log_verbose("Fetched and cached fresh repo.json")
             return data
 
         except requests.exceptions.RequestException as e:
-            # 1. Stale cache fallback (1 hour)
             if cache_data is not None and cache_age is not None and cache_age < 3600:
                 self._log(f"Network failed, using stale cache (age: {cache_age:.1f}s): {e}", "warning")
                 return cache_data
-            # 2. Raise RuntimeError instead of sys.exit
             raise RuntimeError(f"Failed to fetch repository data after retries: {e}") from e
         except json.JSONDecodeError as e:
-            # 2. Raise RuntimeError
             raise RuntimeError(f"Invalid JSON data received from repository: {e}") from e
 
     def find_package(self, repo_data, package_name, args=None):
@@ -257,7 +294,6 @@ class MacWaveCLI:
                     self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
                     
-                    # 1. If user specified a version via --ver
                     if args and getattr(args, 'ver', None):
                         requested_version = args.ver
                         self.log_verbose(f"User requested version: {requested_version}")
@@ -270,7 +306,6 @@ class MacWaveCLI:
                         print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
                         sys.exit(1)
                     
-                    # 2. If user requested beta version
                     if args and getattr(args, 'beta_version', False):
                         self.log_verbose("User requested beta version.")
                         for release in releases:
@@ -279,7 +314,6 @@ class MacWaveCLI:
                                 return release
                         return None
                     
-                    # 3. Regular stable release (match architecture)
                     current_arch = platform.machine().lower()
                     for release in releases:
                         if release.get("arch") == current_arch:
@@ -296,7 +330,7 @@ class MacWaveCLI:
         print(f"🌊 Error: Package '{package_name}' not found in repository")
         sys.exit(1)
     
-    def download_binary(self, url, package_name, args, install_dir=None):
+    def download_binary(self, url, package_name, args, install_dir=None, release=None):
         """Download binary to disk directly with streaming. Handles Ctrl+C gracefully."""
         if install_dir is None:
             install_dir = INSTALL_DIR
@@ -308,14 +342,11 @@ class MacWaveCLI:
         self.log_verbose(f"Downloading from: {url}")
         print(f"🌊 Downloading {package_name}...")
         
-        # Target and temporary paths
         final_path = install_dir / package_name
         temp_path = install_dir / f"{package_name}.partial"
         
-        # Ensure directory exists
         install_dir.mkdir(parents=True, exist_ok=True)
         
-        # Prepare request parameters
         request_kwargs = {
             'stream': True,
             'timeout': 30
@@ -329,7 +360,6 @@ class MacWaveCLI:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        # Handle resume
         headers = {}
         resume_pos = 0
         should_resume = args.resume and temp_path.exists()
@@ -358,7 +388,7 @@ class MacWaveCLI:
             
             is_resume = False
             if should_resume and headers:
-                if response.status_code == 206:  # Partial Content
+                if response.status_code == 206:
                     is_resume = True
                     self.log_verbose(f"Server supports resume, continuing from {resume_pos}")
                 elif response.status_code == 200:
@@ -374,7 +404,6 @@ class MacWaveCLI:
                     self.log_verbose(f"Unexpected status code: {response.status_code}")
                     resume_pos = 0
             
-            # Write to disk directly
             mode = 'ab' if is_resume else 'wb'
             downloaded = 0
             
@@ -396,7 +425,26 @@ class MacWaveCLI:
                             temp_path.unlink()
                     return
             
-            # Rename to final file
+            # SHA256 verification
+            if release and release.get("sha256"):
+                expected_sha256 = release.get("sha256")
+                print("🌊 Verifying SHA256...")
+                actual_sha256 = self._calculate_sha256(temp_path)
+                if actual_sha256 != expected_sha256:
+                    temp_path.unlink()
+                    print(f"🌊 SHA256 verification failed!")
+                    print(f"🌊 Expected: {expected_sha256}")
+                    print(f"🌊 Actual:   {actual_sha256}")
+                    print(f"🌊 File may have been tampered with or corrupted.")
+                    sys.exit(1)
+                else:
+                    print(f"🌊 SHA256 verified successfully")
+            else:
+                # Missing SHA256: interactive confirmation
+                if not self._confirm_missing_sha256():
+                    temp_path.unlink()
+                    sys.exit(0)
+            
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
             if self.verbose:
@@ -459,7 +507,6 @@ class MacWaveCLI:
         try:
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
             
-            # Open file with exclusive lock
             with open(INSTALLED_DB, 'a+') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 
@@ -507,14 +554,14 @@ class MacWaveCLI:
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
-                self.download_binary(release["binary_url"], safe_name, args, install_dir)
+                self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
                 self.install_package(safe_name, args, release.get("version"), install_dir)
             return
         
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
-                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir)
+                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir, beta_release)
                 self.install_package(safe_name, args, beta_release.get("version"), install_dir)
                 return
             else:
@@ -525,7 +572,7 @@ class MacWaveCLI:
                     return
         
         release = self.find_package(repo_data, safe_name, args)
-        self.download_binary(release["binary_url"], safe_name, args, install_dir)
+        self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
         self.install_package(safe_name, args, release.get("version"), install_dir)
     
     def handle_uninstall(self, args):
@@ -535,7 +582,6 @@ class MacWaveCLI:
             print(f"🌊 No packages installed. Nothing to uninstall.")
             return
         try:
-            # Read with shared lock
             with open(INSTALLED_DB, 'r') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
@@ -552,7 +598,6 @@ class MacWaveCLI:
             else:
                 print(f"🌊 Warning: Binary file not found, but removing from database.")
             
-            # Write with exclusive lock
             with open(INSTALLED_DB, 'w') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 del installed[safe_name]
@@ -675,7 +720,6 @@ class MacWaveCLI:
             release = self.find_package(repo_data, safe_name)
             remote_version = release.get("version", "unknown")
             
-            # Safe semantic version comparison
             try:
                 local_v = parse_version(local_version)
                 remote_v = parse_version(remote_version)
@@ -694,7 +738,7 @@ class MacWaveCLI:
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
-            self.download_binary(release["binary_url"], safe_name, args)
+            self.download_binary(release["binary_url"], safe_name, args, release=release)
             self.install_package(safe_name, args, release.get("version"))
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
@@ -707,6 +751,11 @@ class MacWaveCLI:
         """Main entry point of the CLI."""
         args = self.parser.parse_args()
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
+        
+        # Handle --skip-ssl confirmation
+        if not self._confirm_skip_ssl(args):
+            sys.exit(0)
+        
         if not args.command:
             self.parser.print_help()
             return
