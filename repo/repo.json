@@ -10,6 +10,7 @@
           "os": "darwin",
           "arch": "any",
           "version": "1.0.0",
+          "sha256": "4594d33a91d3fd2a92d23619d1e664c9098df3ac0a3961f2322cee7eab96a5d2",
           "binary_url": "https://github.com/Sha0huaZhang/test_001/releases/download/v1.0/test_001.txt"
         }
       ]
@@ -25,6 +26,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "1.0.0",
+          "sha256": "541539ffb9a8dabf1afed6f00b216c81c5f46158db6e5dd4b139be8d2a60ba75",
           "filename": "MachOX",
           "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_Homebrew_arm64"
         },
@@ -32,6 +34,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "1.0.0",
+          "sha256": "957a3ab20a9f409e4abe5cc37a3fae9b2f1588f1353f2acd6029f444dfded5e4",
           "filename": "MachOX",
           "binary_url": "https://github.com/Sha0huaZhang/MachOX/releases/download/1.0/MachOX_force_MacPorts_x86_64"
         }
@@ -49,6 +52,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus7",
+          "sha256": "5dff8e6b8d9dc3ff7226276c81e09930865f15381f54cb55b98b196a94c5ca50",
           "filename": "ldid",
           "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64"
         },
@@ -56,6 +60,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus7",
+          "sha256": "9d46e0feedf96e399edfca09872802ba21e729f79c01927ad25ea2b0a35bca23",
           "filename": "ldid",
           "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64"
         }
@@ -72,11 +77,13 @@
         {
           "os": "darwin",
           "arch": "arm64",
+          "sha256": "47faf58d245729314046a6e56f920ddd42273db41daab8502bbff5ec5b81adfb",
           "binary_url": "https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_macOS_arm64.zip"
         },
         {
           "os": "darwin",
           "arch": "amd64",
+          "sha256": "3855a23fed9b2ec4b84d85a69bce0b31429f6b7107d12d0a067b44ac13ef16fb",
           "binary_url": "https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_macOS_amd64.zip"
         }
       ]
@@ -93,6 +100,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.0",
+          "sha256": "34a7f7c70f6293c8f1ca5c5da50e75a1beed66fe60bda2738aace1b71f452ea8",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0/palera1n-macos-arm64"
         },
@@ -100,6 +108,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.0",
+          "sha256": "3cb52fb0394cc3693adfe9f506117abf140cc080884e6b3552db0c14034f2604",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0/palera1n-macos-x86_64"
         }
@@ -117,6 +126,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.0.1",
+          "sha256": "32a58eefdf94ba9487a85c7eb960441af6544fe8ec92a76ba2f25fc95388f556",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.1/palera1n-macos-arm64"
         },
@@ -124,6 +134,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.0.1",
+          "sha256": "b245b05e0a06b02118dc74396bb4d350235cba96accc7306e38ef2602fa76c26",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.1/palera1n-macos-x86_64"
         }
@@ -141,6 +152,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.0.2",
+          "sha256": "ed100fdb0d19e3372648e943f381b07e50ca3136ccfd5d31470fef16945d960d",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.2/palera1n-macos-arm64"
         },
@@ -148,32 +160,9 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.0.2",
+          "sha256": "27b2cb20ea8962fb56e5a26220dc4d0db228a09b764bf1b30a262f75c6720f0b",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.0.2/palera1n-macos-x86_64"
-        }
-      ]
-    },
-    {
-      "name": "palera1n",
-      "version": "2.1",
-      "license": "MIT",
-      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
-      "author": "palera1n Team",
-      "homepage": "https://github.com/palera1n/palera1n",
-      "releases": [
-        {
-          "os": "darwin",
-          "arch": "arm64",
-          "version": "2.1",
-          "filename": "palera1n",
-          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.1/palera1n-macos-arm64"
-        },
-        {
-          "os": "darwin",
-          "arch": "amd64",
-          "version": "2.1",
-          "filename": "palera1n",
-          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.1/palera1n-macos-x86_64"
         }
       ]
     },
@@ -189,6 +178,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.2",
+          "sha256": "c2409bb56d4e0d619852f769af60f74e952869b94881e0e0e34990443c78599f",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2/palera1n-macos-arm64"
         },
@@ -196,32 +186,9 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.2",
+          "sha256": "7b9e2c91cf0a993ec23f56426fac5cc5b7c6cf94ae8a0015ac704642cb1c4682",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2/palera1n-macos-x86_64"
-        }
-      ]
-    },
-    {
-      "name": "palera1n",
-      "version": "2.2.1",
-      "license": "MIT",
-      "description": "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher.",
-      "author": "palera1n Team",
-      "homepage": "https://github.com/palera1n/palera1n",
-      "releases": [
-        {
-          "os": "darwin",
-          "arch": "arm64",
-          "version": "2.2.1",
-          "filename": "palera1n",
-          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2.1/palera1n-macos-arm64"
-        },
-        {
-          "os": "darwin",
-          "arch": "amd64",
-          "version": "2.2.1",
-          "filename": "palera1n",
-          "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.2.1/palera1n-macos-x86_64"
         }
       ]
     },
@@ -237,6 +204,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.3",
+          "sha256": "f214a46978ced3b66ab2555ff51681f21bf13fd97d5b692aa420a4ba6a71d263",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.3/palera1n-macos-arm64"
         },
@@ -244,6 +212,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.3",
+          "sha256": "9c167ac97ec94855ff534746cb7b7e8077046f850edf53839a988659b08cb26e",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.3/palera1n-macos-x86_64"
         }
@@ -261,6 +230,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.4",
+          "sha256": "950c357b6ae5df36128f6e42a3c6d371e55aeb69a5afcde276f096276210d0c9",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.4/palera1n-macos-arm64"
         },
@@ -268,6 +238,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.4",
+          "sha256": "a1a798c4b9d9f0c74794f7d8c3bd3a4c01eee1c874b4980096d26e9403293047",
           "filename": "palera1n",
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.4/palera1n-macos-x86_64"
         }
