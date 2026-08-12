@@ -404,41 +404,47 @@ TrollRestore    by JJTech0130
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
         <pre>
-Usage:
-  wave &lt;command&gt; [package] [flags]
+Usage: wave <command> [package] [flags]
 
-Commands:
-  install     Install a package
-  uninstall   Uninstall a package
-  list        List installed packages
-  search      Search for a package in the index
-  info        Display detailed information about a package
-  update      Update the package index
-  upgrade     Upgrade an installed package to the latest version
-  doctor      Check your system for missing dependencies
+MacWave 1.0.0 🌊
+A package manager for macOS/Linux jailbreak developers.
 
-Flags:
-  -h, --help              Show help for any command
-  -V, --version           Print version information
-  -v, --verbose           Enable verbose output (show detailed logs)
+positional arguments:
+  {install,uninstall,list,search,info,update,upgrade,doctor}
+                        Commands
+    install             Install a package
+    uninstall           Uninstall a package
+    list                List installed packages
+    search              Search for a package in the index
+    info                Display detailed information about a package
+    update              Update the package index
+    upgrade             Upgrade an installed package to the latest version
+    doctor              Check your system for missing dependencies
 
-Global Flags (can be used with any command):
-  -B, --beta-version      Install the latest beta version (if available)
-  -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads
-  -C, --continue          Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)
-      --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
-      --skip-ssl          Skip SSL certificate verification (insecure)
-      --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
-      --dry-run           Simulate the installation without making changes
-      --json              Output in JSON format (for scripting)
-      --ver string        Install a specific version of the package
+options:
+  -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit
+  -v, --verbose         Enable verbose output (show detailed debug logs, including exception stack traces)  
+  -B, --beta-version    Install the latest beta version (if available)
+  --proxy string        Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
+  --skip-ssl            Skip SSL certificate verification (insecure, with interactive confirmation)   
+  --limit-rate string   Limit download speed (e.g., 200K, 1M, 5M)
+  --dry-run             Simulate the installation without making changes
+  --json                Output in JSON format (for scripting)
 
-Examples:
-  wave install machox
-  wave install ldid --ver 2.1.5
-  wave install machox -B
-  wave search choma -f
-  wave info trollresigner</pre>
+Global Flags (can be used with any command):  
+  -B, --beta-version    Install the latest beta version (if available)
+  -D, --dir string      Specify an output directory (e.g., ~/Desktop) for downloads
+  -C, --continue        Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)
+  --proxy string        Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
+  --skip-ssl            Skip SSL certificate verification (insecure, with interactive confirmation)
+  --limit-rate string   Limit download speed (e.g., 200K, 1M, 5M)
+  --dry-run             Simulate the installation without making changes
+  --json                Output in JSON format (for scripting)
+  --ver string          Install a specific version of the package  
+
+For more details, visit: https://macwave.org
+</pre>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported Packages</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">(Listed in alphabetical order)</p>
