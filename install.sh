@@ -21,7 +21,7 @@ curl -fsSL -o "$INSTALL_DIR/wave" "$WAVE_URL"
 # 3. Make it executable
 chmod +x "$INSTALL_DIR/wave"
 
-# 4. Install Python dependencies: requests and packaging
+# 4. Install Python dependencies: requests, packaging, and rich
 echo "🌊 Checking Python dependencies..."
 if ! python3 -c "import requests" 2>/dev/null; then
     echo "🌊 Installing 'requests' library..."
@@ -35,6 +35,18 @@ if ! python3 -c "from packaging.version import parse" 2>/dev/null; then
     pip3 install packaging --quiet
 else
     echo "🌊 'packaging' library is already installed."
+fi
+
+if ! python3 -c "import rich" 2>/dev/null; then
+    echo "🌊 Installing 'rich' library for progress bar..."
+    if pip3 install rich --quiet; then
+        echo "🌊 'rich' installed successfully."
+    else
+        echo "🌊 Warning: 'rich' installation failed. Progress bar will not be available."
+        echo "🌊 You can install it manually later: pip3 install rich"
+    fi
+else
+    echo "🌊 'rich' library is already installed."
 fi
 
 # 5. Add to PATH in .zshrc / .bashrc
