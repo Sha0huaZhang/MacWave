@@ -14,6 +14,7 @@ import time
 import fcntl
 import logging
 import hashlib
+import traceback
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
@@ -395,6 +396,7 @@ class MacWaveCLI:
         if headers:
             request_kwargs['headers'] = headers
         
+        # Large try block to catch KeyboardInterrupt cleanly
         try:
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
@@ -452,43 +454,23 @@ class MacWaveCLI:
                     downloaded = resume_pos
                     
                     with open(temp_path, mode) as f:
-                        try:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                if chunk:
-                                    f.write(chunk)
-                                    chunk_size_bytes = len(chunk)
-                                    downloaded += chunk_size_bytes
-                                    progress.update(task_id, advance=chunk_size_bytes)
-                        except KeyboardInterrupt:
-                            console.print("\n🌊 Download interrupted.")
-                            if temp_path.exists() and temp_path.stat().st_size > 0:
-                                console.print(f"🌊 Partial file saved at: {temp_path}")
-                                console.print(f"🌊 Use 'wave install {package_name} -C' to resume later")
-                            else:
-                                if temp_path.exists():
-                                    temp_path.unlink()
-                            return
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                chunk_size_bytes = len(chunk)
+                                downloaded += chunk_size_bytes
+                                progress.update(task_id, advance=chunk_size_bytes)
             else:
                 # Fallback: simple progress indicator
                 mode = 'ab' if is_resume else 'wb'
                 downloaded = resume_pos
                 with open(temp_path, mode) as f:
-                    try:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                if self.verbose:
-                                    print(".", end="", flush=True)
-                    except KeyboardInterrupt:
-                        print("\n🌊 Download interrupted.")
-                        if temp_path.exists() and temp_path.stat().st_size > 0:
-                            print(f"🌊 Partial file saved at: {temp_path}")
-                            print(f"🌊 Use 'wave install {package_name} -C' to resume later")
-                        else:
-                            if temp_path.exists():
-                                temp_path.unlink()
-                        return
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if self.verbose:
+                                print(".", end="", flush=True)
                 if self.verbose:
                     print(" 🌊")
             
@@ -517,8 +499,30 @@ class MacWaveCLI:
             self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes")
             print(f"🌊 Download complete!")
             
+        except KeyboardInterrupt:
+            # Clean exit on Ctrl+C
+            print("\n🌊 Download interrupted by user.")
+            if temp_path.exists():
+                if temp_path.stat().st_size > 0:
+                    print(f"🌊 Partial file saved at: {temp_path}")
+                    print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+                else:
+                    temp_path.unlink()
+            sys.exit(130)
+            
         except requests.exceptions.RequestException as e:
+            if self.verbose:
+                print("\n🌊 [VERBOSE] Full exception traceback:")
+                traceback.print_exc()
             print(f"\n🌊 Error: Failed to download binary: {e}")
+            if temp_path.exists() and temp_path.stat().st_size > 0:
+                print(f"🌊 Partial file saved at: {temp_path}")
+            sys.exit(1)
+        except Exception as e:
+            if self.verbose:
+                print("\n🌊 [VERBOSE] Full exception traceback:")
+                traceback.print_exc()
+            print(f"\n🌊 Error: Unexpected error: {e}")
             if temp_path.exists() and temp_path.stat().st_size > 0:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
