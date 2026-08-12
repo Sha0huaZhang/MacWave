@@ -187,13 +187,12 @@ class MacWaveCLI:
 
     def _confirm_skip_ssl(self, args) -> bool:
         """Handle --skip-ssl interactive confirmation using rich Console."""
-        # 显式检查 args 中是否有 skip_ssl 属性，以及其值
         skip_ssl = getattr(args, 'skip_ssl', False)
         if not skip_ssl:
             return True
         
         console = Console()
-        console.print("--skip-ssl parameter will skip SSL certificate verification, it is insecure. Do you want to continue?", style="bold red")
+        console.print("--skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
         response = input("[Y/n] ").strip().lower()
         
         if response in ['y', 'yes', '']:
@@ -206,7 +205,7 @@ class MacWaveCLI:
     def _confirm_missing_sha256(self) -> bool:
         """Handle missing SHA256 interactive confirmation using rich Console."""
         console = Console()
-        console.print("Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Do you want to continue?", style="bold red")
+        console.print("Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Are you sure to continue?", style="bold red")
         response = input("[Y/n] ").strip().lower()
         
         if response in ['y', 'yes', '']:
