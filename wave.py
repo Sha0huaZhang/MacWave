@@ -352,7 +352,13 @@ class MacWaveCLI:
             print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
             return
         
-        self.log_verbose(f"Downloading from: {url}")
+        # 新增 verbose 输出：显示下载详细信息
+        self.log_verbose(f"Download URL: {url}")
+        self.log_verbose(f"Target directory: {install_dir}")
+        self.log_verbose(f"Target file: {package_name}")
+        if release:
+            self.log_verbose(f"Release info: version={release.get('version', 'unknown')}, arch={release.get('arch', 'unknown')}")
+        
         print(f"🌊 Downloading {package_name}...")
         
         final_path = install_dir / package_name
@@ -368,11 +374,13 @@ class MacWaveCLI:
         
         if args.proxy:
             request_kwargs['proxies'] = {'http': args.proxy, 'https': args.proxy}
+            self.log_verbose(f"Using proxy: {args.proxy}")
         
         if args.skip_ssl:
             request_kwargs['verify'] = False
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            self.log_verbose("SSL verification disabled")
         
         # Handle resume
         headers = {}
@@ -399,8 +407,16 @@ class MacWaveCLI:
         
         # Large try block to catch KeyboardInterrupt cleanly
         try:
+            self.log_verbose(f"Sending GET request to {url}")
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
+            
+            # 新增 verbose 输出：响应信息
+            self.log_verbose(f"Response status: {response.status_code}")
+            self.log_verbose(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
+            content_length = response.headers.get('content-length')
+            if content_length:
+                self.log_verbose(f"Content-Length: {content_length} bytes")
             
             is_resume = False
             if should_resume and headers:
@@ -423,6 +439,9 @@ class MacWaveCLI:
             total_size = int(response.headers.get('content-length', 0)) + resume_pos
             if total_size == 0:
                 total_size = None
+                self.log_verbose("Total file size unknown (server did not send Content-Length)")
+            else:
+                self.log_verbose(f"Total file size: {total_size} bytes")
             
             # Use rich progress bar if available
             if RICH_AVAILABLE:
@@ -463,6 +482,7 @@ class MacWaveCLI:
                                 progress.update(task_id, advance=chunk_size_bytes)
             else:
                 # Fallback: simple progress indicator
+                self.log_verbose("rich library not available, using simple progress indicator")
                 mode = 'ab' if is_resume else 'wb'
                 downloaded = resume_pos
                 with open(temp_path, mode) as f:
@@ -478,8 +498,10 @@ class MacWaveCLI:
             # SHA256 verification
             if release and release.get("sha256"):
                 expected_sha256 = release.get("sha256")
+                self.log_verbose(f"Expected SHA256: {expected_sha256}")
                 print("🌊 Verifying SHA256...")
                 actual_sha256 = self._calculate_sha256(temp_path)
+                self.log_verbose(f"Actual SHA256: {actual_sha256}")
                 if actual_sha256 != expected_sha256:
                     temp_path.unlink()
                     print(f"🌊 SHA256 verification failed!")
@@ -488,8 +510,10 @@ class MacWaveCLI:
                     print(f"🌊 File may have been tampered with or corrupted.")
                     sys.exit(1)
                 else:
+                    self.log_verbose("SHA256 verification passed")
                     print(f"🌊 SHA256 verified successfully")
             else:
+                self.log_verbose("No SHA256 value found in release metadata")
                 # Missing SHA256: interactive confirmation
                 if not self._confirm_missing_sha256():
                     temp_path.unlink()
@@ -497,7 +521,7 @@ class MacWaveCLI:
             
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
-            self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes")
+            self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes to {final_path}")
             print(f"🌊 Download complete!")
             
         except KeyboardInterrupt:
@@ -554,15 +578,21 @@ class MacWaveCLI:
             print(f"🌊 Error: Binary file not found after download.")
             sys.exit(1)
         
+        # 新增 verbose 输出
+        self.log_verbose(f"Installing to: {binary_path}")
+        self.log_verbose(f"File size: {binary_path.stat().st_size} bytes")
+        
         try:
             print(f"🌊 Successfully installed {package_name} to {binary_path}")
             self._record_installation(package_name, version, install_dir)
             
             path_dirs = os.environ.get("PATH", "").split(":")
             if str(install_dir) not in path_dirs:
+                self.log_verbose(f"{install_dir} not in PATH")
                 print(f"🌊 Tip: Add {install_dir} to your PATH to use '{package_name}' directly:")
                 print(f"🌊   export PATH=\"{install_dir}:$PATH\"")
             else:
+                self.log_verbose(f"{install_dir} is in PATH")
                 print(f"🌊 Ready to ride! You can now run: {package_name}")
                 
         except OSError as e:
@@ -827,6 +857,16 @@ class MacWaveCLI:
             args.skip_ssl = True
         
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
+        
+        # 新增 verbose 输出：显示解析到的参数
+        if self.verbose:
+            self.log_verbose(f"Parsed arguments: command={args.command}, verbose={self.verbose}")
+            if hasattr(args, 'package_name'):
+                self.log_verbose(f"Package name: {args.package_name}")
+            if hasattr(args, 'skip_ssl'):
+                self.log_verbose(f"skip_ssl: {args.skip_ssl}")
+            if hasattr(args, 'proxy') and args.proxy:
+                self.log_verbose(f"proxy: {args.proxy}")
         
         # 处理 --skip-ssl 确认（现在 args 中一定有 skip_ssl 属性）
         if not self._confirm_skip_ssl(args):
