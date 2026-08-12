@@ -91,11 +91,11 @@ class MacWaveCLI:
                           help='Enable verbose output (show detailed debug logs, including exception stack traces)')
         parser.add_argument('-B', '--beta-version', action='store_true',
                           help='Install the latest beta version (if available)')
-        parser.add_argument('--proxy', type=str, metavar='string',
+        parser.add_argument('--proxy', type=str,
                           help='Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)')
         parser.add_argument('--skip-ssl', action='store_true',
                           help='Skip SSL certificate verification (insecure, with interactive confirmation)')
-        parser.add_argument('--limit-rate', type=str, metavar='string',
+        parser.add_argument('--limit-rate', type=str,
                           help='Limit download speed (e.g., 200K, 1M, 5M)')
         parser.add_argument('--dry-run', action='store_true',
                           help='Simulate the installation without making changes')
@@ -161,9 +161,9 @@ class MacWaveCLI:
     
     def _add_install_flags(self, parser):
         """Add flags specific to the install command."""
-        parser.add_argument('-D', '--dir', type=str, metavar='string',
+        parser.add_argument('-D', '--dir', type=str,
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
-        parser.add_argument('--ver', type=str, metavar='string',
+        parser.add_argument('--ver', type=str,
                           help='Install a specific version of the package (e.g., --ver 1.0.0)')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
                           help='Resume interrupted downloads (use with install command)')
