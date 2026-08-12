@@ -185,38 +185,32 @@ class MacWaveCLI:
             self._log(message, "debug")
 
     def _confirm_skip_ssl(self, args) -> bool:
-        """Handle --skip-ssl interactive confirmation"""
+        """Handle --skip-ssl interactive confirmation using rich Console."""
         if not getattr(args, 'skip_ssl', False):
             return True
         
-        RED = '\033[91m'
-        GREEN = '\033[92m'
-        RESET = '\033[0m'
-        
-        print(f"{RED}--skip-ssl parameter will skip SSL certificate verification, it is insecure. Do you want to continue?{RESET}")
-        response = input(f"{RED}[Y/n]{RESET} ").strip().lower()
+        console = Console()
+        console.print("--skip-ssl parameter will skip SSL certificate verification, it is insecure. Do you want to continue?", style="bold red")
+        response = input("[Y/n] ").strip().lower()
         
         if response in ['y', 'yes', '']:
-            print(f"{RED}Install continue{RESET}")
+            console.print("Install continue", style="bold red")
             return True
         else:
-            print(f"{GREEN}Install stopped{RESET}")
+            console.print("Install stopped", style="bold green")
             return False
 
     def _confirm_missing_sha256(self) -> bool:
-        """Handle missing SHA256 interactive confirmation"""
-        RED = '\033[91m'
-        GREEN = '\033[92m'
-        RESET = '\033[0m'
-        
-        print(f"{RED}Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Do you want to continue?{RESET}")
-        response = input(f"{RED}[Y/n]{RESET} ").strip().lower()
+        """Handle missing SHA256 interactive confirmation using rich Console."""
+        console = Console()
+        console.print("Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Do you want to continue?", style="bold red")
+        response = input("[Y/n] ").strip().lower()
         
         if response in ['y', 'yes', '']:
-            print(f"{RED}Install continue with SHA256 skipped{RESET}")
+            console.print("Install continue with SHA256 skipped", style="bold red")
             return True
         else:
-            print(f"{GREEN}Install stopped{RESET}")
+            console.print("Install stopped", style="bold green")
             return False
 
     def _calculate_sha256(self, filepath: Path) -> str:
@@ -820,11 +814,9 @@ class MacWaveCLI:
     
     def run(self):
         """Main entry point of the CLI."""
-        # Parse known args to handle global flags properly
         args, unknown = self.parser.parse_known_args()
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
         
-        # Handle --skip-ssl confirmation
         if not self._confirm_skip_ssl(args):
             sys.exit(0)
         
