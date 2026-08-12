@@ -187,7 +187,9 @@ class MacWaveCLI:
 
     def _confirm_skip_ssl(self, args) -> bool:
         """Handle --skip-ssl interactive confirmation using rich Console."""
-        if not getattr(args, 'skip_ssl', False):
+        # 显式检查 args 中是否有 skip_ssl 属性，以及其值
+        skip_ssl = getattr(args, 'skip_ssl', False)
+        if not skip_ssl:
             return True
         
         console = Console()
@@ -818,9 +820,16 @@ class MacWaveCLI:
     
     def run(self):
         """Main entry point of the CLI."""
+        # 关键修复：使用 parse_known_args 并显式处理 --skip-ssl
         args, unknown = self.parser.parse_known_args()
+        
+        # 如果 --skip-ssl 在 unknown 中，手动设置 skip_ssl 属性
+        if '--skip-ssl' in unknown:
+            args.skip_ssl = True
+        
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
         
+        # 处理 --skip-ssl 确认（现在 args 中一定有 skip_ssl 属性）
         if not self._confirm_skip_ssl(args):
             sys.exit(0)
         
