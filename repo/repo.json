@@ -243,6 +243,37 @@
           "binary_url": "https://github.com/palera1n/palera1n/releases/download/v2.4/palera1n-macos-x86_64"
         }
       ]
+    },
+    {
+      "name": "test_no_sha256",
+      "version": "1.0.0",
+      "author": "MacWave Tester",
+      "description": "A test package intentionally missing SHA256",
+      "homepage": "https://macwave.org",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "any",
+          "version": "1.0.0",
+          "binary_url": "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test_no_sha256"
+        }
+      ]
+    },
+    {
+      "name": "test_wrong_sha256",
+      "version": "1.0.0",
+      "author": "MacWave Tester",
+      "description": "A test package with wrong sha256 value",
+      "homepage": "https://macwave.org",
+      "releases": [
+        {
+          "os": "darwin",
+          "arch": "any",
+          "version": "1.0.0",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "binary_url": "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test_wrong_sha256"
+        }
+      ]
     }
   ]
 }
