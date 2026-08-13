@@ -15,6 +15,7 @@ import fcntl
 import logging
 import hashlib
 import traceback
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
@@ -67,6 +68,7 @@ except ImportError:
 VERSION = "1.0.0"                                   # 当前 MacWave 版本号
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"  # 远程软件源地址
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"    # 二进制文件默认安装目录
+DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"    # 临时下载目录
 INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"  # 已安装包记录数据库
 REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"   # 软件源本地缓存文件
 
@@ -121,7 +123,7 @@ class MacWaveCLI:
                           help='Output in JSON format (for scripting)')
         
         # --- 子命令 ---
-        subparsers = parser.add_subparsers(dest="command", metavar="{install,uninstall,list,search,info,update,upgrade,doctor}", help="Commands")
+        subparsers = parser.add_subparsers(dest="command", metavar="{install,uninstall,list,search,info,update,upgrade,doctor,clean}", help="Commands")
         
         # 1. install 命令
         install_parser = subparsers.add_parser(
@@ -175,6 +177,9 @@ class MacWaveCLI:
         # 8. doctor 命令
         subparsers.add_parser("doctor", help="Check your system for missing dependencies")
         
+        # 9. clean 命令
+        subparsers.add_parser("clean", help="Clean up temporary download files")
+        
         return parser
     
     def _add_install_flags(self, parser):
@@ -194,7 +199,7 @@ class MacWaveCLI:
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
         print("positional arguments:")
-        print("  {install,uninstall,list,search,info,update,upgrade,doctor}")
+        print("  {install,uninstall,list,search,info,update,upgrade,doctor,clean}")
         print("                          Commands")
         print("    install               Install a package")
         print("    uninstall             Uninstall a package")
@@ -204,6 +209,7 @@ class MacWaveCLI:
         print("    update                Update the package index")
         print("    upgrade               Upgrade an installed package to the latest version")
         print("    doctor                Check your system for missing dependencies")
+        print("    clean                 Clean up temporary download files")
         print()
         print("parameters:")
         print("  -h, --help              show this help message and exit")
@@ -418,12 +424,8 @@ class MacWaveCLI:
 
     def download_binary(self, url, package_name, args, install_dir=None, release=None):
         """
-        核心下载函数。融合了：
-        - 断点续传 (-C)
-        - 平滑限速 (--limit-rate)
-        - 进度条显示
-        - SHA256 完整性校验
-        - 服务器不支持续传时的红色警告
+        核心下载函数。先下载到临时目录，校验通过后移动到目标位置。
+        失败则立即删除，不留痕迹。
         """
         if install_dir is None:
             install_dir = INSTALL_DIR
@@ -440,10 +442,15 @@ class MacWaveCLI:
         
         print(f"🌊 Downloading {package_name}...")
         
+        # 使用临时目录
+        DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
+        temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
         final_path = install_dir / package_name
-        temp_path = install_dir / f"{package_name}.partial"
         
-        install_dir.mkdir(parents=True, exist_ok=True)
+        # 如果临时目录已有残留，清理掉
+        if temp_path.exists():
+            temp_path.unlink()
+            self.log_verbose(f"Cleaned up old partial file: {temp_path}")
         
         request_kwargs = {
             'stream': True,
@@ -532,7 +539,7 @@ class MacWaveCLI:
 
             # ================= 进度条逻辑 =================
             if RICH_AVAILABLE:
-                console = Console()
+                from rich.console import Console
                 progress_columns = [
                     TextColumn("[progress.description]{task.description}"),
                     BarColumn(bar_width=None),
@@ -545,6 +552,7 @@ class MacWaveCLI:
                 ]
                 
                 # 关键逻辑：将 resume_pos (已下载字节) 作为 completed 参数传入，让进度条直接从断点处开始
+                console = Console()
                 with Progress(*progress_columns, console=console) as progress:
                     task_id = progress.add_task(
                         description=package_name,
@@ -648,25 +656,43 @@ class MacWaveCLI:
                 self.log_verbose(f"Actual SHA256: {actual_sha256}")
                 
                 if actual_sha256 != expected_sha256:
-                    temp_path.unlink()
-                    print(f"🌊 SHA256 verification failed!")
-                    print(f"🌊 Expected: {expected_sha256}")
-                    print(f"🌊 Actual:   {actual_sha256}")
-                    print(f"🌊 File may have been tampered with or corrupted.")
+                    # 立即删除临时文件
+                    if temp_path.exists():
+                        temp_path.unlink()
+                        self.log_verbose(f"Deleted corrupted file: {temp_path}")
+                    
+                    # 彩色输出
+                    print(f"\033[91m🌊 SHA256 verification failed!\033[0m")
+                    print(f"\033[91m🌊 Expected: {expected_sha256}\033[0m")
+                    print(f"\033[92m🌊 Actual:   {actual_sha256}\033[0m")
+                    print(f"\033[91m🌊 File may have been tampered with or corrupted.\033[0m")
+                    print(f"\033[91m🌊 File has been permanently deleted.\033[0m")
                     sys.exit(1)
                 else:
                     self.log_verbose("SHA256 verification passed")
-                    print(f"🌊 SHA256 verified successfully")
+                    print("🌊 SHA256 verified successfully")
             else:
                 self.log_verbose("No SHA256 value found in release metadata")
                 if not self._confirm_missing_sha256():
-                    temp_path.unlink()
+                    if temp_path.exists():
+                        temp_path.unlink()
+                        self.log_verbose(f"Deleted file: {temp_path}")
+                    print("🌊 Installation cancelled.")
                     sys.exit(0)
 
-            # 重命名临时文件为最终文件，并赋予执行权限
+            # 校验通过：移动到目标位置
+            install_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 如果目标位置已有文件，先备份
+            if final_path.exists():
+                backup_path = final_path.with_suffix(final_path.suffix + ".bak")
+                self.log_verbose(f"Target exists, backing up to {backup_path}")
+                final_path.rename(backup_path)
+            
+            # 移动文件
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
-            self.log_verbose(f"Downloaded {final_path.stat().st_size} bytes to {final_path}")
+            self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
             print(f"🌊 Download complete!")
 
         except KeyboardInterrupt:
@@ -812,6 +838,8 @@ class MacWaveCLI:
     def handle_uninstall(self, args):
         """处理 uninstall 卸载命令"""
         safe_name = args.package_name.lower()
+        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+        
         if not INSTALLED_DB.exists():
             print(f"🌊 No packages installed. Nothing to uninstall.")
             return
@@ -847,6 +875,8 @@ class MacWaveCLI:
     
     def handle_list(self, args):
         """处理 list 命令，列出已安装的包"""
+        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+        
         if not INSTALLED_DB.exists():
             print("🌊 No packages installed yet.")
             return
@@ -932,6 +962,8 @@ class MacWaveCLI:
     def handle_upgrade(self, args):
         """处理 upgrade 升级命令，比较版本号并覆盖安装"""
         safe_name = args.package_name.lower()
+        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+        
         if not INSTALLED_DB.exists():
             print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
             return
@@ -981,6 +1013,14 @@ class MacWaveCLI:
         """处理 doctor 命令（预留实现）"""
         print(f"🌊 Command 'doctor' is not implemented yet.")
     
+    def handle_clean(self, args):
+        """处理 clean 命令，清理临时下载目录"""
+        if DOWNLOAD_TMP.exists():
+            shutil.rmtree(DOWNLOAD_TMP)
+            print("🌊 Cleaned up temporary download directory.")
+        else:
+            print("🌊 No temporary files to clean.")
+    
     def run(self):
         """程序入口调度器，决定执行哪个子命令"""
         args, unknown = self.parser.parse_known_args()
@@ -1011,6 +1051,29 @@ class MacWaveCLI:
             self._print_custom_help()
             return
         
+        # ===== 核心：写操作前检查 INSTALL_DIR =====
+        if args.command in {"install", "uninstall", "upgrade"}:
+            if INSTALL_DIR.exists() and any(INSTALL_DIR.iterdir()):
+                file_count = len(list(INSTALL_DIR.iterdir()))
+                print(f"\033[91m🌊 WARNING: Installation directory already exists and contains {file_count} file(s): {INSTALL_DIR}\033[0m")
+                print(f"\033[91m🌊 Directory already exists, do you want to force write? This will clear all contents of the original folder.\033[0m")
+                response = input("[Y/n] ").strip().lower()
+                if response not in ['y', 'yes', '']:
+                    print(f"\033[92m🌊 Operation cancelled by user.\033[0m")
+                    sys.exit(0)
+                # 清空目录
+                for item in INSTALL_DIR.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                print(f"\033[91m🌊 Cleared all contents from: {INSTALL_DIR}\033[0m")
+        
+        # 辅助目录自动创建
+        DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
+        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+        REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        
         command_handlers = {
             "install": self.handle_install,
             "uninstall": self.handle_uninstall,
@@ -1020,6 +1083,7 @@ class MacWaveCLI:
             "update": self.handle_update,
             "upgrade": self.handle_upgrade,
             "doctor": self.handle_doctor,
+            "clean": self.handle_clean,
         }
         handler = command_handlers.get(args.command)
         if handler:
