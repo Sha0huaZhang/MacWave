@@ -1026,7 +1026,6 @@ class MacWaveCLI:
             sys.exit(1)
 
 
-
 def main():
     cli = MacWaveCLI()
     cli.run()
