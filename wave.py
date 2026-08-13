@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MacWave 🌊
+MacWave
 A package manager for macOS/Linux jailbreak developers.
 Version: 1.0.0
 """
@@ -23,7 +23,7 @@ from typing import Optional, Dict, Any, Union
 # 依赖库检查
 # ==========================================
 
-# 检查 requests 库（用于发送 HTTP 请求）
+# 检查 requests 库
 try:
     import requests
     from requests.adapters import HTTPAdapter
@@ -31,19 +31,19 @@ try:
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print("🌊 Error: 'requests' library is not installed.")
-    print("🌊 Please install it using: pip3 install requests")
+    print("Error: 'requests' library is not installed.")
+    print("Please install it using: pip3 install requests")
     sys.exit(1)
 
-# 检查 packaging 库（用于安全地比较版本号大小）
+# 检查 packaging 库
 try:
     from packaging.version import parse as parse_version
 except ImportError:
-    print("🌊 Error: 'packaging' library is not installed.")
-    print("🌊 Please install it using: pip3 install packaging")
+    print("Error: 'packaging' library is not installed.")
+    print("Please install it using: pip3 install packaging")
     sys.exit(1)
 
-# 检查 rich 库（用于在终端显示漂亮的进度条）
+# 检查 rich 库
 try:
     from rich.progress import (
         Progress,
@@ -57,7 +57,6 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-    # 如果 rich 未安装，则退回到无进度条的模式，不影响实际功能
     pass
 
 
@@ -65,28 +64,25 @@ except ImportError:
 # 全局常量定义
 # ==========================================
 
-VERSION = "1.0.0"                                   # 当前 MacWave 版本号
-REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"  # 远程软件源地址
-INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"    # 二进制文件默认安装目录
-DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"    # 临时下载目录
-INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"  # 已安装包记录数据库
-REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"   # 软件源本地缓存文件
+VERSION = "1.0.0"
+REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
+INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
+DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
+INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"
+REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"
 
-# 受保护的包列表（永远不能删除）
 PROTECTED_PACKAGES = ["wave"]
 
 
 # ==========================================
-# 核心主类：MacWaveCLI
+# 核心主类
 # ==========================================
 
 class MacWaveCLI:
     def __init__(self):
-        """初始化命令行界面，解析参数并设置日志系统"""
         self.parser = self._create_parser()
-        self.verbose = False  # 是否开启详细调试模式
+        self.verbose = False
 
-        # 初始化 fallback logger（避免在日志未配置时崩溃）
         self._logger = logging.getLogger("MacWave")
         if not self._logger.handlers:
             handler = logging.StreamHandler()
@@ -95,21 +91,19 @@ class MacWaveCLI:
             self._logger.setLevel(logging.INFO)
 
     def _create_parser(self):
-        """创建并配置命令行参数解析器，支持各种子命令和参数"""
         parser = argparse.ArgumentParser(
             prog="wave",
-            description="MacWave 1.0.0 🌊\nA package manager for macOS/Linux jailbreak developers.",
+            description="MacWave 1.0.0\nA package manager for macOS/Linux jailbreak developers.",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             usage="wave <command> [package] [flags]",
             epilog="For more details, visit: https://macwave.org",
-            add_help=False  # 禁用默认的 help，使用我们的定制格式
+            add_help=False
         )
-        
-        # --- 全局 Flags ---
+
         parser.add_argument('-h', '--help', action='store_true',
                           help='show this help message and exit')
-        parser.add_argument('-V', '--version', action='version', 
-                          version=f'MacWave {VERSION} 🌊')
+        parser.add_argument('-V', '--version', action='version',
+                          version=f'MacWave {VERSION}')
         parser.add_argument('-v', '--verbose', action='store_true',
                           help='Enable verbose output (show detailed debug logs, including exception stack traces)')
         parser.add_argument('-B', '--beta-version', action='store_true',
@@ -124,31 +118,26 @@ class MacWaveCLI:
                           help='Simulate the installation without making changes')
         parser.add_argument('--json', action='store_true',
                           help='Output in JSON format (for scripting)')
-        
-        # --- 子命令 ---
+
         subparsers = parser.add_subparsers(dest="command", metavar="{install,uninstall,list,search,info,update,upgrade,doctor,clean}", help="Commands")
-        
-        # 1. install 命令
+
         install_parser = subparsers.add_parser(
-            "install", 
+            "install",
             help="Install a package",
             usage="wave install <package_name> [flags]"
         )
         install_parser.add_argument("package_name", help="Name of the package to install")
         self._add_install_flags(install_parser)
-        
-        # 2. uninstall 命令
+
         uninstall_parser = subparsers.add_parser(
             "uninstall",
             help="Uninstall a package",
             usage="wave uninstall <package_name>"
         )
         uninstall_parser.add_argument("package_name", help="Name of the package to uninstall")
-        
-        # 3. list 命令
+
         subparsers.add_parser("list", help="List installed packages")
-        
-        # 4. search 命令
+
         search_parser = subparsers.add_parser(
             "search",
             help="Search for a package in the index",
@@ -157,116 +146,101 @@ class MacWaveCLI:
         search_parser.add_argument("query", help="Search query")
         search_parser.add_argument('-f', '--fuzzy', action='store_true',
                                   help='Enable fuzzy search (matches anywhere in name/description)')
-        
-        # 5. info 命令
+
         info_parser = subparsers.add_parser(
             "info",
             help="Display detailed information about a package",
             usage="wave info <package_name>"
         )
         info_parser.add_argument("package_name", help="Name of the package")
-        
-        # 6. update 命令
+
         subparsers.add_parser("update", help="Update the package index")
-        
-        # 7. upgrade 命令
+
         upgrade_parser = subparsers.add_parser(
             "upgrade",
             help="Upgrade an installed package to the latest version",
             usage="wave upgrade <package_name>"
         )
         upgrade_parser.add_argument("package_name", help="Name of the package to upgrade")
-        
-        # 8. doctor 命令
+
         subparsers.add_parser("doctor", help="Check your system for missing dependencies")
-        
-        # 9. clean 命令
+
         subparsers.add_parser("clean", help="Clean up temporary download files")
-        
+
         return parser
-    
+
     def _add_install_flags(self, parser):
-        """为 install 命令添加特有的参数"""
         parser.add_argument('-D', '--dir', type=str, metavar='string',
                           help='Specify an output directory (e.g., ~/Desktop) for downloads')
         parser.add_argument('--ver', type=str, metavar='string',
                           help='Install a specific version of the package')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true',
-                          help='Resume interrupted downloads (like curl -C -, but just -C, DON\'t use -C -!)')
+                          help='Resume interrupted downloads')
 
     def _print_custom_help(self):
-        """手动打印符合用户指定格式的纯英文帮助信息，统一左侧对齐"""
-        print("Usage: wave <command> [package] [flags]")
+        print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
         print()
-        print("MacWave 1.0.0 🌊")
+        print("MacWave 1.0.0")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
-        print("positional arguments:")
-        print("  {install,uninstall,list,search,info,update,upgrade,doctor,clean}")
-        print("                          Commands")
-        print("    install               Install a package")
-        print("    uninstall             Uninstall a package")
-        print("    list                  List installed packages")
-        print("    search                Search for a package in the index")
-        print("    info                  Display detailed information about a package")
-        print("    update                Update the package index")
-        print("    upgrade               Upgrade an installed package to the latest version")
-        print("    doctor                Check your system for missing dependencies")
-        print("    clean                 Clean up temporary download files")
+        print("\033[35mpositional arguments:\033[0m")
+        print("  \033[32m{install, uninstall, list, search, info, update, upgrade, doctor, clean}\033[0m")
+        print("                          \033[0mCommands\033[0m")
+        print("    \033[32minstall\033[0m               Install a package")
+        print("    \033[32muninstall\033[0m             Uninstall a package")
+        print("    \033[32mlist\033[0m                  List installed packages")
+        print("    \033[32msearch\033[0m                Search for a package in the index")
+        print("    \033[32minfo\033[0m                  Display detailed information about a package")
+        print("    \033[32mupdate\033[0m                Update the package index")
+        print("    \033[32mupgrade\033[0m               Upgrade an installed package to the latest version")
+        print("    \033[32mdoctor\033[0m                Check your system for missing dependencies")
+        print("    \033[32mclean\033[0m                 Clean up temporary download files")
         print()
-        print("parameters:")
-        print("  -h, --help              show this help message and exit")
-        print("  -V, --version           show program's version number and exit")
-        print("  -v, --verbose           Enable verbose output (show detailed debug logs, including exception stack traces)")
-        print("  -B, --beta-version      Install the latest beta version (if available)")
-        print("  --proxy string          Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)")
-        print("  --skip-ssl              Skip SSL certificate verification (insecure, with interactive confirmation)")
-        print("  --limit-rate string     Limit download speed (e.g., 200K, 1M, 5M)")
-        print("  --dry-run               Simulate the installation without making changes")
-        print("  --json                  Output in JSON format (for scripting)")
+        print("\033[35mparameters:\033[0m")
+        print("  \033[32m-h, --help\033[0m              show this help message and exit")
+        print("  \033[32m-V, --version\033[0m           show program's version number and exit")
+        print("  \033[32m-v, --verbose\033[0m           Enable verbose output (show detailed debug logs, including exception stack traces)")
+        print("  \033[32m-B, --beta-version\033[0m      Install the latest beta version (if available)")
+        print("  \033[36m--proxy\033[0m \033[33mstring\033[0m          Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)")
+        print("  \033[36m--skip-ssl\033[0m              Skip SSL certificate verification (insecure, with interactive confirmation)")
+        print("  \033[36m--limit-rate\033[0m \033[33mstring\033[0m     Limit download speed (e.g., 200K, 1M, 5M)")
+        print("  \033[36m--dry-run\033[0m               Simulate the installation without making changes")
+        print("  \033[36m--json\033[0m                  Output in JSON format (for scripting)")
         print()
         print("Global Flags (can be used with any command):")
-        print("  -B, --beta-version      Install the latest beta version (if available)")
-        print("  -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads")
-        print("  -C, --continue          Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)")
-        print("  --proxy string          Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)")
-        print("  --skip-ssl              Skip SSL certificate verification (insecure, with interactive confirmation)")
-        print("  --limit-rate string     Limit download speed (e.g., 200K, 1M, 5M)")
-        print("  --dry-run               Simulate the installation without making changes")
-        print("  --json                  Output in JSON format (for scripting)")
-        print("  --ver string            Install a specific version of the package")
+        print("  \033[32m-B, --beta-version\033[0m      Install the latest beta version (if available)")
+        print("  \033[32m-D, --dir\033[0m \033[33mstring\033[0m        Specify an output directory (e.g., ~/Desktop) for downloads")
+        print("  \033[32m-C, --continue\033[0m          Resume interrupted downloads")
+        print("  \033[36m--proxy\033[0m \033[33mstring\033[0m          Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)")
+        print("  \033[36m--skip-ssl\033[0m              Skip SSL certificate verification (insecure, with interactive confirmation)")
+        print("  \033[36m--limit-rate\033[0m \033[33mstring\033[0m     Limit download speed (e.g., 200K, 1M, 5M)")
+        print("  \033[36m--dry-run\033[0m               Simulate the installation without making changes")
+        print("  \033[36m--json\033[0m                  Output in JSON format (for scripting)")
+        print("  \033[36m--ver\033[0m \033[33mstring\033[0m            Install a specific version of the package")
         print()
         print("For more details, visit: https://macwave.org")
 
     def _log(self, message: str, level: str = "info", force: bool = False):
-        """统一日志输出函数，支持强制输出和调试模式"""
         if self.verbose or force or level == "error":
             log_func = getattr(self._logger, level, self._logger.info)
-            log_func(f"🌊 {message}")
+            log_func(f" {message}")
 
     def log(self, message, force=False):
-        """兼容旧代码的标准日志输出"""
         self._log(message, "info", force)
 
     def log_verbose(self, message):
-        """仅在 verbose 模式启用的调试日志"""
         if self.verbose:
             self._log(message, "debug")
 
     def _is_protected(self, package_name: str) -> bool:
-        """检查是否为受保护的包（永远不能删除）"""
         return package_name.lower() in PROTECTED_PACKAGES
 
     def _safe_delete_binary(self, binary_path: Path) -> bool:
-        """
-        安全删除二进制文件
-        返回 True 表示删除成功，False 表示被保护或出错
-        """
         if self._is_protected(binary_path.name):
-            print(f"\033[31m🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
-            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[31mERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
+            print(f"\033[31mThis package is required for MacWave to function.\033[0m")
             return False
-        
+
         try:
             if binary_path.exists():
                 binary_path.unlink()
@@ -274,19 +248,18 @@ class MacWaveCLI:
                 return True
             return False
         except Exception as e:
-            print(f"\033[31m🌊 Error deleting {binary_path}: {e}\033[0m")
+            print(f"\033[31mError deleting {binary_path}: {e}\033[0m")
             return False
 
     def _confirm_skip_ssl(self, args) -> bool:
-        """跳过 SSL 验证的交互式确认（不安全操作，必须二次确认）"""
         skip_ssl = getattr(args, 'skip_ssl', False)
         if not skip_ssl:
             return True
-        
+
         console = Console()
         console.print("--skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
         response = input("[Y/n] ").strip().lower()
-        
+
         if response in ['y', 'yes', '']:
             console.print("Install continue", style="bold red")
             return True
@@ -295,11 +268,10 @@ class MacWaveCLI:
             return False
 
     def _confirm_missing_sha256(self) -> bool:
-        """当软件源缺少 SHA256 时的交互式确认"""
         console = Console()
         console.print("Can't find SHA256 value, continuing installation will skip SHA256 verification, which may be insecure. Are you sure to continue?", style="bold red")
         response = input("[Y/n] ").strip().lower()
-        
+
         if response in ['y', 'yes', '']:
             console.print("Install continue with SHA256 skipped", style="bold red")
             return True
@@ -308,7 +280,6 @@ class MacWaveCLI:
             return False
 
     def _calculate_sha256(self, filepath: Path) -> str:
-        """计算文件的 SHA256 哈希值，用于校验文件完整性"""
         sha256_hash = hashlib.sha256()
         with open(filepath, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
@@ -316,10 +287,6 @@ class MacWaveCLI:
         return sha256_hash.hexdigest()
 
     def fetch_repo_data(self, args=None):
-        """
-        拉取并解析远程软件源（repo.json）。
-        缓存策略：5分钟内直接用缓存；1小时内如果网络失败则使用过期缓存；否则报错退出。
-        """
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
 
         cache_data: Optional[Dict[str, Any]] = None
@@ -335,7 +302,6 @@ class MacWaveCLI:
                 self._log(f"Cache corrupted: {e}", "warning")
                 cache_data = None
 
-        # 1. 缓存时间在 5 分钟以内，直接视为最新，直接返回（无需联网）
         if cache_data is not None and cache_age is not None and cache_age < 300:
             self.log_verbose("Using fresh cache")
             return cache_data
@@ -385,16 +351,14 @@ class MacWaveCLI:
             raise RuntimeError(f"Invalid JSON data received from repository: {e}") from e
 
     def find_package(self, repo_data, package_name, args=None):
-        """在软件源中查找包，支持指定版本、测试版和架构匹配"""
         self.log_verbose(f"Searching for package: {package_name}")
-        
+
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == package_name:
                     self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
-                    
-                    # 1. 用户指定了具体版本号 (--ver)
+
                     if args and getattr(args, 'ver', None):
                         requested_version = args.ver
                         self.log_verbose(f"User requested version: {requested_version}")
@@ -404,10 +368,9 @@ class MacWaveCLI:
                                 if release.get("arch") == arch or release.get("arch") == "any":
                                     self.log_verbose(f"Found matching release for version {requested_version}")
                                     return release
-                        print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
+                        print(f"Error: Could not find version '{requested_version}' for package '{package_name}'.")
                         sys.exit(1)
-                    
-                    # 2. 用户请求安装测试版 (-B)
+
                     if args and getattr(args, 'beta_version', False):
                         self.log_verbose("User requested beta version.")
                         for release in releases:
@@ -415,30 +378,24 @@ class MacWaveCLI:
                                 self.log_verbose("Found beta release.")
                                 return release
                         return None
-                    
-                    # 3. 默认：查找与当前系统架构匹配的 release
+
                     current_arch = platform.machine().lower()
                     for release in releases:
                         if release.get("arch") == current_arch:
                             self.log_verbose(f"Found release matching architecture: {current_arch}")
                             return release
-                    # 4. 如果找不到精确架构，寻找通用架构 (any)
                     for release in releases:
                         if release.get("arch") == "any":
                             self.log_verbose(f"Found fallback release with arch='any'")
                             return release
-                    
-                    print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
+
+                    print(f"Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
                     sys.exit(1)
-        
-        print(f"🌊 Error: Package '{package_name}' not found in repository")
+
+        print(f"Error: Package '{package_name}' not found in repository")
         sys.exit(1)
-    
+
     def _parse_rate_limit(self, rate_str):
-        """
-        解析用户输入的限速字符串（如 200K, 1M），返回每秒字节数 (Bytes Per Second)。
-        支持 K (KB/s), M (MB/s), G (GB/s)。
-        """
         rate_str = rate_str.upper().strip()
         multipliers = {'K': 1024, 'M': 1024**2, 'G': 1024**3}
         try:
@@ -450,44 +407,38 @@ class MacWaveCLI:
             return None
 
     def download_binary(self, url, package_name, args, install_dir=None, release=None):
-        """
-        核心下载函数。先下载到临时目录，校验通过后移动到目标位置。
-        失败则立即删除，不留痕迹。
-        """
         if install_dir is None:
             install_dir = INSTALL_DIR
-        
+
         if args.dry_run:
-            print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
+            print(f"[DRY RUN] Would download {package_name} from {url}")
             return
-        
+
         self.log_verbose(f"Download URL: {url}")
         self.log_verbose(f"Target directory: {install_dir}")
         self.log_verbose(f"Target file: {package_name}")
         if release:
             self.log_verbose(f"Release info: version={release.get('version', 'unknown')}, arch={release.get('arch', 'unknown')}")
-        
-        print(f"🌊 Downloading {package_name}...")
-        
-        # 使用临时目录
+
+        print(f"Downloading {package_name}...")
+
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
         final_path = install_dir / package_name
-        
-        # 如果临时目录已有残留，清理掉
+
         if temp_path.exists():
             temp_path.unlink()
             self.log_verbose(f"Cleaned up old partial file: {temp_path}")
-        
+
         request_kwargs = {
             'stream': True,
             'timeout': 30
         }
-        
+
         if args.proxy:
             request_kwargs['proxies'] = {'http': args.proxy, 'https': args.proxy}
             self.log_verbose(f"Using proxy: {args.proxy}")
-        
+
         if args.skip_ssl:
             request_kwargs['verify'] = False
             import urllib3
@@ -497,14 +448,14 @@ class MacWaveCLI:
         headers = {}
         resume_pos = 0
         should_resume = args.resume and temp_path.exists()
-        
+
         if should_resume:
             try:
                 resume_pos = temp_path.stat().st_size
                 if resume_pos > 0:
                     headers['Range'] = f"bytes={resume_pos}-"
                     self.log_verbose(f"Resuming download from byte {resume_pos}")
-                    print(f"🌊 Resuming from {resume_pos} bytes")
+                    print(f"Resuming from {resume_pos} bytes")
                 else:
                     self.log_verbose("Partial file exists but is empty, starting from beginning")
                     temp_path.unlink()
@@ -520,7 +471,7 @@ class MacWaveCLI:
             self.log_verbose(f"Sending GET request to {url}")
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
-            
+
             self.log_verbose(f"Response status: {response.status_code}")
             content_length = response.headers.get('content-length')
             if content_length:
@@ -536,8 +487,8 @@ class MacWaveCLI:
                     if temp_path.exists():
                         temp_path.unlink()
                         self.log_verbose(f"Removed corrupted partial file: {temp_path}")
-                    print("\033[31m🌊 Warning: The server does not support resuming downloads.\033[0m")
-                    print("\033[31m🌊 To ensure file integrity, we are restarting the download completely from the beginning.\033[0m")
+                    print("\033[31mWarning: The server does not support resuming downloads.\033[0m")
+                    print("\033[31mTo ensure file integrity, we are restarting the download completely from the beginning.\033[0m")
                     resume_pos = 0
                     is_resume = False
                 else:
@@ -551,20 +502,16 @@ class MacWaveCLI:
             else:
                 self.log_verbose(f"Total file size: {total_size} bytes")
 
-            # ================= 限速逻辑 (滑动窗口累加补偿算法) =================
             limit_bps = None
             if args.limit_rate:
                 limit_bps = self._parse_rate_limit(args.limit_rate)
                 if limit_bps is not None:
                     self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec")
 
-            # 滑动窗口限速器：每 0.5 秒检查一次，超出限额则休眠补偿
             rate_start_time = time.time()
             rate_bytes_in_window = 0
-            SLIDING_WINDOW = 0.5  # 0.5秒的窗口大小
-            # ==================================================================
+            SLIDING_WINDOW = 0.5
 
-            # ================= 进度条逻辑 =================
             if RICH_AVAILABLE:
                 from rich.console import Console
                 progress_columns = [
@@ -577,8 +524,7 @@ class MacWaveCLI:
                     TextColumn("•"),
                     TimeRemainingColumn(),
                 ]
-                
-                # 关键逻辑：将 resume_pos (已下载字节) 作为 completed 参数传入，让进度条直接从断点处开始
+
                 console = Console()
                 with Progress(*progress_columns, console=console) as progress:
                     task_id = progress.add_task(
@@ -591,10 +537,9 @@ class MacWaveCLI:
 
                     mode = 'ab' if is_resume else 'wb'
                     downloaded = resume_pos
-                    
-                    # 【优化点1：边下边算哈希】在循环外初始化哈希计算器
+
                     sha256_hash = hashlib.sha256()
-                    
+
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
@@ -602,10 +547,8 @@ class MacWaveCLI:
                                 chunk_size_bytes = len(chunk)
                                 downloaded += chunk_size_bytes
 
-                                # 【优化点1续】边下边算，把每个收到的字节块丢进哈希计算器
                                 sha256_hash.update(chunk)
 
-                                # 限速执行
                                 if limit_bps:
                                     rate_bytes_in_window += chunk_size_bytes
                                     expected_bytes_in_window = limit_bps * SLIDING_WINDOW
@@ -618,27 +561,24 @@ class MacWaveCLI:
 
                                 progress.update(task_id, advance=chunk_size_bytes)
             else:
-                # 如果没有 rich 库，降级为简单的点号输出
                 self.log_verbose("rich library not available, using simple progress indicator")
                 mode = 'ab' if is_resume else 'wb'
                 downloaded = resume_pos
-                
+
                 rate_start_time_fb = time.time()
                 rate_bytes_in_window_fb = 0
-                
-                # 【优化点1：边下边算哈希】备选方案也加上
+
                 sha256_hash = hashlib.sha256()
-                
+
                 with open(temp_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             f.write(chunk)
                             chunk_size_bytes = len(chunk)
                             downloaded += len(chunk)
-                            
-                            # 【优化点1续】备选也实时更新哈希
+
                             sha256_hash.update(chunk)
-                            
+
                             if limit_bps:
                                 rate_bytes_in_window_fb += chunk_size_bytes
                                 expected_bytes_in_window_fb = limit_bps * SLIDING_WINDOW
@@ -652,191 +592,175 @@ class MacWaveCLI:
                             if self.verbose:
                                 print(".", end="", flush=True)
                 if self.verbose:
-                    print(" 🌊")
-            # =====================================================
+                    print(" ")
 
-            # SHA256 完整性校验
-            # 【优化点3：利用刚才边下边算的结果】因为我们一直在实时更新 sha256_hash，直接用即可
             if release and release.get("sha256"):
                 expected_sha256 = release.get("sha256")
                 self.log_verbose(f"Expected SHA256: {expected_sha256}")
-                print("🌊 Verifying SHA256...")
-                
-                # 用实时计算出来的值，不再重新读取文件
+                print("Verifying SHA256...")
+
                 actual_sha256 = sha256_hash.hexdigest()
                 self.log_verbose(f"Actual SHA256: {actual_sha256}")
-                
+
                 if actual_sha256 != expected_sha256:
-                    # 立即删除临时文件
                     if temp_path.exists():
                         temp_path.unlink()
-                        self.log_verbose(f"☠️ Deleted malicious/corrupted file: {temp_path}")
-                    
-                    # 彩色输出 - 红色用 \033[31m，绿色用 \033[32m
-                    print(f"\033[31m🌊 SHA256 verification failed!\033[0m")
-                    print(f"\033[31m🌊 Expected: {expected_sha256}\033[0m")
-                    print(f"\033[32m🌊 Actual:   {actual_sha256}\033[0m")
-                    print(f"\033[31m🌊 File may have been tampered with or corrupted.\033[0m")
-                    print(f"\033[31m🌊 Malicious file has been permanently deleted.\033[0m")
+                        self.log_verbose(f"Deleted malicious/corrupted file: {temp_path}")
+
+                    print(f"\033[31mSHA256 verification failed!\033[0m")
+                    print(f"\033[31mExpected: {expected_sha256}\033[0m")
+                    print(f"\033[32mActual:   {actual_sha256}\033[0m")
+                    print(f"\033[31mFile may have been tampered with or corrupted.\033[0m")
+                    print(f"\033[31mMalicious file has been permanently deleted.\033[0m")
                     sys.exit(1)
                 else:
                     self.log_verbose("SHA256 verification passed")
-                    print("🌊 SHA256 verified successfully")
+                    print("SHA256 verified successfully")
             else:
                 self.log_verbose("No SHA256 value found in release metadata")
                 if not self._confirm_missing_sha256():
                     if temp_path.exists():
                         temp_path.unlink()
                         self.log_verbose(f"Deleted file: {temp_path}")
-                    print("🌊 Installation cancelled.")
+                    print("Installation cancelled.")
                     sys.exit(0)
 
-            # 校验通过：移动到目标位置
             install_dir.mkdir(parents=True, exist_ok=True)
-            
-            # 如果目标位置已有文件，先备份
+
             if final_path.exists():
-                # 保护：不能覆盖自己
                 if self._is_protected(final_path.name):
-                    print(f"\033[31m🌊 ERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
-                    print(f"\033[31m🌊 This would break your package manager!\033[0m")
+                    print(f"\033[31mERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
+                    print(f"\033[31mThis would break your package manager!\033[0m")
                     if temp_path.exists():
                         temp_path.unlink()
                     sys.exit(1)
-                
+
                 backup_path = final_path.with_suffix(final_path.suffix + ".bak")
                 self.log_verbose(f"Target exists, backing up to {backup_path}")
                 final_path.rename(backup_path)
-            
-            # 移动文件
+
             temp_path.rename(final_path)
             os.chmod(final_path, 0o755)
             self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
-            print(f"🌊 Download complete!")
+            print("Download complete!")
 
         except KeyboardInterrupt:
-            print("\n🌊 Download interrupted by user.")
+            print("\nDownload interrupted by user.")
             if temp_path.exists():
                 if temp_path.stat().st_size > 0:
-                    print(f"🌊 Partial file saved at: {temp_path}")
-                    print(f"🌊 Use 'wave install {package_name} -C' to resume later")
+                    print(f"Partial file saved at: {temp_path}")
+                    print(f"Use 'wave install {package_name} -C' to resume later")
                 else:
                     temp_path.unlink()
             sys.exit(130)
-            
+
         except requests.exceptions.RequestException as e:
             if self.verbose:
-                print("\n🌊 [VERBOSE] Full exception traceback:")
+                print("\n[VERBOSE] Full exception traceback:")
                 traceback.print_exc()
-            print(f"\n🌊 Error: Failed to download binary: {e}")
+            print(f"\nError: Failed to download binary: {e}")
             if temp_path.exists() and temp_path.stat().st_size > 0:
-                print(f"🌊 Partial file saved at: {temp_path}")
+                print(f"Partial file saved at: {temp_path}")
             sys.exit(1)
         except Exception as e:
             if self.verbose:
-                print("\n🌊 [VERBOSE] Full exception traceback:")
+                print("\n[VERBOSE] Full exception traceback:")
                 traceback.print_exc()
-            print(f"\n🌊 Error: Unexpected error: {e}")
+            print(f"\nError: Unexpected error: {e}")
             if temp_path.exists() and temp_path.stat().st_size > 0:
-                print(f"🌊 Partial file saved at: {temp_path}")
+                print(f"Partial file saved at: {temp_path}")
             sys.exit(1)
-    
+
     def install_package(self, package_name, args, version=None, install_dir=None):
-        """安装后的收尾工作：记录数据库、检查 PATH 环境变量"""
         if install_dir is None:
             install_dir = INSTALL_DIR
-        
+
         if args.dry_run:
-            print(f"🌊 [DRY RUN] Would install {package_name} to {install_dir}")
+            print(f"[DRY RUN] Would install {package_name} to {install_dir}")
             return
-        
+
         binary_path = install_dir / package_name
         if not binary_path.exists():
-            print(f"🌊 Error: Binary file not found after download.")
+            print("Error: Binary file not found after download.")
             sys.exit(1)
-        
+
         self.log_verbose(f"Installing to: {binary_path}")
         self.log_verbose(f"File size: {binary_path.stat().st_size} bytes")
-        
+
         try:
-            print(f"🌊 Successfully installed {package_name} to {binary_path}")
+            print(f"Successfully installed {package_name} to {binary_path}")
             self._record_installation(package_name, version, install_dir)
-            
+
             path_dirs = os.environ.get("PATH", "").split(":")
             if str(install_dir) not in path_dirs:
                 self.log_verbose(f"{install_dir} not in PATH")
-                print(f"🌊 Tip: Add {install_dir} to your PATH to use '{package_name}' directly:")
-                print(f"🌊   export PATH=\"{install_dir}:$PATH\"")
+                print(f"Tip: Add {install_dir} to your PATH to use '{package_name}' directly:")
+                print(f"  export PATH=\"{install_dir}:$PATH\"")
             else:
                 self.log_verbose(f"{install_dir} is in PATH")
-                print(f"🌊 Ready to ride! You can now run: {package_name}")
-                
+                print(f"Ready to ride! You can now run: {package_name}")
+
         except OSError as e:
-            print(f"🌊 Error: Failed to install package: {e}")
+            print(f"Error: Failed to install package: {e}")
             sys.exit(1)
-    
+
     def _record_installation(self, package_name, release_version=None, install_dir=None):
-        """
-        将已安装的包记录到 ~/.local/macwave/installed.json。
-        使用 fcntl 文件锁，防止多进程并发写入时数据损坏。
-        """
         if install_dir is None:
             install_dir = INSTALL_DIR
-        
+
         try:
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(INSTALLED_DB, 'a+') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                
+
                 f.seek(0)
                 try:
                     content = f.read()
                     installed = json.loads(content) if content else {}
                 except json.JSONDecodeError:
                     installed = {}
-                
+
                 installed[package_name] = {
                     "version": release_version,
                     "binary_path": str(install_dir / package_name)
                 }
-                
+
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
-                
+
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                
+
         except Exception as e:
             self.log(f"Warning: Could not record installation: {e}", force=True)
-    
+
     def handle_install(self, args):
-        """处理 install 命令"""
         if args.json:
             print(json.dumps({"command": "install", "package": args.package_name}))
             return
-        
+
         self.log_verbose(f"Install command for package: {args.package_name}")
         try:
             repo_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{e}")
             sys.exit(1)
-            
+
         safe_name = args.package_name.lower()
-        
+
         install_dir = INSTALL_DIR
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
             self.log_verbose(f"Using custom install directory: {install_dir}")
-        
+
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
                 self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
                 self.install_package(safe_name, args, release.get("version"), install_dir)
             return
-        
+
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
@@ -844,46 +768,43 @@ class MacWaveCLI:
                 self.install_package(safe_name, args, beta_release.get("version"), install_dir)
                 return
             else:
-                print(f"🌊 No beta version found for '{safe_name}'.")
-                response = input(f"🌊 Do you want to install the latest stable version instead? [Y/n] ")
+                print(f"No beta version found for '{safe_name}'.")
+                response = input(f"Do you want to install the latest stable version instead? [Y/n] ")
                 if response.lower() not in ['y', 'yes', '']:
-                    print("🌊 Installation cancelled.")
+                    print("Installation cancelled.")
                     return
-        
+
         release = self.find_package(repo_data, safe_name, args)
         self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
         self.install_package(safe_name, args, release.get("version"), install_dir)
-    
+
     def handle_uninstall(self, args):
-        """处理 uninstall 卸载命令"""
         safe_name = args.package_name.lower()
-        
-        # 🛡️ 保护：不能卸载自己
+
         if self._is_protected(safe_name):
-            print(f"\033[31m🌊 ERROR: Cannot uninstall protected package: {safe_name}\033[0m")
-            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[31mERROR: Cannot uninstall protected package: {safe_name}\033[0m")
+            print(f"\033[31mThis package is required for MacWave to function.\033[0m")
             return
-        
+
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if not INSTALLED_DB.exists():
-            print(f"🌊 No packages installed. Nothing to uninstall.")
+            print("No packages installed. Nothing to uninstall.")
             return
         try:
             with open(INSTALLED_DB, 'r') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-            
+
             if safe_name not in installed:
-                print(f"🌊 Error: Package '{safe_name}' is not installed.")
+                print(f"Error: Package '{safe_name}' is not installed.")
                 return
-            
-            # 🛡️ 使用安全删除
+
             binary_path = INSTALL_DIR / safe_name
             if not self._safe_delete_binary(binary_path):
                 return
-            
+
             with open(INSTALLED_DB, 'w') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 del installed[safe_name]
@@ -891,38 +812,36 @@ class MacWaveCLI:
                 f.truncate()
                 json.dump(installed, f, indent=2)
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-            
-            print(f"🌊 Successfully uninstalled '{safe_name}'.")
-            
+
+            print(f"Successfully uninstalled '{safe_name}'.")
+
         except Exception as e:
-            print(f"🌊 Error: Failed to uninstall package: {e}")
-    
+            print(f"Error: Failed to uninstall package: {e}")
+
     def handle_list(self, args):
-        """处理 list 命令，列出已安装的包"""
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if not INSTALLED_DB.exists():
-            print("🌊 No packages installed yet.")
+            print("No packages installed yet.")
             return
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
-            print("🌊 Installed packages:")
+            print("Installed packages:")
             for pkg_name, info in installed.items():
                 version = info.get('version', 'unknown')
                 print(f"  - {pkg_name} (v{version})")
         except Exception as e:
-            print(f"🌊 Error: Could not read installed packages: {e}")
-    
+            print(f"Error: Could not read installed packages: {e}")
+
     def handle_search(self, args):
-        """处理 search 搜索命令"""
         query = args.query.lower()
         try:
             repo_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{e}")
             sys.exit(1)
-            
+
         matches = []
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
@@ -935,23 +854,22 @@ class MacWaveCLI:
                     if name.startswith(query) or desc.startswith(query):
                         matches.append(pkg)
         if not matches:
-            print(f"🌊 No packages found matching '{args.query}'")
+            print(f"No packages found matching '{args.query}'")
             return
-        print(f"🌊 Found {len(matches)} package(s) matching '{args.query}':")
+        print(f"Found {len(matches)} package(s) matching '{args.query}':")
         for pkg in matches:
             name = pkg.get("name", "Unknown")
             desc = pkg.get("description", "No description")
             print(f"  - {name}: {desc}")
-    
+
     def handle_info(self, args):
-        """处理 info 命令，查看包的详细信息"""
         self.log_verbose(f"Info command for package: {args.package_name}")
         try:
             repo_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{e}")
             sys.exit(1)
-            
+
         safe_name = args.package_name.lower()
         package_info = None
         if "packages" in repo_data:
@@ -960,118 +878,110 @@ class MacWaveCLI:
                     package_info = pkg
                     break
         if not package_info:
-            print(f"🌊 Error: Package '{safe_name}' not found in repository")
+            print(f"Error: Package '{safe_name}' not found in repository")
             sys.exit(1)
-        print(f"🌊 Name:        {package_info.get('name', 'Unknown')}")
-        print(f"🌊 Version:     {package_info.get('version', 'Unknown')}")
-        print(f"🌊 Author:      {package_info.get('author', 'Unknown')}")
-        print(f"🌊 Description: {package_info.get('description', 'No description')}")
+        print(f"Name:        {package_info.get('name', 'Unknown')}")
+        print(f"Version:     {package_info.get('version', 'Unknown')}")
+        print(f"Author:      {package_info.get('author', 'Unknown')}")
+        print(f"Description: {package_info.get('description', 'No description')}")
         if "homepage" in package_info:
-            print(f"🌊 Homepage:    {package_info.get('homepage')}")
-    
+            print(f"Homepage:    {package_info.get('homepage')}")
+
     def handle_update(self, args):
-        """处理 update 命令，强制刷新本地缓存"""
-        print("🌊 Forcing update: fetching fresh package index...")
+        print("Forcing update: fetching fresh package index...")
         try:
             if REPO_CACHE.exists():
                 REPO_CACHE.unlink()
             repo_data = self.fetch_repo_data(args)
-            print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
+            print(f"Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{e}")
             sys.exit(1)
         except Exception as e:
-            print(f"🌊 Error: Failed to update package index: {e}")
-    
+            print(f"Error: Failed to update package index: {e}")
+
     def handle_upgrade(self, args):
-        """处理 upgrade 升级命令，比较版本号并覆盖安装"""
         safe_name = args.package_name.lower()
-        
-        # 🛡️ 保护：不能升级自己
+
         if self._is_protected(safe_name):
-            print(f"\033[31m🌊 ERROR: Cannot upgrade protected package: {safe_name}\033[0m")
-            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
-            print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
-            print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+            print(f"\033[31mERROR: Cannot upgrade protected package: {safe_name}\033[0m")
+            print(f"\033[31mThis package is required for MacWave to function.\033[0m")
+            print(f"\033[93mTo update MacWave, download the new version manually:\033[0m")
+            print(f"\033[93m  curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
             return
-        
+
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if not INSTALLED_DB.exists():
-            print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
+            print(f"Package '{safe_name}' is not installed. Nothing to upgrade.")
             return
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
             if safe_name not in installed:
-                print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
+                print(f"Package '{safe_name}' is not installed. Nothing to upgrade.")
                 return
             local_version = installed[safe_name].get('version', '0.0.0')
             if local_version is None:
                 local_version = '0.0.0'
-            
+
             try:
                 repo_data = self.fetch_repo_data(args)
             except RuntimeError as e:
-                print(f"🌊 {e}")
+                print(f"{e}")
                 sys.exit(1)
-                
+
             release = self.find_package(repo_data, safe_name)
             remote_version = release.get("version", "unknown")
-            
+
             try:
                 local_v = parse_version(local_version)
                 remote_v = parse_version(remote_version)
                 if local_v >= remote_v:
-                    print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
+                    print(f"Package '{safe_name}' is already up to date (v{local_version}).")
                     return
             except Exception:
                 if local_version >= remote_version:
-                    print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
+                    print(f"Package '{safe_name}' is already up to date (v{local_version}).")
                     return
-            
-            print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
+
+            print(f"Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
             binary_path = INSTALL_DIR / safe_name
-            
-            # 🛡️ 使用安全删除
+
             if binary_path.exists():
                 if not self._safe_delete_binary(binary_path):
                     return
-            
+
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
             self.download_binary(release["binary_url"], safe_name, args, release=release)
             self.install_package(safe_name, args, release.get("version"))
         except Exception as e:
-            print(f"🌊 Error: Failed to upgrade package: {e}")
-    
+            print(f"Error: Failed to upgrade package: {e}")
+
     def handle_doctor(self, args):
-        """处理 doctor 命令（预留实现）"""
-        print(f"🌊 Command 'doctor' is not implemented yet.")
-    
+        print("Command 'doctor' is not implemented yet.")
+
     def handle_clean(self, args):
-        """处理 clean 命令，清理临时下载目录"""
         if DOWNLOAD_TMP.exists():
             shutil.rmtree(DOWNLOAD_TMP)
-            print("🌊 Cleaned up temporary download directory.")
+            print("Cleaned up temporary download directory.")
         else:
-            print("🌊 No temporary files to clean.")
-    
+            print("No temporary files to clean.")
+
     def run(self):
-        """程序入口调度器，决定执行哪个子命令"""
         args, unknown = self.parser.parse_known_args()
-        
-        # 截获 -h 或 --help 请求，手动打印定制化的纯英文帮助
+
         if args.help:
             self._print_custom_help()
             return
-        
+
         if '--skip-ssl' in unknown:
             args.skip_ssl = True
-        
+
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
-        
+
         if self.verbose:
             self.log_verbose(f"Parsed arguments: command={args.command}, verbose={self.verbose}")
             if hasattr(args, 'package_name'):
@@ -1080,52 +990,41 @@ class MacWaveCLI:
                 self.log_verbose(f"skip_ssl: {args.skip_ssl}")
             if hasattr(args, 'proxy') and args.proxy:
                 self.log_verbose(f"proxy: {args.proxy}")
-        
+
         if not self._confirm_skip_ssl(args):
             sys.exit(0)
-        
+
         if not args.command:
             self._print_custom_help()
             return
-        
-        # ============================================================
-        # 🛡️ 安全第一：保护 MacWave 自己，永不批量删除
-        # ============================================================
-        
-        # 1. 如果是 install/upgrade，检查是否要覆盖自己
+
         if args.command in {"install", "upgrade"} and hasattr(args, 'package_name'):
             safe_name = args.package_name.lower()
-            
-            # 🚫 禁止操作自己
+
             if self._is_protected(safe_name):
-                print(f"\033[31m🌊 ERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
-                print(f"\033[31m🌊 This would break your package manager!\033[0m")
-                print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
-                print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+                print(f"\033[31mERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
+                print(f"\033[31mThis would break your package manager!\033[0m")
+                print(f"\033[93mTo update MacWave, download the new version manually:\033[0m")
+                print(f"\033[93m  curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
                 sys.exit(1)
-            
+
             binary_path = INSTALL_DIR / safe_name
-            
-            # 检查目标包是否已存在
+
             if binary_path.exists():
-                print(f"\033[93m🌊 Warning: Package '{safe_name}' is already installed.\033[0m")
-                print(f"\033[93m🌊 Do you want to overwrite it? This will replace the existing binary.\033[0m")
+                print(f"\033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
+                print(f"\033[93mDo you want to overwrite it? This will replace the existing binary.\033[0m")
                 response = input("[Y/n] ").strip().lower()
                 if response not in ['y', 'yes', '']:
-                    print(f"\033[32m🌊 Installation cancelled. Existing '{safe_name}' preserved.\033[0m")
+                    print(f"\033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
                     sys.exit(0)
-                # ✅ 只删除这一个包（安全）
                 if not self._safe_delete_binary(binary_path):
                     sys.exit(1)
-                print(f"\033[31m🌊 Removed old version of {safe_name}\033[0m")
-        
-        # 2. 如果是 uninstall，也要保护自己（已在 handle_uninstall 中处理）
-        
-        # 3. 辅助目录自动创建（只创建，不清空）
+                print(f"\033[31mRemoved old version of {safe_name}\033[0m")
+
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        
+
         command_handlers = {
             "install": self.handle_install,
             "uninstall": self.handle_uninstall,
@@ -1141,12 +1040,11 @@ class MacWaveCLI:
         if handler:
             handler(args)
         else:
-            print(f"🌊 Error: Unknown command '{args.command}'")
+            print(f"Error: Unknown command '{args.command}'")
             sys.exit(1)
 
 
 def main():
-    
     cli = MacWaveCLI()
     cli.run()
 
