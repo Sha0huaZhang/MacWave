@@ -179,15 +179,15 @@ class MacWaveCLI:
 
     def _print_custom_help(self):
         """手动打印帮助信息"""
-        # usage: 深紫色 (沈阳地铁4号线 #371A94)，wave <command>... 粉色 (沈阳地铁3号线 #FF85E8)
-        print("\033[38;2;55;26;148musage: \033[38;2;255;133;232mwave <command> [package] [flags]\033[0m")
+        # usage: 紫色，wave <command>... 青色
+        print("\033[35musage: \033[36mwave <command> [package] [flags]\033[0m")
         print()
         # MacWave 标题带波浪表情
         print("MacWave 1.0.0 🌊")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
-        # positional arguments: 深紫色
-        print("\033[38;2;55;26;148mpositional arguments:\033[0m")
+        # positional arguments: 紫色
+        print("\033[35mpositional arguments:\033[0m")
         print("  \033[32m{install, uninstall, list, search, info, update, upgrade, doctor, clean}\033[0m")
         print("                          \033[0mCommands\033[0m")
         print("    \033[32minstall\033[0m               Install a package")
@@ -200,9 +200,9 @@ class MacWaveCLI:
         print("    \033[32mdoctor\033[0m                Check your system for missing dependencies")
         print("    \033[32mclean\033[0m                 Clean up temporary download files")
         print()
-        # parameters: 深紫色
-        print("\033[38;2;55;26;148mparameters:\033[0m")
-        # 短参数绿色，长参数蓝色，string土黄
+        # parameters: 紫色
+        print("\033[35mparameters:\033[0m")
+        # 短参数绿色，长参数青色，string黄色
         print("  \033[32m-h, --help\033[0m              show this help message and exit")
         print("  \033[32m-V, --version\033[0m           show program's version number and exit")
         print("  \033[32m-v, --verbose\033[0m           Enable verbose output (show detailed debug logs, including exception stack traces)")
