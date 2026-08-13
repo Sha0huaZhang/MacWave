@@ -557,12 +557,18 @@ class MacWaveCLI:
                     mode = 'ab' if is_resume else 'wb'
                     downloaded = resume_pos
                     
+                    # 【优化点1：边下边算哈希】在循环外初始化哈希计算器
+                    sha256_hash = hashlib.sha256()
+                    
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
                                 chunk_size_bytes = len(chunk)
                                 downloaded += chunk_size_bytes
+
+                                # 【优化点1续】边下边算，把每个收到的字节块丢进哈希计算器
+                                sha256_hash.update(chunk)
 
                                 # 限速执行
                                 if limit_bps:
@@ -585,12 +591,18 @@ class MacWaveCLI:
                 rate_start_time_fb = time.time()
                 rate_bytes_in_window_fb = 0
                 
+                # 【优化点1：边下边算哈希】备选方案也加上
+                sha256_hash = hashlib.sha256()
+                
                 with open(temp_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             f.write(chunk)
                             chunk_size_bytes = len(chunk)
                             downloaded += len(chunk)
+                            
+                            # 【优化点1续】备选也实时更新哈希
+                            sha256_hash.update(chunk)
                             
                             if limit_bps:
                                 rate_bytes_in_window_fb += chunk_size_bytes
@@ -608,13 +620,33 @@ class MacWaveCLI:
                     print(" 🌊")
             # =====================================================
 
+            # 【优化点2：小文件预拦截】在正式校验前，先检查响应头里文件大小
+            # 针对小文件（如59字节的测试包），根本不让它走到校验环节，直接判死刑
+            if content_length:
+                try:
+                    file_size_bytes = int(content_length)
+                    # 如果文件小于 1KB (1024 字节)，且已下载的字节数等于文件总大小
+                    if file_size_bytes < 1024 and total_size and downloaded >= total_size:
+                        # 直接抛红退出，用户连报错信息都能看得清清楚楚
+                        print("\033[91m🌊 Error: The server returned a file that is too small (invalid package).\033[0m")
+                        print(f"\033[91m🌊 Expected a valid binary, got only {file_size_bytes} bytes.\033[0m")
+                        if temp_path.exists():
+                            temp_path.unlink()
+                        sys.exit(1)
+                except ValueError:
+                    pass
+
             # SHA256 完整性校验
+            # 【优化点3：利用刚才边下边算的结果】因为我们一直在实时更新 sha256_hash，直接用即可
             if release and release.get("sha256"):
                 expected_sha256 = release.get("sha256")
                 self.log_verbose(f"Expected SHA256: {expected_sha256}")
                 print("🌊 Verifying SHA256...")
-                actual_sha256 = self._calculate_sha256(temp_path)
+                
+                # 用实时计算出来的值，不再重新读取文件
+                actual_sha256 = sha256_hash.hexdigest()
                 self.log_verbose(f"Actual SHA256: {actual_sha256}")
+                
                 if actual_sha256 != expected_sha256:
                     temp_path.unlink()
                     print(f"🌊 SHA256 verification failed!")
