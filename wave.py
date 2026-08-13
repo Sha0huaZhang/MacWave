@@ -594,6 +594,7 @@ class MacWaveCLI:
                 if self.verbose:
                     print(" ")
 
+            # 校验 SHA256（此时文件已完整下载）
             if release and release.get("sha256"):
                 expected_sha256 = release.get("sha256")
                 self.log_verbose(f"Expected SHA256: {expected_sha256}")
