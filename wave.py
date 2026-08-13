@@ -263,8 +263,8 @@ class MacWaveCLI:
         返回 True 表示删除成功，False 表示被保护或出错
         """
         if self._is_protected(binary_path.name):
-            print(f"\033[91m🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
-            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[31m🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
+            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
             return False
         
         try:
@@ -274,7 +274,7 @@ class MacWaveCLI:
                 return True
             return False
         except Exception as e:
-            print(f"\033[91m🌊 Error deleting {binary_path}: {e}\033[0m")
+            print(f"\033[31m🌊 Error deleting {binary_path}: {e}\033[0m")
             return False
 
     def _confirm_skip_ssl(self, args) -> bool:
@@ -536,8 +536,8 @@ class MacWaveCLI:
                     if temp_path.exists():
                         temp_path.unlink()
                         self.log_verbose(f"Removed corrupted partial file: {temp_path}")
-                    print("\033[91m🌊 Warning: The server does not support resuming downloads.\033[0m")
-                    print("\033[91m🌊 To ensure file integrity, we are restarting the download completely from the beginning.\033[0m")
+                    print("\033[31m🌊 Warning: The server does not support resuming downloads.\033[0m")
+                    print("\033[31m🌊 To ensure file integrity, we are restarting the download completely from the beginning.\033[0m")
                     resume_pos = 0
                     is_resume = False
                 else:
@@ -655,22 +655,6 @@ class MacWaveCLI:
                     print(" 🌊")
             # =====================================================
 
-            # 【优化点2：小文件预拦截】在正式校验前，先检查响应头里文件大小
-            # 针对小文件（如59字节的测试包），根本不让它走到校验环节，直接判死刑
-            if content_length:
-                try:
-                    file_size_bytes = int(content_length)
-                    # 如果文件小于 1KB (1024 字节)，且已下载的字节数等于文件总大小
-                    if file_size_bytes < 1024 and total_size and downloaded >= total_size:
-                        # 直接抛红退出，用户连报错信息都能看得清清楚楚
-                        print("\033[91m🌊 Error: The server returned a file that is too small (invalid package).\033[0m")
-                        print(f"\033[91m🌊 Expected a valid binary, got only {file_size_bytes} bytes.\033[0m")
-                        if temp_path.exists():
-                            temp_path.unlink()
-                        sys.exit(1)
-                except ValueError:
-                    pass
-
             # SHA256 完整性校验
             # 【优化点3：利用刚才边下边算的结果】因为我们一直在实时更新 sha256_hash，直接用即可
             if release and release.get("sha256"):
@@ -688,12 +672,12 @@ class MacWaveCLI:
                         temp_path.unlink()
                         self.log_verbose(f"☠️ Deleted malicious/corrupted file: {temp_path}")
                     
-                    # 彩色输出
-                    print(f"\033[91m🌊 SHA256 verification failed!\033[0m")
-                    print(f"\033[91m🌊 Expected: {expected_sha256}\033[0m")
-                    print(f"\033[92m🌊 Actual:   {actual_sha256}\033[0m")
-                    print(f"\033[91m🌊 File may have been tampered with or corrupted.\033[0m")
-                    print(f"\033[91m🌊 Malicious file has been permanently deleted.\033[0m")
+                    # 彩色输出 - 红色用 \033[31m，绿色用 \033[32m
+                    print(f"\033[31m🌊 SHA256 verification failed!\033[0m")
+                    print(f"\033[31m🌊 Expected: {expected_sha256}\033[0m")
+                    print(f"\033[32m🌊 Actual:   {actual_sha256}\033[0m")
+                    print(f"\033[31m🌊 File may have been tampered with or corrupted.\033[0m")
+                    print(f"\033[31m🌊 Malicious file has been permanently deleted.\033[0m")
                     sys.exit(1)
                 else:
                     self.log_verbose("SHA256 verification passed")
@@ -714,8 +698,8 @@ class MacWaveCLI:
             if final_path.exists():
                 # 保护：不能覆盖自己
                 if self._is_protected(final_path.name):
-                    print(f"\033[91m🌊 ERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
-                    print(f"\033[91m🌊 This would break your package manager!\033[0m")
+                    print(f"\033[31m🌊 ERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
+                    print(f"\033[31m🌊 This would break your package manager!\033[0m")
                     if temp_path.exists():
                         temp_path.unlink()
                     sys.exit(1)
@@ -876,8 +860,8 @@ class MacWaveCLI:
         
         # 🛡️ 保护：不能卸载自己
         if self._is_protected(safe_name):
-            print(f"\033[91m🌊 ERROR: Cannot uninstall protected package: {safe_name}\033[0m")
-            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[31m🌊 ERROR: Cannot uninstall protected package: {safe_name}\033[0m")
+            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
             return
         
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -1005,8 +989,8 @@ class MacWaveCLI:
         
         # 🛡️ 保护：不能升级自己
         if self._is_protected(safe_name):
-            print(f"\033[91m🌊 ERROR: Cannot upgrade protected package: {safe_name}\033[0m")
-            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[31m🌊 ERROR: Cannot upgrade protected package: {safe_name}\033[0m")
+            print(f"\033[31m🌊 This package is required for MacWave to function.\033[0m")
             print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
             print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
             return
@@ -1114,8 +1098,8 @@ class MacWaveCLI:
             
             # 🚫 禁止操作自己
             if self._is_protected(safe_name):
-                print(f"\033[91m🌊 ERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
-                print(f"\033[91m🌊 This would break your package manager!\033[0m")
+                print(f"\033[31m🌊 ERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
+                print(f"\033[31m🌊 This would break your package manager!\033[0m")
                 print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
                 print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
                 sys.exit(1)
@@ -1128,12 +1112,12 @@ class MacWaveCLI:
                 print(f"\033[93m🌊 Do you want to overwrite it? This will replace the existing binary.\033[0m")
                 response = input("[Y/n] ").strip().lower()
                 if response not in ['y', 'yes', '']:
-                    print(f"\033[92m🌊 Installation cancelled. Existing '{safe_name}' preserved.\033[0m")
+                    print(f"\033[32m🌊 Installation cancelled. Existing '{safe_name}' preserved.\033[0m")
                     sys.exit(0)
                 # ✅ 只删除这一个包（安全）
                 if not self._safe_delete_binary(binary_path):
                     sys.exit(1)
-                print(f"\033[91m🌊 Removed old version of {safe_name}\033[0m")
+                print(f"\033[31m🌊 Removed old version of {safe_name}\033[0m")
         
         # 2. 如果是 uninstall，也要保护自己（已在 handle_uninstall 中处理）
         
