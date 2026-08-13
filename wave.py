@@ -178,15 +178,11 @@ class MacWaveCLI:
                           help='Resume interrupted downloads')
 
     def _print_custom_help(self):
-        """手动打印帮助信息"""
-        # usage: 紫色，wave <command>... 青色
-        print("\033[35musage: \033[36mwave <command> [package] [flags]\033[0m")
+        print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
         print()
-        # MacWave 标题带波浪表情
         print("MacWave 1.0.0 🌊")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
-        # positional arguments: 紫色
         print("\033[35mpositional arguments:\033[0m")
         print("  \033[32m{install, uninstall, list, search, info, update, upgrade, doctor, clean}\033[0m")
         print("                          \033[0mCommands\033[0m")
@@ -200,9 +196,7 @@ class MacWaveCLI:
         print("    \033[32mdoctor\033[0m                Check your system for missing dependencies")
         print("    \033[32mclean\033[0m                 Clean up temporary download files")
         print()
-        # parameters: 紫色
         print("\033[35mparameters:\033[0m")
-        # 短参数绿色，长参数青色，string黄色
         print("  \033[32m-h, --help\033[0m              show this help message and exit")
         print("  \033[32m-V, --version\033[0m           show program's version number and exit")
         print("  \033[32m-v, --verbose\033[0m           Enable verbose output (show detailed debug logs, including exception stack traces)")
