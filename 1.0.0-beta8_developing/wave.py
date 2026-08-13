@@ -352,7 +352,6 @@ class MacWaveCLI:
             print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
             return
         
-        # 新增 verbose 输出：显示下载详细信息
         self.log_verbose(f"Download URL: {url}")
         self.log_verbose(f"Target directory: {install_dir}")
         self.log_verbose(f"Target file: {package_name}")
@@ -405,13 +404,11 @@ class MacWaveCLI:
         if headers:
             request_kwargs['headers'] = headers
         
-        # Large try block to catch KeyboardInterrupt cleanly
         try:
             self.log_verbose(f"Sending GET request to {url}")
             response = requests.get(url, **request_kwargs)
             response.raise_for_status()
             
-            # 新增 verbose 输出：响应信息
             self.log_verbose(f"Response status: {response.status_code}")
             self.log_verbose(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
             content_length = response.headers.get('content-length')
@@ -443,7 +440,7 @@ class MacWaveCLI:
             else:
                 self.log_verbose(f"Total file size: {total_size} bytes")
             
-            # ---------- 进度条（rich）修复 ----------
+            # ================= 修复后的进度条逻辑 =================
             if RICH_AVAILABLE:
                 console = Console()
                 progress_columns = [
@@ -457,20 +454,16 @@ class MacWaveCLI:
                     TimeRemainingColumn(),
                 ]
                 
-                with Progress(*progress_columns, console=console, transient=False) as progress:
-                    # 关键修复：completed=resume_pos，让进度条从断点处开始
+                # 【关键修复】使用 add_task 直接设置 total 和 completed，不要在外部 start_task()
+                with Progress(*progress_columns, console=console) as progress:
                     task_id = progress.add_task(
                         description=package_name,
                         total=total_size if total_size else None,
-                        completed=resume_pos,  # 从已下载的位置开始
-                        start=False
+                        completed=resume_pos  # 直接从断点字节开始计数
                     )
-                    if total_size:
-                        progress.update(task_id, description=f"{package_name}", total=total_size)
-                    else:
-                        progress.update(task_id, description=f"{package_name} (unknown size)", total=None)
                     
-                    progress.start_task(task_id)
+                    if not total_size:
+                        progress.update(task_id, description=f"{package_name} (unknown size)")
                     
                     mode = 'ab' if is_resume else 'wb'
                     downloaded = resume_pos
@@ -481,6 +474,7 @@ class MacWaveCLI:
                                 f.write(chunk)
                                 chunk_size_bytes = len(chunk)
                                 downloaded += chunk_size_bytes
+                                # 每次推进实际的字节数即可，rich会自动计算百分比
                                 progress.update(task_id, advance=chunk_size_bytes)
             else:
                 # Fallback: simple progress indicator
@@ -496,6 +490,7 @@ class MacWaveCLI:
                                 print(".", end="", flush=True)
                 if self.verbose:
                     print(" 🌊")
+            # ================= 修复结束 =================
             
             # SHA256 verification
             if release and release.get("sha256"):
@@ -580,7 +575,6 @@ class MacWaveCLI:
             print(f"🌊 Error: Binary file not found after download.")
             sys.exit(1)
         
-        # 新增 verbose 输出
         self.log_verbose(f"Installing to: {binary_path}")
         self.log_verbose(f"File size: {binary_path.stat().st_size} bytes")
         
@@ -851,16 +845,13 @@ class MacWaveCLI:
     
     def run(self):
         """Main entry point of the CLI."""
-        # 关键修复：使用 parse_known_args 并显式处理 --skip-ssl
         args, unknown = self.parser.parse_known_args()
         
-        # 如果 --skip-ssl 在 unknown 中，手动设置 skip_ssl 属性
         if '--skip-ssl' in unknown:
             args.skip_ssl = True
         
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
         
-        # 新增 verbose 输出：显示解析到的参数
         if self.verbose:
             self.log_verbose(f"Parsed arguments: command={args.command}, verbose={self.verbose}")
             if hasattr(args, 'package_name'):
@@ -870,7 +861,6 @@ class MacWaveCLI:
             if hasattr(args, 'proxy') and args.proxy:
                 self.log_verbose(f"proxy: {args.proxy}")
         
-        # 处理 --skip-ssl 确认（现在 args 中一定有 skip_ssl 属性）
         if not self._confirm_skip_ssl(args):
             sys.exit(0)
         
