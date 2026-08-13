@@ -560,6 +560,14 @@ class MacWaveCLI:
                                         rate_bytes_in_window = 0
 
                                 progress.update(task_id, advance=chunk_size_bytes)
+
+                    # 强制刷新进度条到100%
+                    if total_size:
+                        current_completed = progress.tasks[task_id].completed
+                        if current_completed < total_size:
+                            progress.update(task_id, advance=total_size - current_completed)
+                    else:
+                        progress.update(task_id, description=f"{package_name} (complete)")
             else:
                 self.log_verbose("rich library not available, using simple progress indicator")
                 mode = 'ab' if is_resume else 'wb'
