@@ -72,6 +72,9 @@ DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"    # 临
 INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"  # 已安装包记录数据库
 REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"   # 软件源本地缓存文件
 
+# 受保护的包列表（永远不能删除）
+PROTECTED_PACKAGES = ["wave"]
+
 
 # ==========================================
 # 核心主类：MacWaveCLI
@@ -249,6 +252,30 @@ class MacWaveCLI:
         """仅在 verbose 模式启用的调试日志"""
         if self.verbose:
             self._log(message, "debug")
+
+    def _is_protected(self, package_name: str) -> bool:
+        """检查是否为受保护的包（永远不能删除）"""
+        return package_name.lower() in PROTECTED_PACKAGES
+
+    def _safe_delete_binary(self, binary_path: Path) -> bool:
+        """
+        安全删除二进制文件
+        返回 True 表示删除成功，False 表示被保护或出错
+        """
+        if self._is_protected(binary_path.name):
+            print(f"\033[91m🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
+            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            return False
+        
+        try:
+            if binary_path.exists():
+                binary_path.unlink()
+                self.log_verbose(f"Deleted: {binary_path}")
+                return True
+            return False
+        except Exception as e:
+            print(f"\033[91m🌊 Error deleting {binary_path}: {e}\033[0m")
+            return False
 
     def _confirm_skip_ssl(self, args) -> bool:
         """跳过 SSL 验证的交互式确认（不安全操作，必须二次确认）"""
@@ -659,14 +686,14 @@ class MacWaveCLI:
                     # 立即删除临时文件
                     if temp_path.exists():
                         temp_path.unlink()
-                        self.log_verbose(f"Deleted corrupted file: {temp_path}")
+                        self.log_verbose(f"☠️ Deleted malicious/corrupted file: {temp_path}")
                     
                     # 彩色输出
                     print(f"\033[91m🌊 SHA256 verification failed!\033[0m")
                     print(f"\033[91m🌊 Expected: {expected_sha256}\033[0m")
                     print(f"\033[92m🌊 Actual:   {actual_sha256}\033[0m")
                     print(f"\033[91m🌊 File may have been tampered with or corrupted.\033[0m")
-                    print(f"\033[91m🌊 File has been permanently deleted.\033[0m")
+                    print(f"\033[91m🌊 Malicious file has been permanently deleted.\033[0m")
                     sys.exit(1)
                 else:
                     self.log_verbose("SHA256 verification passed")
@@ -685,6 +712,14 @@ class MacWaveCLI:
             
             # 如果目标位置已有文件，先备份
             if final_path.exists():
+                # 保护：不能覆盖自己
+                if self._is_protected(final_path.name):
+                    print(f"\033[91m🌊 ERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
+                    print(f"\033[91m🌊 This would break your package manager!\033[0m")
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    sys.exit(1)
+                
                 backup_path = final_path.with_suffix(final_path.suffix + ".bak")
                 self.log_verbose(f"Target exists, backing up to {backup_path}")
                 final_path.rename(backup_path)
@@ -838,6 +873,13 @@ class MacWaveCLI:
     def handle_uninstall(self, args):
         """处理 uninstall 卸载命令"""
         safe_name = args.package_name.lower()
+        
+        # 🛡️ 保护：不能卸载自己
+        if self._is_protected(safe_name):
+            print(f"\033[91m🌊 ERROR: Cannot uninstall protected package: {safe_name}\033[0m")
+            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            return
+        
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         
         if not INSTALLED_DB.exists():
@@ -853,12 +895,10 @@ class MacWaveCLI:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
                 return
             
+            # 🛡️ 使用安全删除
             binary_path = INSTALL_DIR / safe_name
-            if binary_path.exists():
-                binary_path.unlink()
-                print(f"🌊 Removed binary: {binary_path}")
-            else:
-                print(f"🌊 Warning: Binary file not found, but removing from database.")
+            if not self._safe_delete_binary(binary_path):
+                return
             
             with open(INSTALLED_DB, 'w') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -962,6 +1002,15 @@ class MacWaveCLI:
     def handle_upgrade(self, args):
         """处理 upgrade 升级命令，比较版本号并覆盖安装"""
         safe_name = args.package_name.lower()
+        
+        # 🛡️ 保护：不能升级自己
+        if self._is_protected(safe_name):
+            print(f"\033[91m🌊 ERROR: Cannot upgrade protected package: {safe_name}\033[0m")
+            print(f"\033[91m🌊 This package is required for MacWave to function.\033[0m")
+            print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
+            print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+            return
+        
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         
         if not INSTALLED_DB.exists():
@@ -999,8 +1048,12 @@ class MacWaveCLI:
             
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
             binary_path = INSTALL_DIR / safe_name
+            
+            # 🛡️ 使用安全删除
             if binary_path.exists():
-                binary_path.unlink()
+                if not self._safe_delete_binary(binary_path):
+                    return
+            
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
                 json.dump(installed, f, indent=2)
@@ -1051,25 +1104,40 @@ class MacWaveCLI:
             self._print_custom_help()
             return
         
-        # ===== 核心：写操作前检查 INSTALL_DIR =====
-        if args.command in {"install", "uninstall", "upgrade"}:
-            if INSTALL_DIR.exists() and any(INSTALL_DIR.iterdir()):
-                file_count = len(list(INSTALL_DIR.iterdir()))
-                print(f"\033[91m🌊 WARNING: Installation directory already exists and contains {file_count} file(s): {INSTALL_DIR}\033[0m")
-                print(f"\033[91m🌊 Directory already exists, do you want to force write? This will clear all contents of the original folder.\033[0m")
+        # ============================================================
+        # 🛡️ 安全第一：保护 MacWave 自己，永不批量删除
+        # ============================================================
+        
+        # 1. 如果是 install/upgrade，检查是否要覆盖自己
+        if args.command in {"install", "upgrade"} and hasattr(args, 'package_name'):
+            safe_name = args.package_name.lower()
+            
+            # 🚫 禁止操作自己
+            if self._is_protected(safe_name):
+                print(f"\033[91m🌊 ERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
+                print(f"\033[91m🌊 This would break your package manager!\033[0m")
+                print(f"\033[93m🌊 To update MacWave, download the new version manually:\033[0m")
+                print(f"\033[93m🌊   curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+                sys.exit(1)
+            
+            binary_path = INSTALL_DIR / safe_name
+            
+            # 检查目标包是否已存在
+            if binary_path.exists():
+                print(f"\033[93m🌊 Warning: Package '{safe_name}' is already installed.\033[0m")
+                print(f"\033[93m🌊 Do you want to overwrite it? This will replace the existing binary.\033[0m")
                 response = input("[Y/n] ").strip().lower()
                 if response not in ['y', 'yes', '']:
-                    print(f"\033[92m🌊 Operation cancelled by user.\033[0m")
+                    print(f"\033[92m🌊 Installation cancelled. Existing '{safe_name}' preserved.\033[0m")
                     sys.exit(0)
-                # 清空目录
-                for item in INSTALL_DIR.iterdir():
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        shutil.rmtree(item)
-                print(f"\033[91m🌊 Cleared all contents from: {INSTALL_DIR}\033[0m")
+                # ✅ 只删除这一个包（安全）
+                if not self._safe_delete_binary(binary_path):
+                    sys.exit(1)
+                print(f"\033[91m🌊 Removed old version of {safe_name}\033[0m")
         
-        # 辅助目录自动创建
+        # 2. 如果是 uninstall，也要保护自己（已在 handle_uninstall 中处理）
+        
+        # 3. 辅助目录自动创建（只创建，不清空）
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
