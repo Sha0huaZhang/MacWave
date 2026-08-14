@@ -438,13 +438,35 @@ class MacWaveCLI:
                     mode = 'ab' if is_resume else 'wb'
                     sha256_hash = hashlib.sha256()
 
+                    # ========== cURL 级令牌桶限速 ==========
+                    token_bucket = 0.0
+                    last_time = time.monotonic()
+                    # ======================================
+
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
-                                # === 真正的强制限速（每块精确睡眠） ===
+                                # ========== 令牌桶算法核心 ==========
                                 if limit_bps:
-                                    time.sleep(len(chunk) / limit_bps)
-                                # ====================================
+                                    now = time.monotonic()
+                                    # 计算时间差，往桶里加令牌
+                                    delta = now - last_time
+                                    token_bucket += delta * limit_bps
+                                    last_time = now
+                                    # 桶上限 = 一个数据块的大小（防止突发）
+                                    if token_bucket > 8192:
+                                        token_bucket = 8192
+                                    # 如果桶里令牌不够，强制等待
+                                    if token_bucket < len(chunk):
+                                        time.sleep((len(chunk) - token_bucket) / limit_bps)
+                                        # 醒来后重新计算时间
+                                        now = time.monotonic()
+                                        delta = now - last_time
+                                        token_bucket += delta * limit_bps
+                                        last_time = now
+                                    # 消费令牌
+                                    token_bucket -= len(chunk)
+                                # ==================================
 
                                 f.write(chunk)
                                 chunk_size_bytes = len(chunk)
@@ -458,13 +480,31 @@ class MacWaveCLI:
             else:
                 mode = 'ab' if is_resume else 'wb'
                 sha256_hash = hashlib.sha256()
+
+                # ========== cURL 级令牌桶限速 ==========
+                token_bucket = 0.0
+                last_time = time.monotonic()
+                # ======================================
+
                 with open(temp_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
-                            # === 真正的强制限速（每块精确睡眠） ===
+                            # ========== 令牌桶算法核心 ==========
                             if limit_bps:
-                                time.sleep(len(chunk) / limit_bps)
-                            # ====================================
+                                now = time.monotonic()
+                                delta = now - last_time
+                                token_bucket += delta * limit_bps
+                                last_time = now
+                                if token_bucket > 8192:
+                                    token_bucket = 8192
+                                if token_bucket < len(chunk):
+                                    time.sleep((len(chunk) - token_bucket) / limit_bps)
+                                    now = time.monotonic()
+                                    delta = now - last_time
+                                    token_bucket += delta * limit_bps
+                                    last_time = now
+                                token_bucket -= len(chunk)
+                            # ==================================
 
                             f.write(chunk)
                             sha256_hash.update(chunk)
