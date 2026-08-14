@@ -394,7 +394,7 @@ class MacWaveCLI:
                         print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
                         sys.exit(1)
 
-                    # 按版本号排序（parse_version 自动规范化 2.0 → 2.0.0）
+                    # 按版本号降序排序（最新版本在前）
                     matching_releases.sort(
                         key=lambda r: parse_version(r.get("version", "0.0.0")),
                         reverse=True
