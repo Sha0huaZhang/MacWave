@@ -359,6 +359,7 @@ class MacWaveCLI:
                     self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
 
+                    # 用户指定版本
                     if args and getattr(args, 'ver', None):
                         requested_version = args.ver
                         self.log_verbose(f"User requested version: {requested_version}")
@@ -371,6 +372,7 @@ class MacWaveCLI:
                         print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
                         sys.exit(1)
 
+                    # 用户请求测试版
                     if args and getattr(args, 'beta_version', False):
                         self.log_verbose("User requested beta version.")
                         for release in releases:
@@ -379,18 +381,26 @@ class MacWaveCLI:
                                 return release
                         return None
 
+                    # 默认：按版本排序，返回最新版本
                     current_arch = platform.machine().lower()
-                    for release in releases:
-                        if release.get("arch") == current_arch:
-                            self.log_verbose(f"Found release matching architecture: {current_arch}")
-                            return release
-                    for release in releases:
-                        if release.get("arch") == "any":
-                            self.log_verbose(f"Found fallback release with arch='any'")
-                            return release
+                    matching_releases = []
 
-                    print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
-                    sys.exit(1)
+                    for release in releases:
+                        arch = release.get("arch")
+                        if arch == current_arch or arch == "any":
+                            matching_releases.append(release)
+
+                    if not matching_releases:
+                        print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
+                        sys.exit(1)
+
+                    # 按版本号排序（parse_version 自动规范化 2.0 → 2.0.0）
+                    matching_releases.sort(
+                        key=lambda r: parse_version(r.get("version", "0.0.0")),
+                        reverse=True
+                    )
+
+                    return matching_releases[0]
 
         print(f"🌊 Error: Package '{package_name}' not found in repository")
         sys.exit(1)
@@ -941,7 +951,7 @@ class MacWaveCLI:
                 print(f"🌊 {e}")
                 sys.exit(1)
 
-            release = self.find_package(repo_data, safe_name)
+            release = self.find_package(repo_data, safe_name, args)
             remote_version = release.get("version", "unknown")
 
             try:
@@ -1009,7 +1019,7 @@ class MacWaveCLI:
             return
 
         # ============================================================
-        # 🛡️ 安全保护
+        # 安全保护
         # ============================================================
 
         # 只对 install 命令做覆盖确认（upgrade 由 handle_upgrade 自己处理）
