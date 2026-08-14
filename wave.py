@@ -331,7 +331,30 @@ class MacWaveCLI:
             print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
             sys.exit(1)
 
-        matching_releases.sort(key=lambda r: parse_version(r.get("version", "0.0.0")), reverse=True)
+        # ========== 临时补丁开始 ==========
+        # 临时补丁，为避免packaging解析非标准版本号崩溃
+        def safe_parse_version(v):
+            try:
+                import re
+                v_clean = re.sub(r'-procursus\d+', '', v)
+                return parse_version(v_clean)
+            except Exception:
+                import re
+                numbers = re.findall(r'\d+', v)
+                if not numbers:
+                    return parse_version("0.0.0")
+                clean_version = ".".join(numbers)
+                parts = clean_version.split(".")
+                while len(parts) < 3:
+                    parts.append("0")
+                clean_version = ".".join(parts[:3])
+                try:
+                    return parse_version(clean_version)
+                except:
+                    return parse_version("0.0.0")
+        # ========== 临时补丁结束 ==========
+
+        matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
 
     def _parse_rate_limit(self, rate_str):
