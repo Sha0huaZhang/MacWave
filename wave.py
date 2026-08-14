@@ -16,6 +16,7 @@ import logging
 import hashlib
 import traceback
 import shutil
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
@@ -35,7 +36,7 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from packaging.version import parse as parse_version
+    from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
     print("🌊 Error: 'packaging' library is not installed.")
     print("🌊 Please install it using: pip3 install packaging")
@@ -333,25 +334,17 @@ class MacWaveCLI:
 
         # ========== 临时补丁开始 ==========
         # 临时补丁，为避免packaging解析非标准版本号崩溃
-        def safe_parse_version(v):
+        def safe_parse_version(v: str):
+            if not isinstance(v, str):
+                return parse_version("0.0.0")
+            # 只针对 procursus 后缀做清洗
+            v_clean = re.sub(r'-procursus\d+.*', '', v)
             try:
-                import re
-                v_clean = re.sub(r'-procursus\d+', '', v)
                 return parse_version(v_clean)
-            except Exception:
-                import re
-                numbers = re.findall(r'\d+', v)
-                if not numbers:
-                    return parse_version("0.0.0")
-                clean_version = ".".join(numbers)
-                parts = clean_version.split(".")
-                while len(parts) < 3:
-                    parts.append("0")
-                clean_version = ".".join(parts[:3])
-                try:
-                    return parse_version(clean_version)
-                except:
-                    return parse_version("0.0.0")
+            except InvalidVersion:
+                # 如果清洗后仍然无效，记录警告并回退
+                logging.warning(f"Invalid version string '{v}' (cleaned: '{v_clean}'), falling back to 0.0.0")
+                return parse_version("0.0.0")
         # ========== 临时补丁结束 ==========
 
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
@@ -499,19 +492,21 @@ class MacWaveCLI:
                                 chunk_size_bytes = len(chunk)
                                 sha256_hash.update(chunk)
 
-                                # ========== 动态速度显示（≤ 限速） ==========
+                                # ========== 动态速度显示（100% 绝不超限速） ==========
                                 current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
                                 now = time.monotonic()
 
-                                # 每 0.5 秒更新一次速度
                                 if now - speed_last_time >= 0.5:
                                     real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
                                     speed_last_bytes = current_bytes
                                     speed_last_time = now
 
                                     if limit_bps:
-                                        # 取真实速度和限速值的较小值（绝不超限速）
-                                        display_speed = min(real_speed, limit_bps)
+                                        # 如果真实速度 > 限速，直接显示限速值
+                                        if real_speed > limit_bps:
+                                            display_speed = limit_bps
+                                        else:
+                                            display_speed = real_speed
                                     else:
                                         display_speed = real_speed
 
