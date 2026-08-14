@@ -179,8 +179,9 @@ class MacWaveCLI:
 
     def _log(self, message: str, level: str = "info", force: bool = False):
         if self.verbose or force or level == "error":
-            log_func = getattr(self._logger, level, self._logger.info)
-            log_func(f"🌊 {message}")
+            # 使用 log 级别常量，避免 getattr 字符串方法崩溃风险
+            log_level = getattr(logging, level.upper(), logging.INFO)
+            self._logger.log(log_level, f"🌊 {message}")
 
     def log(self, message, force=False):
         self._log(message, "info", force)
@@ -262,7 +263,6 @@ class MacWaveCLI:
         retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
         session.mount('https://', HTTPAdapter(max_retries=retries))
 
-        # timeout 改为 30 秒，适合网速较慢的环境
         request_kwargs = {'timeout': 30}
 
         if args and getattr(args, 'proxy', None):
@@ -340,6 +340,7 @@ class MacWaveCLI:
 
         # ========== 临时补丁开始 ==========
         # 临时补丁，为避免packaging解析非标准版本号崩溃
+        # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
         def safe_parse_version(v):
             v = str(v)
             match = re.search(r'(\d+\.\d+\.\d+)', v)
@@ -384,11 +385,9 @@ class MacWaveCLI:
         if temp_path.exists():
             temp_path.unlink()
 
-        # timeout 改为 30 秒
         request_kwargs = {'stream': True, 'timeout': 30}
 
         if args.proxy:
-            # 日志打印时把密码部分替换为 ******
             proxy = args.proxy
             safe_proxy = proxy.replace(proxy.split('@')[-1], '******') if '@' in proxy else proxy
             self.log_verbose(f"Using proxy: {safe_proxy}")
@@ -441,49 +440,107 @@ class MacWaveCLI:
             if args.limit_rate:
                 limit_bps = self._parse_rate_limit(args.limit_rate)
                 if limit_bps is not None:
-                    # 实际限速设为用户设定值的 80%，防止进度条偶尔超速
                     limit_bps = int(limit_bps * 0.8)
                     self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec (80% of user requested)")
 
-            if RICH_AVAILABLE:
-                from rich.console import Console
-                progress_columns = [
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(bar_width=None),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    DownloadColumn(),
-                    TextColumn("•"),
-                    TextColumn("{task.fields[speed]}"),
-                    TextColumn("•"),
-                    TimeRemainingColumn(),
-                ]
-                console = Console()
-                with Progress(*progress_columns, console=console) as progress:
-                    task_id = progress.add_task(
-                        description=f"🌊 {package_name}",
-                        total=total_size if total_size else None,
-                        completed=resume_pos,
-                        speed="0 B/s"
-                    )
-                    if not total_size:
-                        progress.update(task_id, description=f"🌊 {package_name} (unknown size)")
+            # ========== 临时文件清理 + 跨分区移动 ==========
+            try:
+                if RICH_AVAILABLE:
+                    from rich.console import Console
+                    progress_columns = [
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(bar_width=None),
+                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                        DownloadColumn(),
+                        TextColumn("•"),
+                        TextColumn("{task.fields[speed]}"),
+                        TextColumn("•"),
+                        TimeRemainingColumn(),
+                    ]
+                    console = Console()
+                    with Progress(*progress_columns, console=console) as progress:
+                        task_id = progress.add_task(
+                            description=f"🌊 {package_name}",
+                            total=total_size if total_size else None,
+                            completed=resume_pos,
+                            speed="0 B/s"
+                        )
+                        if not total_size:
+                            progress.update(task_id, description=f"🌊 {package_name} (unknown size)")
 
+                        mode = 'ab' if is_resume else 'wb'
+                        sha256_hash = hashlib.sha256()
+
+                        token_bucket = 0.0
+                        last_time = time.monotonic()
+                        speed_last_time = time.monotonic()
+                        speed_last_bytes = resume_pos
+
+                        with open(temp_path, mode) as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    if limit_bps:
+                                        now = time.monotonic()
+                                        delta = now - last_time
+                                        token_bucket += delta * limit_bps
+                                        last_time = now
+                                        if token_bucket > 8192:
+                                            token_bucket = 8192
+                                        if token_bucket < len(chunk):
+                                            time.sleep((len(chunk) - token_bucket) / limit_bps)
+                                            now = time.monotonic()
+                                            delta = now - last_time
+                                            token_bucket += delta * limit_bps
+                                            last_time = now
+                                        token_bucket -= len(chunk)
+
+                                    f.write(chunk)
+                                    chunk_size_bytes = len(chunk)
+                                    sha256_hash.update(chunk)
+
+                                    current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
+                                    now = time.monotonic()
+
+                                    if now - speed_last_time >= 0.5:
+                                        real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
+                                        speed_last_bytes = current_bytes
+                                        speed_last_time = now
+
+                                        if limit_bps:
+                                            if real_speed > limit_bps:
+                                                display_speed = limit_bps
+                                            else:
+                                                display_speed = real_speed
+                                        else:
+                                            display_speed = real_speed
+
+                                        if display_speed >= 1024 * 1024:
+                                            speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
+                                        elif display_speed >= 1024:
+                                            speed_str = f"{display_speed / 1024:.1f} kB/s"
+                                        else:
+                                            speed_str = f"{display_speed:.0f} B/s"
+
+                                        progress.update(task_id, speed=speed_str)
+
+                                    progress.update(task_id, advance=chunk_size_bytes)
+
+                        if total_size:
+                            current_completed = progress.tasks[task_id].completed
+                            if current_completed < total_size:
+                                progress.update(task_id, advance=total_size - current_completed)
+                        progress.update(task_id, speed="0 B/s")
+
+                else:
                     mode = 'ab' if is_resume else 'wb'
                     sha256_hash = hashlib.sha256()
 
-                    # ========== 令牌桶限速 ==========
                     token_bucket = 0.0
                     last_time = time.monotonic()
-                    # ================================
-
-                    # 动态速度计算用变量
-                    speed_last_time = time.monotonic()
-                    speed_last_bytes = resume_pos
 
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
-                                # ========== 令牌桶算法核心 ==========
                                 if limit_bps:
                                     now = time.monotonic()
                                     delta = now - last_time
@@ -498,113 +555,49 @@ class MacWaveCLI:
                                         token_bucket += delta * limit_bps
                                         last_time = now
                                     token_bucket -= len(chunk)
-                                # ==================================
 
                                 f.write(chunk)
-                                chunk_size_bytes = len(chunk)
                                 sha256_hash.update(chunk)
+                                if self.verbose:
+                                    print(".", end="", flush=True)
+                    if self.verbose:
+                        print(" ")
 
-                                # ========== 动态速度显示（绝不超限速） ==========
-                                current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
-                                now = time.monotonic()
-
-                                if now - speed_last_time >= 0.5:
-                                    real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
-                                    speed_last_bytes = current_bytes
-                                    speed_last_time = now
-
-                                    if limit_bps:
-                                        if real_speed > limit_bps:
-                                            display_speed = limit_bps
-                                        else:
-                                            display_speed = real_speed
-                                    else:
-                                        display_speed = real_speed
-
-                                    if display_speed >= 1024 * 1024:
-                                        speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
-                                    elif display_speed >= 1024:
-                                        speed_str = f"{display_speed / 1024:.1f} kB/s"
-                                    else:
-                                        speed_str = f"{display_speed:.0f} B/s"
-
-                                    progress.update(task_id, speed=speed_str)
-
-                                progress.update(task_id, advance=chunk_size_bytes)
-                                # =============================================
-
-                    if total_size:
-                        current_completed = progress.tasks[task_id].completed
-                        if current_completed < total_size:
-                            progress.update(task_id, advance=total_size - current_completed)
-                    progress.update(task_id, speed="0 B/s")
-
-            else:
-                mode = 'ab' if is_resume else 'wb'
-                sha256_hash = hashlib.sha256()
-
-                token_bucket = 0.0
-                last_time = time.monotonic()
-
-                with open(temp_path, mode) as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            if limit_bps:
-                                now = time.monotonic()
-                                delta = now - last_time
-                                token_bucket += delta * limit_bps
-                                last_time = now
-                                if token_bucket > 8192:
-                                    token_bucket = 8192
-                                if token_bucket < len(chunk):
-                                    time.sleep((len(chunk) - token_bucket) / limit_bps)
-                                    now = time.monotonic()
-                                    delta = now - last_time
-                                    token_bucket += delta * limit_bps
-                                    last_time = now
-                                token_bucket -= len(chunk)
-
-                            f.write(chunk)
-                            sha256_hash.update(chunk)
-                            if self.verbose:
-                                print(".", end="", flush=True)
-                if self.verbose:
-                    print(" ")
-
-            if release and release.get("sha256"):
-                expected_sha256 = release.get("sha256")
-                print("🌊 Verifying SHA256...")
-                actual_sha256 = sha256_hash.hexdigest()
-                if actual_sha256 != expected_sha256:
-                    if temp_path.exists():
-                        temp_path.unlink()
-                    print(f"🌊 \033[31mSHA256 verification failed!\033[0m")
-                    print(f"🌊 \033[32mExpected: {expected_sha256}\033[0m")
-                    print(f"🌊 \033[31mActual:   {actual_sha256}\033[0m")
-                    sys.exit(1)
+                if release and release.get("sha256"):
+                    expected_sha256 = release.get("sha256")
+                    print("🌊 Verifying SHA256...")
+                    actual_sha256 = sha256_hash.hexdigest()
+                    if actual_sha256 != expected_sha256:
+                        print(f"🌊 \033[31mSHA256 verification failed!\033[0m")
+                        print(f"🌊 \033[32mExpected: {expected_sha256}\033[0m")
+                        print(f"🌊 \033[31mActual:   {actual_sha256}\033[0m")
+                        raise Exception("SHA256 verification failed")
                 else:
-                    print("🌊 SHA256 verified successfully")
-            else:
-                if not self._confirm_missing_sha256():
-                    if temp_path.exists():
-                        temp_path.unlink()
-                    print("🌊 Installation cancelled.")
-                    sys.exit(0)
+                    if not self._confirm_missing_sha256():
+                        raise Exception("Installation cancelled by user")
 
-            install_dir.mkdir(parents=True, exist_ok=True)
+                install_dir.mkdir(parents=True, exist_ok=True)
 
-            if final_path.exists():
-                if self._is_protected(final_path.name):
-                    print(f"🌊 \033[31mERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
-                    if temp_path.exists():
-                        temp_path.unlink()
-                    sys.exit(1)
-                backup_path = final_path.with_suffix(final_path.suffix + ".bak")
-                final_path.rename(backup_path)
+                if final_path.exists():
+                    if self._is_protected(final_path.name):
+                        print(f"🌊 \033[31mERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
+                        raise Exception("Protected package overwrite attempt")
 
-            temp_path.rename(final_path)
-            os.chmod(final_path, 0o755)
-            print("🌊 Download complete!")
+                    backup_path = final_path.with_suffix(final_path.suffix + ".bak")
+                    final_path.rename(backup_path)
+
+                # ✅ 使用 shutil.move 代替 rename，支持跨分区移动
+                shutil.move(str(temp_path), str(final_path))
+                os.chmod(final_path, 0o755)
+                self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
+                print("🌊 Download complete!")
+
+            except Exception as e:
+                # 任意异常发生时，只要 final_path 没生成，就清理 temp_path
+                if not final_path.exists() and temp_path.exists():
+                    temp_path.unlink()
+                # 重新抛出异常给上层处理
+                raise e
 
         except KeyboardInterrupt:
             print("\n🌊 Download interrupted by user.")
@@ -619,11 +612,15 @@ class MacWaveCLI:
             if self.verbose:
                 traceback.print_exc()
             print(f"\n🌊 Error: Failed to download binary: {e}")
+            if temp_path.exists() and temp_path.stat().st_size > 0:
+                print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
         except Exception as e:
             if self.verbose:
                 traceback.print_exc()
-            print(f"\n🌊 Error: Unexpected error: {e}")
+            print(f"\n🌊 Error: {e}")
+            if temp_path.exists() and temp_path.stat().st_size > 0:
+                print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
 
     def install_package(self, package_name, args, version=None, install_dir=None):
@@ -672,7 +669,6 @@ class MacWaveCLI:
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
-                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
         except Exception as e:
             self.log(f"Warning: Could not record installation: {e}", force=True)
 
@@ -732,7 +728,6 @@ class MacWaveCLI:
             with open(INSTALLED_DB, 'r') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
-                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
 
             if safe_name not in installed:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
@@ -748,7 +743,6 @@ class MacWaveCLI:
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
-                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
 
             print(f"🌊 Successfully uninstalled '{safe_name}'.")
         except Exception as e:
@@ -866,11 +860,9 @@ class MacWaveCLI:
             return
 
         try:
-            # 读取时加共享锁，防止并发写入导致读到损坏数据
             with open(INSTALLED_DB, 'r') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
-                # 锁会在 with 块结束时自动释放
 
             if safe_name not in installed:
                 print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
