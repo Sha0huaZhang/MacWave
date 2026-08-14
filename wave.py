@@ -292,6 +292,8 @@ class MacWaveCLI:
                 if pkg.get("name") == package_name:
                     releases = pkg.get("releases", [])
                     for release in releases:
+                        # 必须 copy，防止修改原始的 repo 数据结构
+                        # 多版本包共享同一个 pkg 对象，不 copy 会互相污染
                         if "version" not in release and "version" in pkg:
                             release = release.copy()
                             release["version"] = pkg["version"]
@@ -342,7 +344,8 @@ class MacWaveCLI:
             try:
                 return parse_version(v_clean)
             except InvalidVersion:
-                # 如果清洗后仍然无效，记录警告并回退
+                # ⚠️ 重要：回退到 0.0.0 意味着该包在排序时会被沉到最底部。
+                # 如果发现某个包总是不被当做最新版本，请检查 repo.json 中的版本号是否符合 PEP 440 标准。
                 logging.warning(f"Invalid version string '{v}' (cleaned: '{v_clean}'), falling back to 0.0.0")
                 return parse_version("0.0.0")
         # ========== 临时补丁结束 ==========
@@ -396,6 +399,7 @@ class MacWaveCLI:
             try:
                 resume_pos = temp_path.stat().st_size
                 if resume_pos > 0:
+                    # 断点续传：告诉服务器从 resume_pos 字节开始继续发送数据
                     headers['Range'] = f"bytes={resume_pos}-"
                     print(f"🌊 Resuming from {resume_pos} bytes")
                 else:
@@ -460,6 +464,8 @@ class MacWaveCLI:
                     sha256_hash = hashlib.sha256()
 
                     # ========== 令牌桶限速 ==========
+                    # token_bucket: 当前桶内剩余可用的“字节配额”
+                    # last_time: 上一次补充令牌的时间戳（用于计算时间差）
                     token_bucket = 0.0
                     last_time = time.monotonic()
                     # ================================
@@ -469,6 +475,8 @@ class MacWaveCLI:
                     speed_last_bytes = resume_pos
 
                     with open(temp_path, mode) as f:
+                        # 8KB 是一个平衡点：太小则频繁调用 time.sleep() 增加 CPU 开销，
+                        # 太大则限速粒度变粗，显示不够平滑。
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 # ========== 令牌桶算法核心 ==========
@@ -526,6 +534,7 @@ class MacWaveCLI:
                         current_completed = progress.tasks[task_id].completed
                         if current_completed < total_size:
                             progress.update(task_id, advance=total_size - current_completed)
+                    # 下载完成后强制归零速度，避免进度条卡在最后一段数据的速度上误导用户
                     progress.update(task_id, speed="0 B/s")
 
             else:
@@ -533,6 +542,8 @@ class MacWaveCLI:
                 sha256_hash = hashlib.sha256()
 
                 # ========== 令牌桶限速 ==========
+                # token_bucket: 当前桶内剩余可用的“字节配额”
+                # last_time: 上一次补充令牌的时间戳（用于计算时间差）
                 token_bucket = 0.0
                 last_time = time.monotonic()
                 # ================================
