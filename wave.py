@@ -335,6 +335,9 @@ class MacWaveCLI:
             print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
             sys.exit(1)
 
+        # ========== 临时补丁开始 ==========
+        # 临时补丁，为避免packaging解析非标准版本号崩溃
+        # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
         def safe_parse_version(v):
             v = str(v)
             match = re.search(r'(\d+\.\d+\.\d+)', v)
@@ -345,6 +348,7 @@ class MacWaveCLI:
                     pass
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
+        # ========== 临时补丁结束 ==========
 
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
