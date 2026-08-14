@@ -179,7 +179,6 @@ class MacWaveCLI:
 
     def _log(self, message: str, level: str = "info", force: bool = False):
         if self.verbose or force or level == "error":
-            # 使用 log 级别常量，避免 getattr 字符串方法崩溃风险
             log_level = getattr(logging, level.upper(), logging.INFO)
             self._logger.log(log_level, f"🌊 {message}")
 
@@ -207,7 +206,6 @@ class MacWaveCLI:
             return False
 
     def _confirm_action(self, message: str) -> bool:
-        """通用确认函数：只有输入 Y 或 y 才通过，其余全部拒绝"""
         response = input(f"🌊 {message} [Y/n] ").strip()
         return response == 'Y' or response == 'y'
 
@@ -297,7 +295,6 @@ class MacWaveCLI:
                 if pkg.get("name") == package_name:
                     releases = pkg.get("releases", [])
                     for release in releases:
-                        # 统一深拷贝，防止修改原始的 repo 数据结构
                         release = release.copy()
                         if "version" not in release and "version" in pkg:
                             release["version"] = pkg["version"]
@@ -338,9 +335,6 @@ class MacWaveCLI:
             print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
             sys.exit(1)
 
-        # ========== 临时补丁开始 ==========
-        # 临时补丁，为避免packaging解析非标准版本号崩溃
-        # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
         def safe_parse_version(v):
             v = str(v)
             match = re.search(r'(\d+\.\d+\.\d+)', v)
@@ -351,7 +345,6 @@ class MacWaveCLI:
                     pass
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
-        # ========== 临时补丁结束 ==========
 
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
@@ -443,7 +436,6 @@ class MacWaveCLI:
                     limit_bps = int(limit_bps * 0.8)
                     self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec (80% of user requested)")
 
-            # ========== 临时文件清理 + 跨分区移动 ==========
             try:
                 if RICH_AVAILABLE:
                     from rich.console import Console
@@ -586,17 +578,14 @@ class MacWaveCLI:
                     backup_path = final_path.with_suffix(final_path.suffix + ".bak")
                     final_path.rename(backup_path)
 
-                # ✅ 使用 shutil.move 代替 rename，支持跨分区移动
                 shutil.move(str(temp_path), str(final_path))
                 os.chmod(final_path, 0o755)
                 self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
                 print("🌊 Download complete!")
 
             except Exception as e:
-                # 任意异常发生时，只要 final_path 没生成，就清理 temp_path
                 if not final_path.exists() and temp_path.exists():
                     temp_path.unlink()
-                # 重新抛出异常给上层处理
                 raise e
 
         except KeyboardInterrupt:
@@ -917,7 +906,6 @@ class MacWaveCLI:
             print(f"🌊 Error: Failed to upgrade package: {e}")
 
     def handle_doctor(self, args):
-        """极简模式：只提示缺失了什么，不指导怎么装"""
         print("🌊 Running system diagnostics...")
         missing = []
         for cmd in ['curl', 'wget', 'git', 'python3']:
@@ -951,51 +939,63 @@ class MacWaveCLI:
 
         self.verbose = args.verbose if hasattr(args, 'verbose') else False
 
-        if not self._confirm_skip_ssl(args):
-            sys.exit(0)
+        try:
+            if not self._confirm_skip_ssl(args):
+                sys.exit(0)
 
-        if not args.command:
-            self._print_custom_help()
-            return
+            if not args.command:
+                self._print_custom_help()
+                return
 
-        if args.command == "install" and hasattr(args, 'package_name'):
-            safe_name = args.package_name.lower()
-            if self._is_protected(safe_name):
-                print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
+            if args.command == "install" and hasattr(args, 'package_name'):
+                safe_name = args.package_name.lower()
+                if self._is_protected(safe_name):
+                    print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
+                    sys.exit(1)
+
+                binary_path = INSTALL_DIR / safe_name
+                if binary_path.exists():
+                    print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
+                    print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
+                    if self._confirm_action(""):
+                        if not self._safe_delete_binary(binary_path):
+                            sys.exit(1)
+                        print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
+                    else:
+                        print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
+                        sys.exit(0)
+
+            DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
+            INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+            REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
+
+            command_handlers = {
+                "install": self.handle_install,
+                "uninstall": self.handle_uninstall,
+                "list": self.handle_list,
+                "search": self.handle_search,
+                "info": self.handle_info,
+                "update": self.handle_update,
+                "upgrade": self.handle_upgrade,
+                "doctor": self.handle_doctor,
+                "clean": self.handle_clean,
+            }
+            handler = command_handlers.get(args.command)
+            if handler:
+                handler(args)
+            else:
+                print(f"🌊 Error: Unknown command '{args.command}'")
                 sys.exit(1)
 
-            binary_path = INSTALL_DIR / safe_name
-            if binary_path.exists():
-                print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
-                print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
-                if self._confirm_action(""):
-                    if not self._safe_delete_binary(binary_path):
-                        sys.exit(1)
-                    print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
-                else:
-                    print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
-                    sys.exit(0)
-
-        DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
-        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
-
-        command_handlers = {
-            "install": self.handle_install,
-            "uninstall": self.handle_uninstall,
-            "list": self.handle_list,
-            "search": self.handle_search,
-            "info": self.handle_info,
-            "update": self.handle_update,
-            "upgrade": self.handle_upgrade,
-            "doctor": self.handle_doctor,
-            "clean": self.handle_clean,
-        }
-        handler = command_handlers.get(args.command)
-        if handler:
-            handler(args)
-        else:
-            print(f"🌊 Error: Unknown command '{args.command}'")
+        except KeyboardInterrupt:
+            print("\n🌊 Operation cancelled by user.")
+            sys.exit(130)
+        except SystemExit:
+            raise
+        except Exception as e:
+            if self.verbose:
+                traceback.print_exc()
+            print(f"\n🌊 Fatal error: {e}")
             sys.exit(1)
 
 
