@@ -425,23 +425,28 @@ class MacWaveCLI:
                     TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                     DownloadColumn(),
                     TextColumn("•"),
-                    TransferSpeedColumn(),
+                    TextColumn("{task.fields[speed]}"),  # 使用自定义 speed 字段
                     TextColumn("•"),
                     TimeRemainingColumn(),
                 ]
                 console = Console()
                 with Progress(*progress_columns, console=console) as progress:
-                    task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size if total_size else None, completed=resume_pos)
+                    task_id = progress.add_task(
+                        description=f"🌊 {package_name}",
+                        total=total_size if total_size else None,
+                        completed=resume_pos,
+                        speed="0 B/s"
+                    )
                     if not total_size:
                         progress.update(task_id, description=f"🌊 {package_name} (unknown size)")
 
                     mode = 'ab' if is_resume else 'wb'
                     sha256_hash = hashlib.sha256()
 
-                    # ========== cURL 级令牌桶限速 ==========
+                    # ========== 令牌桶限速 ==========
                     token_bucket = 0.0
                     last_time = time.monotonic()
-                    # ======================================
+                    # ================================
 
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
@@ -449,29 +454,37 @@ class MacWaveCLI:
                                 # ========== 令牌桶算法核心 ==========
                                 if limit_bps:
                                     now = time.monotonic()
-                                    # 计算时间差，往桶里加令牌
                                     delta = now - last_time
                                     token_bucket += delta * limit_bps
                                     last_time = now
-                                    # 桶上限 = 一个数据块的大小（防止突发）
                                     if token_bucket > 8192:
                                         token_bucket = 8192
-                                    # 如果桶里令牌不够，强制等待
                                     if token_bucket < len(chunk):
                                         time.sleep((len(chunk) - token_bucket) / limit_bps)
-                                        # 醒来后重新计算时间
                                         now = time.monotonic()
                                         delta = now - last_time
                                         token_bucket += delta * limit_bps
                                         last_time = now
-                                    # 消费令牌
                                     token_bucket -= len(chunk)
                                 # ==================================
 
                                 f.write(chunk)
                                 chunk_size_bytes = len(chunk)
                                 sha256_hash.update(chunk)
-                                progress.update(task_id, advance=chunk_size_bytes)
+
+                                # ========== 进度条速度 ≤ 限速 ==========
+                                if limit_bps:
+                                    # 直接使用限速值作为显示上限
+                                    if limit_bps >= 1024 * 1024:
+                                        display_speed = f"{limit_bps / (1024 * 1024):.1f} MB/s"
+                                    elif limit_bps >= 1024:
+                                        display_speed = f"{limit_bps / 1024:.1f} kB/s"
+                                    else:
+                                        display_speed = f"{limit_bps:.0f} B/s"
+                                    progress.update(task_id, advance=chunk_size_bytes, speed=display_speed)
+                                else:
+                                    progress.update(task_id, advance=chunk_size_bytes)
+                                # =====================================
 
                     if total_size:
                         current_completed = progress.tasks[task_id].completed
@@ -481,10 +494,10 @@ class MacWaveCLI:
                 mode = 'ab' if is_resume else 'wb'
                 sha256_hash = hashlib.sha256()
 
-                # ========== cURL 级令牌桶限速 ==========
+                # ========== 令牌桶限速 ==========
                 token_bucket = 0.0
                 last_time = time.monotonic()
-                # ======================================
+                # ================================
 
                 with open(temp_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
