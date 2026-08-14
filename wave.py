@@ -352,58 +352,71 @@ class MacWaveCLI:
 
     def find_package(self, repo_data, package_name, args=None):
         self.log_verbose(f"Searching for package: {package_name}")
-
+        
+        # 收集所有同名 package 的所有 releases
+        all_releases = []
+        
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == package_name:
-                    self.log_verbose(f"Found package: {pkg.get('name')}")
                     releases = pkg.get("releases", [])
-
-                    # 用户指定版本
-                    if args and getattr(args, 'ver', None):
-                        requested_version = args.ver
-                        self.log_verbose(f"User requested version: {requested_version}")
-                        for release in releases:
-                            if release.get("version") == requested_version:
-                                arch = platform.machine().lower()
-                                if release.get("arch") == arch or release.get("arch") == "any":
-                                    self.log_verbose(f"Found matching release for version {requested_version}")
-                                    return release
-                        print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
-                        sys.exit(1)
-
-                    # 用户请求测试版
-                    if args and getattr(args, 'beta_version', False):
-                        self.log_verbose("User requested beta version.")
-                        for release in releases:
-                            if release.get("arch") == "beta":
-                                self.log_verbose("Found beta release.")
-                                return release
-                        return None
-
-                    # 默认：按版本排序，返回最新版本
-                    current_arch = platform.machine().lower()
-                    matching_releases = []
-
                     for release in releases:
-                        arch = release.get("arch")
-                        if arch == current_arch or arch == "any":
-                            matching_releases.append(release)
-
-                    if not matching_releases:
-                        print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
-                        sys.exit(1)
-
-                    # 按版本号降序排序（最新版本在前）
-                    matching_releases.sort(
-                        key=lambda r: parse_version(r.get("version", "0.0.0")),
-                        reverse=True
-                    )
-
-                    return matching_releases[0]
-
-        print(f"🌊 Error: Package '{package_name}' not found in repository")
-        sys.exit(1)
+                        # 如果 release 没有 version，使用 package 的 version
+                        if "version" not in release and "version" in pkg:
+                            release = release.copy()
+                            release["version"] = pkg["version"]
+                        # 确保 release 包含必要的元数据
+                        if "binary_url" not in release:
+                            continue  # 跳过无效的 release
+                        all_releases.append(release)
+        
+        if not all_releases:
+            print(f"🌊 Error: Package '{package_name}' not found in repository")
+            sys.exit(1)
+        
+        # 用户指定版本
+        if args and getattr(args, 'ver', None):
+            requested_version = args.ver
+            self.log_verbose(f"User requested version: {requested_version}")
+            for release in all_releases:
+                if release.get("version") == requested_version:
+                    arch = platform.machine().lower()
+                    if release.get("arch") == arch or release.get("arch") == "any":
+                        self.log_verbose(f"Found matching release for version {requested_version}")
+                        return release
+            print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
+            sys.exit(1)
+        
+        # 用户请求测试版
+        if args and getattr(args, 'beta_version', False):
+            self.log_verbose("User requested beta version.")
+            for release in all_releases:
+                if release.get("arch") == "beta":
+                    self.log_verbose("Found beta release.")
+                    return release
+            print(f"🌊 No beta version found for '{package_name}'.")
+            return None
+        
+        # 默认：按版本排序，返回最新版本
+        current_arch = platform.machine().lower()
+        matching_releases = []
+        
+        for release in all_releases:
+            arch = release.get("arch")
+            if arch == current_arch or arch == "any":
+                matching_releases.append(release)
+        
+        if not matching_releases:
+            print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
+            sys.exit(1)
+        
+        # 按版本号降序排序（最新版本在前）
+        matching_releases.sort(
+            key=lambda r: parse_version(r.get("version", "0.0.0")),
+            reverse=True
+        )
+        
+        return matching_releases[0]
 
     def _parse_rate_limit(self, rate_str):
         rate_str = rate_str.upper().strip()
@@ -891,21 +904,41 @@ class MacWaveCLI:
             sys.exit(1)
 
         safe_name = args.package_name.lower()
+        
+        # 收集所有版本信息
+        versions = []
         package_info = None
+        homepage = None
+        
         if "packages" in repo_data:
             for pkg in repo_data["packages"]:
                 if pkg.get("name") == safe_name:
-                    package_info = pkg
-                    break
+                    if package_info is None:
+                        # 保留第一个作为基础信息（保留 description, author, homepage 等）
+                        package_info = pkg.copy()
+                    version = pkg.get("version", "unknown")
+                    if version not in versions:
+                        versions.append(version)
+                    # 保留 homepage（如果有）
+                    if "homepage" in pkg and homepage is None:
+                        homepage = pkg["homepage"]
+        
         if not package_info:
             print(f"🌊 Error: Package '{safe_name}' not found in repository")
             sys.exit(1)
+        
+        # 按版本号排序（降序）
+        try:
+            versions.sort(key=parse_version, reverse=True)
+        except:
+            versions.sort(reverse=True)  # 降序回退
+        
         print(f"🌊 Name:        {package_info.get('name', 'Unknown')}")
-        print(f"🌊 Version:     {package_info.get('version', 'Unknown')}")
+        print(f"🌊 Available versions: {', '.join(versions)}")
         print(f"🌊 Author:      {package_info.get('author', 'Unknown')}")
         print(f"🌊 Description: {package_info.get('description', 'No description')}")
-        if "homepage" in package_info:
-            print(f"🌊 Homepage:    {package_info.get('homepage')}")
+        if homepage:
+            print(f"🌊 Homepage:    {homepage}")
 
     def handle_update(self, args):
         print("🌊 Forcing update: fetching fresh package index...")
