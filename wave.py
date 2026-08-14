@@ -209,10 +209,13 @@ class MacWaveCLI:
         skip_ssl = getattr(args, 'skip_ssl', False)
         if not skip_ssl:
             return True
+
         console = Console()
         console.print("🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
-        response = input("🌊 [Y/n] ").strip().lower()
-        if response in ['y', 'yes', '']:
+        response = input("🌊 [Y/n] ").strip()
+
+        # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
+        if response == 'Y' or response == 'y':
             console.print("🌊 Install continue", style="bold red")
             return True
         else:
@@ -222,8 +225,10 @@ class MacWaveCLI:
     def _confirm_missing_sha256(self) -> bool:
         console = Console()
         console.print("🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?", style="bold red")
-        response = input("🌊 [Y/n] ").strip().lower()
-        if response in ['y', 'yes', '']:
+        response = input("🌊 [Y/n] ").strip()
+
+        # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
+        if response == 'Y' or response == 'y':
             console.print("🌊 Install continue with SHA256 skipped", style="bold red")
             return True
         else:
@@ -963,13 +968,16 @@ class MacWaveCLI:
             if binary_path.exists():
                 print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
                 print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
-                response = input("🌊 [Y/n] ").strip().lower()
-                if response not in ['y', 'yes', '']:
+                response = input("🌊 [Y/n] ").strip()
+
+                # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
+                if response == 'Y' or response == 'y':
+                    if not self._safe_delete_binary(binary_path):
+                        sys.exit(1)
+                    print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
+                else:
                     print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
                     sys.exit(0)
-                if not self._safe_delete_binary(binary_path):
-                    sys.exit(1)
-                print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
 
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
