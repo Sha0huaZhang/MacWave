@@ -262,7 +262,8 @@ class MacWaveCLI:
         retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
         session.mount('https://', HTTPAdapter(max_retries=retries))
 
-        request_kwargs = {'timeout': 10}
+        # timeout 改为 30 秒，适合网速较慢的环境
+        request_kwargs = {'timeout': 30}
 
         if args and getattr(args, 'proxy', None):
             proxy = args.proxy
@@ -339,7 +340,6 @@ class MacWaveCLI:
 
         # ========== 临时补丁开始 ==========
         # 临时补丁，为避免packaging解析非标准版本号崩溃
-        # 策略：自适应提取版本号核心部分，不再硬编码
         def safe_parse_version(v):
             v = str(v)
             match = re.search(r'(\d+\.\d+\.\d+)', v)
@@ -348,7 +348,6 @@ class MacWaveCLI:
                     return parse_version(match.group(1))
                 except InvalidVersion:
                     pass
-            # 如果提取失败，回退到 0.0.0
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
         # ========== 临时补丁结束 ==========
@@ -385,9 +384,14 @@ class MacWaveCLI:
         if temp_path.exists():
             temp_path.unlink()
 
+        # timeout 改为 30 秒
         request_kwargs = {'stream': True, 'timeout': 30}
 
         if args.proxy:
+            # 日志打印时把密码部分替换为 ******
+            proxy = args.proxy
+            safe_proxy = proxy.replace(proxy.split('@')[-1], '******') if '@' in proxy else proxy
+            self.log_verbose(f"Using proxy: {safe_proxy}")
             request_kwargs['proxies'] = {'http': args.proxy, 'https': args.proxy}
 
         if args.skip_ssl:
@@ -668,7 +672,7 @@ class MacWaveCLI:
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
         except Exception as e:
             self.log(f"Warning: Could not record installation: {e}", force=True)
 
@@ -728,7 +732,7 @@ class MacWaveCLI:
             with open(INSTALLED_DB, 'r') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
 
             if safe_name not in installed:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
@@ -744,7 +748,7 @@ class MacWaveCLI:
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                # 锁会在 with 块结束时自动释放，不再手动调用 LOCK_UN
 
             print(f"🌊 Successfully uninstalled '{safe_name}'.")
         except Exception as e:
@@ -862,8 +866,11 @@ class MacWaveCLI:
             return
 
         try:
+            # 读取时加共享锁，防止并发写入导致读到损坏数据
             with open(INSTALLED_DB, 'r') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 installed = json.load(f)
+                # 锁会在 with 块结束时自动释放
 
             if safe_name not in installed:
                 print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
@@ -888,7 +895,7 @@ class MacWaveCLI:
                 if local_v >= remote_v:
                     print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
                     return
-            except Exception:
+            except InvalidVersion:
                 if local_version >= remote_version:
                     print(f"🌊 Package '{safe_name}' is already up to date (v{local_version}).")
                     return
