@@ -440,7 +440,9 @@ class MacWaveCLI:
             if args.limit_rate:
                 limit_bps = self._parse_rate_limit(args.limit_rate)
                 if limit_bps is not None:
-                    self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec")
+                    # 实际限速设为用户设定值的 80%，防止进度条偶尔超速
+                    limit_bps = int(limit_bps * 0.8)
+                    self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec (80% of user requested)")
 
             if RICH_AVAILABLE:
                 from rich.console import Console
