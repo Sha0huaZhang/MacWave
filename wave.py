@@ -205,6 +205,11 @@ class MacWaveCLI:
             print(f"🌊 \033[31mError deleting {binary_path}: {e}\033[0m")
             return False
 
+    def _confirm_action(self, message: str) -> bool:
+        """通用确认函数：只有输入 Y 或 y 才通过，其余全部拒绝"""
+        response = input(f"🌊 {message} [Y/n] ").strip()
+        return response == 'Y' or response == 'y'
+
     def _confirm_skip_ssl(self, args) -> bool:
         skip_ssl = getattr(args, 'skip_ssl', False)
         if not skip_ssl:
@@ -212,10 +217,7 @@ class MacWaveCLI:
 
         console = Console()
         console.print("🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
-        response = input("🌊 [Y/n] ").strip()
-
-        # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
-        if response == 'Y' or response == 'y':
+        if self._confirm_action(""):
             console.print("🌊 Install continue", style="bold red")
             return True
         else:
@@ -225,10 +227,7 @@ class MacWaveCLI:
     def _confirm_missing_sha256(self) -> bool:
         console = Console()
         console.print("🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?", style="bold red")
-        response = input("🌊 [Y/n] ").strip()
-
-        # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
-        if response == 'Y' or response == 'y':
+        if self._confirm_action(""):
             console.print("🌊 Install continue with SHA256 skipped", style="bold red")
             return True
         else:
@@ -297,10 +296,9 @@ class MacWaveCLI:
                 if pkg.get("name") == package_name:
                     releases = pkg.get("releases", [])
                     for release in releases:
-                        # 必须 copy，防止修改原始的 repo 数据结构
-                        # 多版本包共享同一个 pkg 对象，不 copy 会互相污染
+                        # 统一深拷贝，防止修改原始的 repo 数据结构
+                        release = release.copy()
                         if "version" not in release and "version" in pkg:
-                            release = release.copy()
                             release["version"] = pkg["version"]
                         if "binary_url" not in release:
                             continue
@@ -341,18 +339,18 @@ class MacWaveCLI:
 
         # ========== 临时补丁开始 ==========
         # 临时补丁，为避免packaging解析非标准版本号崩溃
-        def safe_parse_version(v: str):
-            if not isinstance(v, str):
-                return parse_version("0.0.0")
-            # 只针对 procursus 后缀做清洗
-            v_clean = re.sub(r'-procursus\d+.*', '', v)
-            try:
-                return parse_version(v_clean)
-            except InvalidVersion:
-                # ⚠️ 重要：回退到 0.0.0 意味着该包在排序时会被沉到最底部。
-                # 如果发现某个包总是不被当做最新版本，请检查 repo.json 中的版本号是否符合 PEP 440 标准。
-                logging.warning(f"Invalid version string '{v}' (cleaned: '{v_clean}'), falling back to 0.0.0")
-                return parse_version("0.0.0")
+        # 策略：自适应提取版本号核心部分，不再硬编码
+        def safe_parse_version(v):
+            v = str(v)
+            match = re.search(r'(\d+\.\d+\.\d+)', v)
+            if match:
+                try:
+                    return parse_version(match.group(1))
+                except InvalidVersion:
+                    pass
+            # 如果提取失败，回退到 0.0.0
+            logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
+            return parse_version("0.0.0")
         # ========== 临时补丁结束 ==========
 
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
@@ -404,7 +402,6 @@ class MacWaveCLI:
             try:
                 resume_pos = temp_path.stat().st_size
                 if resume_pos > 0:
-                    # 断点续传：告诉服务器从 resume_pos 字节开始继续发送数据
                     headers['Range'] = f"bytes={resume_pos}-"
                     print(f"🌊 Resuming from {resume_pos} bytes")
                 else:
@@ -471,8 +468,6 @@ class MacWaveCLI:
                     sha256_hash = hashlib.sha256()
 
                     # ========== 令牌桶限速 ==========
-                    # token_bucket: 当前桶内剩余可用的“字节配额”
-                    # last_time: 上一次补充令牌的时间戳（用于计算时间差）
                     token_bucket = 0.0
                     last_time = time.monotonic()
                     # ================================
@@ -482,8 +477,6 @@ class MacWaveCLI:
                     speed_last_bytes = resume_pos
 
                     with open(temp_path, mode) as f:
-                        # 8KB 是一个平衡点：太小则频繁调用 time.sleep() 增加 CPU 开销，
-                        # 太大则限速粒度变粗，显示不够平滑。
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 # ========== 令牌桶算法核心 ==========
@@ -507,7 +500,7 @@ class MacWaveCLI:
                                 chunk_size_bytes = len(chunk)
                                 sha256_hash.update(chunk)
 
-                                # ========== 动态速度显示（100% 绝不超限速） ==========
+                                # ========== 动态速度显示（绝不超限速） ==========
                                 current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
                                 now = time.monotonic()
 
@@ -517,7 +510,6 @@ class MacWaveCLI:
                                     speed_last_time = now
 
                                     if limit_bps:
-                                        # 如果真实速度 > 限速，直接显示限速值
                                         if real_speed > limit_bps:
                                             display_speed = limit_bps
                                         else:
@@ -541,24 +533,18 @@ class MacWaveCLI:
                         current_completed = progress.tasks[task_id].completed
                         if current_completed < total_size:
                             progress.update(task_id, advance=total_size - current_completed)
-                    # 下载完成后强制归零速度，避免进度条卡在最后一段数据的速度上误导用户
                     progress.update(task_id, speed="0 B/s")
 
             else:
                 mode = 'ab' if is_resume else 'wb'
                 sha256_hash = hashlib.sha256()
 
-                # ========== 令牌桶限速 ==========
-                # token_bucket: 当前桶内剩余可用的“字节配额”
-                # last_time: 上一次补充令牌的时间戳（用于计算时间差）
                 token_bucket = 0.0
                 last_time = time.monotonic()
-                # ================================
 
                 with open(temp_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
-                            # ========== 令牌桶算法核心 ==========
                             if limit_bps:
                                 now = time.monotonic()
                                 delta = now - last_time
@@ -573,7 +559,6 @@ class MacWaveCLI:
                                     token_bucket += delta * limit_bps
                                     last_time = now
                                 token_bucket -= len(chunk)
-                            # ==================================
 
                             f.write(chunk)
                             sha256_hash.update(chunk)
@@ -718,8 +703,9 @@ class MacWaveCLI:
                 return
             else:
                 print(f"🌊 No beta version found for '{safe_name}'.")
-                response = input(f"🌊 Do you want to install the latest stable version instead? [Y/n] ")
-                if response.lower() not in ['y', 'yes', '']:
+                if self._confirm_action("Do you want to install the latest stable version instead?"):
+                    pass
+                else:
                     print("🌊 Installation cancelled.")
                     return
 
@@ -932,7 +918,20 @@ class MacWaveCLI:
             print(f"🌊 Error: Failed to upgrade package: {e}")
 
     def handle_doctor(self, args):
-        print("🌊 Command 'doctor' is not implemented yet.")
+        """极简模式：只提示缺失了什么，不指导怎么装"""
+        print("🌊 Running system diagnostics...")
+        missing = []
+        for cmd in ['curl', 'wget', 'git', 'python3']:
+            if shutil.which(cmd) is None:
+                missing.append(cmd)
+
+        if missing:
+            print(f"🌊 \033[31mMissing dependencies: {', '.join(missing)}\033[0m")
+            print("🌊 Please install the missing software packages manually.")
+            sys.exit(1)
+        else:
+            print("🌊 \033[32mAll required dependencies are present.\033[0m")
+            print("🌊 System is healthy.")
 
     def handle_clean(self, args):
         if DOWNLOAD_TMP.exists():
@@ -970,10 +969,7 @@ class MacWaveCLI:
             if binary_path.exists():
                 print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
                 print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
-                response = input("🌊 [Y/n] ").strip()
-
-                # ⚠️ 严格模式：只有输入 Y 或 y 才通过，其余全部拒绝
-                if response == 'Y' or response == 'y':
+                if self._confirm_action(""):
                     if not self._safe_delete_binary(binary_path):
                         sys.exit(1)
                     print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
