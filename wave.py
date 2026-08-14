@@ -425,7 +425,7 @@ class MacWaveCLI:
                     TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                     DownloadColumn(),
                     TextColumn("•"),
-                    TextColumn("{task.fields[speed]}"),  # 使用自定义 speed 字段
+                    TextColumn("{task.fields[speed]}"),
                     TextColumn("•"),
                     TimeRemainingColumn(),
                 ]
@@ -447,6 +447,10 @@ class MacWaveCLI:
                     token_bucket = 0.0
                     last_time = time.monotonic()
                     # ================================
+
+                    # 动态速度计算用变量
+                    speed_last_time = time.monotonic()
+                    speed_last_bytes = resume_pos
 
                     with open(temp_path, mode) as f:
                         for chunk in response.iter_content(chunk_size=8192):
@@ -472,24 +476,40 @@ class MacWaveCLI:
                                 chunk_size_bytes = len(chunk)
                                 sha256_hash.update(chunk)
 
-                                # ========== 进度条速度 ≤ 限速 ==========
-                                if limit_bps:
-                                    # 直接使用限速值作为显示上限
-                                    if limit_bps >= 1024 * 1024:
-                                        display_speed = f"{limit_bps / (1024 * 1024):.1f} MB/s"
-                                    elif limit_bps >= 1024:
-                                        display_speed = f"{limit_bps / 1024:.1f} kB/s"
+                                # ========== 动态速度显示（≤ 限速） ==========
+                                current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
+                                now = time.monotonic()
+
+                                # 每 0.5 秒更新一次速度
+                                if now - speed_last_time >= 0.5:
+                                    real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
+                                    speed_last_bytes = current_bytes
+                                    speed_last_time = now
+
+                                    if limit_bps:
+                                        # 取真实速度和限速值的较小值（绝不超限速）
+                                        display_speed = min(real_speed, limit_bps)
                                     else:
-                                        display_speed = f"{limit_bps:.0f} B/s"
-                                    progress.update(task_id, advance=chunk_size_bytes, speed=display_speed)
-                                else:
-                                    progress.update(task_id, advance=chunk_size_bytes)
-                                # =====================================
+                                        display_speed = real_speed
+
+                                    if display_speed >= 1024 * 1024:
+                                        speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
+                                    elif display_speed >= 1024:
+                                        speed_str = f"{display_speed / 1024:.1f} kB/s"
+                                    else:
+                                        speed_str = f"{display_speed:.0f} B/s"
+
+                                    progress.update(task_id, speed=speed_str)
+
+                                progress.update(task_id, advance=chunk_size_bytes)
+                                # =============================================
 
                     if total_size:
                         current_completed = progress.tasks[task_id].completed
                         if current_completed < total_size:
                             progress.update(task_id, advance=total_size - current_completed)
+                    progress.update(task_id, speed="0 B/s")
+
             else:
                 mode = 'ab' if is_resume else 'wb'
                 sha256_hash = hashlib.sha256()
