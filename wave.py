@@ -616,9 +616,10 @@ class MacWaveCLI:
                         temp_path.unlink()
                         self.log_verbose(f"Deleted malicious/corrupted file: {temp_path}")
 
+                    # 颜色互换：Expected 绿色，Actual 红色
                     print(f"🌊 \033[31mSHA256 verification failed!\033[0m")
-                    print(f"🌊 \033[31mExpected: {expected_sha256}\033[0m")
-                    print(f"🌊 \033[32mActual:   {actual_sha256}\033[0m")
+                    print(f"🌊 \033[32mExpected: {expected_sha256}\033[0m")
+                    print(f"🌊 \033[31mActual:   {actual_sha256}\033[0m")
                     print(f"🌊 \033[31mFile may have been tampered with or corrupted.\033[0m")
                     print(f"🌊 \033[31mMalicious file has been permanently deleted.\033[0m")
                     sys.exit(1)
@@ -1007,11 +1008,16 @@ class MacWaveCLI:
             self._print_custom_help()
             return
 
-        if args.command in {"install", "upgrade"} and hasattr(args, 'package_name'):
+        # ============================================================
+        # 🛡️ 安全保护
+        # ============================================================
+
+        # 只对 install 命令做覆盖确认（upgrade 由 handle_upgrade 自己处理）
+        if args.command == "install" and hasattr(args, 'package_name'):
             safe_name = args.package_name.lower()
 
             if self._is_protected(safe_name):
-                print(f"🌊 \033[31mERROR: Cannot install/upgrade protected package: {safe_name}\033[0m")
+                print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
                 print(f"🌊 \033[31mThis would break your package manager!\033[0m")
                 print(f"🌊 \033[93mTo update MacWave, download the new version manually:\033[0m")
                 print(f"🌊 \033[93m  curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
