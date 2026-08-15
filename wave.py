@@ -852,9 +852,11 @@ class MacWaveCLI:
                 if pkg.get("name") == safe_name:
                     if package_info is None:
                         package_info = pkg.copy()
-                    version = pkg.get("version", "unknown")
-                    if version not in versions:
-                        versions.append(version)
+                    # 改为从 releases 数组里收集版本号
+                    for release in pkg.get("releases", []):
+                        ver = release.get("version")
+                        if ver and ver not in versions:
+                            versions.append(ver)
                     if "homepage" in pkg and homepage is None:
                         homepage = pkg["homepage"]
 
