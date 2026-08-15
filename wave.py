@@ -875,8 +875,25 @@ class MacWaveCLI:
         if homepage:
             print(f"🌊 Homepage:       {homepage}")
             
+        # ========== 当前已安装版本 ==========
+        # 从 installed.json 里读取
+        installed_version = None
+        if INSTALLED_DB.exists():
+            try:
+                with open(INSTALLED_DB, 'r') as f:
+                    installed_data = json.load(f)
+                    if safe_name in installed_data:
+                        installed_version = installed_data[safe_name].get('version', None)
+            except:
+                pass
 
-         # ========== 多版本垂直对齐（仅第一行带 🌊） ==========
+        if installed_version:
+            print(f"🌊 Installed version:  {installed_version}")
+        else:
+            print(f"🌊 Installed version:  Not installed")
+        # ====================================
+
+        # ========== 多版本垂直对齐（仅第一行带 🌊） ==========
         if versions:
             # 第一行：带 🌊 和标签
             print(f"🌊 Available versions: {versions[0]}")
