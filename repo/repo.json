@@ -67,7 +67,7 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus6",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "1751476cc3962d418c7b39ba4fe85b28596e1802278f398103ea81cd9cb5eb2b",
           "filename": "ldid",
           "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus6/ldid_macosx_arm64"
         },
@@ -75,7 +75,7 @@
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus6",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "86f1ce8aef67fda767ca00fc553cdb9b1a8e8b82c5d648c6c533a7c98cabceb2",
           "filename": "ldid",
           "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus6/ldid_macosx_x86_64"
         },
@@ -83,97 +83,97 @@
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus5",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "7e25bab5151a7d6d28ba3da6cb5e2e0c921265fcd8ae66d7d43d2e1c4f8b13dd",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus5",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "a947fe20f509b87a12ba47c37352c40b4046c0487809f58d61f981e7e8c130a2",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macos_x86_64"
         },
         {
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus4",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "add4817f00fa49f02798cfbfd4fd493d975b640c12534a148d1392c50698fe0e",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus4",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "d8f9c0d5e7c0bca6c95a6a4c859fc3809f4ac304a4f3c82c4c7ba36202703218",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_x86_64"
         },
         {
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus3",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "b4a94cf70a1671ad880ed6f2a8d592dae96a8ae40c8531baea1f68e04b39573d",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus3",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "775a9541ab43aa7952cfc76fb75f8f697143bbac3903812208ac075d96ecc8c5",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macos_x86_64"
         },
         {
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus2",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "47ef58d2f4e77d4ce66440ce4472743a0d14486a8dc44b13567a41b5f2343728",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus2",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "696dd7044a7894a166da07016729816603f9586de5918663fdf211588e60247d",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macos_x86_64"
         },
         {
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus1",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "586e8fbc2094920e6e31ef9919962238a06d40b8bdc4692ce83551689798423f",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus1",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "2dfd6c7f7e180a74d3247d97d6498f8f2de9265d89cc518f7ed1222919331b19",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macos_x86_64"
         },
         {
           "os": "darwin",
           "arch": "arm64",
           "version": "2.1.5-procursus",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "1073f32f2ebf3020b8a2dce6b2c0d1750445df69cb09a52c2411049ae5526ae7",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macosx_arm64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macos_arm64"
         },
         {
           "os": "darwin",
           "arch": "amd64",
           "version": "2.1.5-procursus",
-          "sha256": "<此处填写实际SHA256>",
+          "sha256": "6476c93629e775c7dda28946ae576e776c9952e4991e88256d6f7df7545e30c2",
           "filename": "ldid",
-          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macosx_x86_64"
+          "binary_url": "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macos_x86_64"
         }
       ]
     },
