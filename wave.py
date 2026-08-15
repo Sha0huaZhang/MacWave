@@ -335,20 +335,50 @@ class MacWaveCLI:
             print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
             sys.exit(1)
 
-        # ========== 临时补丁开始 ==========
-        # 临时补丁，为避免packaging解析非标准版本号崩溃
-        # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
+
         def safe_parse_version(v):
             v = str(v)
-            match = re.search(r'(\d+\.\d+\.\d+)', v)
-            if match:
-                try:
-                    return parse_version(match.group(1))
-                except InvalidVersion:
-                    pass
+            # 标准版本号解析
+            try:
+                return parse_version(v)
+            except InvalidVersion:
+                pass
+
+            
+        # ============================== 临时补丁开始 ==============================
+            
+        # 临时补丁，为避免packaging解析非标准版本号崩溃
+        # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
+        # 作者在2026年8月15日修改此补丁，旨在解决加入ldid版本2.1.5-procursus、2.1.5-procursus1、…、2.1.5-procursus6带来的问题
+        # 额外补充：支持procursus数字后缀排序
+
+        # ---------- 废弃版本（2026年8月14日第一版）开始 ----------
+        # def safe_parse_version(v):
+        #     v = str(v)
+        #     match = re.search(r'(\d+\.\d+\.\d+)', v)
+        #     if match:
+        #         try:
+        #             return parse_version(match.group(1))
+        #         except InvalidVersion:
+        #             pass
+        #     logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
+        #     return parse_version("0.0.0")
+        # ---------- 废弃版本（2026年8月14日第一版）结束 ----------
+            
+            # 非标准版本号解析（新版补丁）
+            base_match = re.search(r'(\d+\.\d+\.\d+)', v)
+            if base_match:
+                base_version = base_match.group(1)
+                proc_match = re.search(r'procursus(\d+)', v)
+                suffix_num = int(proc_match.group(1)) if proc_match else 0
+                # 把版本号转为 (主版本, 次版本, 补丁, 后缀编号) 的元组进行比较
+                # 由于 parse_version 没法直接比较元组，作者使用"基础版本号"+"后缀编号"拼接为一个新的版本号字符串，以保证排序正确
+                # 策略：拼接成 "基础版本号.后缀编号"，例如 2.1.5.7 表示 2.1.5-procursus7，2.1.5.0表示2.1.5-procursus
+                return parse_version(f"{base_version}.{suffix_num}")
+
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
-        # ========== 临时补丁结束 ==========
+        # ============================== 临时补丁结束 ==============================
 
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
@@ -624,13 +654,22 @@ class MacWaveCLI:
             print(f"🌊 [DRY RUN] Would install {package_name} to {install_dir}")
             return
 
-        binary_path = install_dir / package_name
-        if not binary_path.exists():
+        # ========== 多版本二进制共存 ==========
+        # 如果指定了版本号（--ver 或 @语法），则生成带版本后缀的文件名
+        # 例如：ldid@2.1.5-procursus7
+        # 没有指定版本则生成 ldid（默认最新版）
+        if version:
+            final_path = install_dir / f"{package_name}@{version}"
+        else:
+            final_path = install_dir / package_name
+        # ======================================
+
+        if not final_path.exists():
             print("🌊 Error: Binary file not found after download.")
             sys.exit(1)
 
         try:
-            print(f"🌊 Successfully installed {package_name} to {binary_path}")
+            print(f"🌊 Successfully installed {package_name} to {final_path}")
             self._record_installation(package_name, version, install_dir)
 
             path_dirs = os.environ.get("PATH", "").split(":")
@@ -669,6 +708,16 @@ class MacWaveCLI:
         if args.json:
             print(json.dumps({"command": "install", "package": args.package_name}))
             return
+
+        # ========== 多版本语法支持 ==========
+        # 支持 ldid@2.1.5-procursus7 格式
+        # 如果用户使用 @ 语法，自动拆分为包名和版本号
+        package_name = args.package_name
+        if '@' in package_name:
+            pkg_name, ver = package_name.split('@', 1)
+            args.package_name = pkg_name
+            args.ver = ver
+        # ======================================
 
         try:
             repo_data = self.fetch_repo_data(args)
