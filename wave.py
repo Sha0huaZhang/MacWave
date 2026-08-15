@@ -867,16 +867,15 @@ class MacWaveCLI:
         except:
             versions.sort(reverse=True)
 
+        # ========== 多版本垂直对齐 ==========
+        # 把所有的常规字段用统一格式打印（手动补齐15个空格保证冒号对齐）
         print(f"🌊 Name:               {package_info.get('name', 'Unknown')}")
-        print(f"🌊 Available versions: {', '.join(versions)}")
         print(f"🌊 Author:             {package_info.get('author', 'Unknown')}")
         print(f"🌊 Description:        {package_info.get('description', 'No description')}")
-        
         if homepage:
-            print(f"🌊 Homepage:       {homepage}")
-            
+            print(f"🌊 Homepage:           {homepage}")
+
         # ========== 当前已安装版本 ==========
-        # 从 installed.json 里读取
         installed_version = None
         if INSTALLED_DB.exists():
             try:
@@ -895,9 +894,7 @@ class MacWaveCLI:
 
         # ========== 多版本垂直对齐（仅第一行带 🌊） ==========
         if versions:
-            # 第一行：带 🌊 和标签
             print(f"🌊 Available versions: {versions[0]}")
-            # 后续版本：仅缩进，不带 🌊
             for ver in versions[1:]:
                 print(f"                        {ver}")
         # ====================================================
