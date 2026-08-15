@@ -898,7 +898,7 @@ class MacWaveCLI:
         if versions:
             print(f"🌊 Available versions: {versions[0]}")
             for ver in versions[1:]:
-                print(f"                        {ver}")
+                print(f"                       {ver}")
         # ====================================================
     
     def handle_update(self, args):
