@@ -871,17 +871,19 @@ class MacWaveCLI:
         print(f"🌊 Available versions: {', '.join(versions)}")
         print(f"🌊 Author:             {package_info.get('author', 'Unknown')}")
         print(f"🌊 Description:        {package_info.get('description', 'No description')}")
+        
         if homepage:
             print(f"🌊 Homepage:       {homepage}")
             
 
-        # ========== 多版本垂直对齐 ==========
-        # 第一行：标签 + 冒号 + 第一个版本
-        print(f"🌊 Available versions: {versions[0] if versions else 'None'}")
-        # 后面的版本：用空格对齐到第一个版本的位置（精确手动对齐）
-        for ver in versions[1:]:
-            print(f"🌊                      {ver}")
-        # ====================================
+         # ========== 多版本垂直对齐（仅第一行带 🌊） ==========
+        if versions:
+            # 第一行：带 🌊 和标签
+            print(f"🌊 Available versions: {versions[0]}")
+            # 后续版本：仅缩进，不带 🌊
+            for ver in versions[1:]:
+                print(f"                        {ver}")
+        # ====================================================
     
     def handle_update(self, args):
         print("🌊 Forcing update: fetching fresh package index...")
