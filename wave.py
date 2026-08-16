@@ -385,6 +385,7 @@ class MacWaveCLI:
 
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
+            
         # ============================== 临时补丁结束 ==============================
         
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
@@ -401,9 +402,11 @@ class MacWaveCLI:
             self.log(f"Invalid rate limit format '{rate_str}', ignoring limit.", force=True)
             return None
 
-    def download_binary(self, url, package_name, args, install_dir=None, release=None):
+    def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
+        if final_path is None:
+            final_path = install_dir / package_name
 
         if args.dry_run:
             print(f"🌊 [DRY RUN] Would download {package_name} from {url}")
@@ -414,7 +417,6 @@ class MacWaveCLI:
 
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
-        final_path = install_dir / package_name
 
         if temp_path.exists():
             temp_path.unlink()
@@ -653,23 +655,15 @@ class MacWaveCLI:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
 
-    def install_package(self, package_name, args, version=None, install_dir=None):
+    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
+        if final_path is None:
+            final_path = install_dir / package_name
 
         if args.dry_run:
-            print(f"🌊 [DRY RUN] Would install {package_name} to {install_dir}")
+            print(f"🌊 [DRY RUN] Would install {package_name} to {final_path}")
             return
-
-        # ========== 多版本二进制共存 ==========
-        # 如果指定了版本号（--ver 或 @语法），则生成带版本后缀的文件名
-        # 例如：ldid@2.1.5-procursus7
-        # 没有指定版本则生成 ldid（默认最新版）
-        if version:
-            final_path = install_dir / f"{package_name}@{version}"
-        else:
-            final_path = install_dir / package_name
-        # ======================================
 
         if not final_path.exists():
             print("🌊 Error: Binary file not found after download.")
@@ -677,7 +671,7 @@ class MacWaveCLI:
 
         try:
             print(f"🌊 Successfully installed {package_name} to {final_path}")
-            self._record_installation(package_name, version, install_dir)
+            self._record_installation(package_name, version, install_dir, final_path=final_path)
 
             path_dirs = os.environ.get("PATH", "").split(":")
             if str(install_dir) not in path_dirs:
@@ -690,9 +684,11 @@ class MacWaveCLI:
             print(f"🌊 Error: Failed to install package: {e}")
             sys.exit(1)
 
-    def _record_installation(self, package_name, release_version=None, install_dir=None):
+    def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
+        if final_path is None:
+            final_path = install_dir / package_name
 
         try:
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -704,7 +700,7 @@ class MacWaveCLI:
                     installed = json.loads(content) if content else {}
                 except json.JSONDecodeError:
                     installed = {}
-                installed[package_name] = {"version": release_version, "binary_path": str(install_dir / package_name)}
+                installed[package_name] = {"version": release_version, "binary_path": str(final_path)}
                 f.seek(0)
                 f.truncate()
                 json.dump(installed, f, indent=2)
@@ -740,7 +736,6 @@ class MacWaveCLI:
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
-                # 统一路径：在调用前先算出最终文件路径
                 version = release.get("version")
                 if version:
                     final_path = install_dir / f"{safe_name}@{version}"
@@ -753,8 +748,13 @@ class MacWaveCLI:
         if args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if beta_release:
-                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir, beta_release)
-                self.install_package(safe_name, args, beta_release.get("version"), install_dir)
+                version = beta_release.get("version")
+                if version:
+                    final_path = install_dir / f"{safe_name}@{version}"
+                else:
+                    final_path = install_dir / safe_name
+                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir, beta_release, final_path=final_path)
+                self.install_package(safe_name, args, beta_release.get("version"), install_dir, final_path=final_path)
                 return
             else:
                 print(f"🌊 No beta version found for '{safe_name}'.")
@@ -765,8 +765,13 @@ class MacWaveCLI:
                     return
 
         release = self.find_package(repo_data, safe_name, args)
-        self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
-        self.install_package(safe_name, args, release.get("version"), install_dir)
+        version = release.get("version")
+        if version:
+            final_path = install_dir / f"{safe_name}@{version}"
+        else:
+            final_path = install_dir / safe_name
+        self.download_binary(release["binary_url"], safe_name, args, install_dir, release, final_path=final_path)
+        self.install_package(safe_name, args, release.get("version"), install_dir, final_path=final_path)
 
     def handle_uninstall(self, args):
         safe_name = args.package_name.lower()
@@ -788,7 +793,7 @@ class MacWaveCLI:
                 print(f"🌊 Error: Package '{safe_name}' is not installed.")
                 return
 
-            binary_path = INSTALL_DIR / safe_name
+            binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
             if not self._safe_delete_binary(binary_path):
                 return
 
@@ -814,7 +819,8 @@ class MacWaveCLI:
             print("🌊 Installed packages:")
             for pkg_name, info in installed.items():
                 version = info.get('version', 'unknown')
-                print(f"🌊   - {pkg_name} (v{version})")
+                binary_path = info.get('binary_path', 'unknown')
+                print(f"🌊   - {pkg_name} (v{version}) -> {binary_path}")
         except Exception as e:
             print(f"🌊 Error: Could not read installed packages: {e}")
 
@@ -976,7 +982,7 @@ class MacWaveCLI:
 
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
 
-            binary_path = INSTALL_DIR / safe_name
+            binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
             if binary_path.exists():
                 if not self._safe_delete_binary(binary_path):
                     return
@@ -992,8 +998,14 @@ class MacWaveCLI:
                 download_args = argparse.Namespace(**vars(args))
                 download_args.resume = False
 
-            self.download_binary(release["binary_url"], safe_name, download_args, release=release)
-            self.install_package(safe_name, args, release.get("version"))
+            version = release.get("version")
+            if version:
+                final_path = INSTALL_DIR / f"{safe_name}@{version}"
+            else:
+                final_path = INSTALL_DIR / safe_name
+
+            self.download_binary(release["binary_url"], safe_name, download_args, release=release, final_path=final_path)
+            self.install_package(safe_name, args, release.get("version"), final_path=final_path)
 
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
@@ -1046,17 +1058,7 @@ class MacWaveCLI:
                     print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
                     sys.exit(1)
 
-                binary_path = INSTALL_DIR / safe_name
-                if binary_path.exists():
-                    print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
-                    print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
-                    if self._confirm_action(""):
-                        if not self._safe_delete_binary(binary_path):
-                            sys.exit(1)
-                        print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
-                    else:
-                        print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
-                        sys.exit(0)
+                # 已安装检查移到了 handle_install 内部，这里不再检查
 
             DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
