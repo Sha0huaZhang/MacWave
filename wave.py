@@ -760,9 +760,11 @@ class MacWaveCLI:
             final_path = install_dir / f"{safe_name}@{version}"
 
         # ========== 智能已安装检查 ==========
-        # 扫描 bin 目录下所有该包的文件
+        # 扫描 bin 目录下所有该包的文件（排除 .bak）
         existing_versions = []
         for f in install_dir.glob(f"{safe_name}@*"):
+            if f.name.endswith('.bak'):
+                continue
             ver = f.name.split('@', 1)[1]
             existing_versions.append(ver)
 
@@ -806,6 +808,8 @@ class MacWaveCLI:
             base_name = safe_name.rstrip('@*')
             to_remove = []
             for f in install_dir.glob(f"{base_name}@*"):
+                if f.name.endswith('.bak'):
+                    continue
                 ver = f.name.split('@', 1)[1]
                 to_remove.append((f, ver))
             if not to_remove:
@@ -825,7 +829,7 @@ class MacWaveCLI:
             to_remove = []
             for ver in versions_to_remove:
                 target = install_dir / f"{base_name}@{ver}"
-                if target.exists():
+                if target.exists() and not target.name.endswith('.bak'):
                     to_remove.append((target, ver))
                 else:
                     print(f"🌊 \033[93mWarning: {base_name}@{ver} not found, skipping.\033[0m")
@@ -854,6 +858,14 @@ class MacWaveCLI:
                 binary_path = Path(installed[base_name].get('binary_path', str(install_dir / base_name)))
                 if not self._safe_delete_binary(binary_path):
                     return
+                # 同时删除对应的 .bak 备份文件
+                bak_path = binary_path.with_suffix(binary_path.suffix + ".bak")
+                if bak_path.exists():
+                    try:
+                        bak_path.unlink()
+                        print(f"🌊 Removed backup {base_name}.bak")
+                    except Exception as e:
+                        print(f"🌊 \033[31mWarning: Could not remove backup {base_name}.bak: {e}\033[0m")
                 with open(INSTALLED_DB, 'w') as f:
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                     del installed[base_name]
@@ -874,6 +886,14 @@ class MacWaveCLI:
                 if self._safe_delete_binary(file_path):
                     deleted_count += 1
                     print(f"🌊 Removed {base_name}@{ver}")
+                    # 同时删除对应的 .bak 备份文件
+                    bak_path = file_path.with_suffix(file_path.suffix + ".bak")
+                    if bak_path.exists():
+                        try:
+                            bak_path.unlink()
+                            print(f"🌊 Removed backup {base_name}@{ver}.bak")
+                        except Exception as e:
+                            print(f"🌊 \033[31mWarning: Could not remove backup {base_name}@{ver}.bak: {e}\033[0m")
                 else:
                     print(f"🌊 \033[31mFailed to remove {base_name}@{ver}\033[0m")
             except Exception as e:
@@ -1082,6 +1102,14 @@ class MacWaveCLI:
             if binary_path.exists():
                 if not self._safe_delete_binary(binary_path):
                     return
+                # 同时删除对应的 .bak 备份文件
+                bak_path = binary_path.with_suffix(binary_path.suffix + ".bak")
+                if bak_path.exists():
+                    try:
+                        bak_path.unlink()
+                        print(f"🌊 Removed backup {safe_name}.bak")
+                    except Exception as e:
+                        print(f"🌊 \033[31mWarning: Could not remove backup {safe_name}.bak: {e}\033[0m")
 
             del installed[safe_name]
             with open(INSTALLED_DB, 'w') as f:
