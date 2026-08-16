@@ -1058,7 +1058,17 @@ class MacWaveCLI:
                     print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
                     sys.exit(1)
 
-                # 已安装检查移到了 handle_install 内部，这里不再检查
+                binary_path = INSTALL_DIR / safe_name
+                if binary_path.exists():
+                    print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
+                    print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
+                    if self._confirm_action(""):
+                        if not self._safe_delete_binary(binary_path):
+                            sys.exit(1)
+                        print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
+                    else:
+                        print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
+                        sys.exit(0)
 
             DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
             INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
