@@ -818,7 +818,7 @@ class MacWaveCLI:
             print(f"🌊 Found {len(to_remove)} version(s) of '{base_name}':")
             for _, ver in to_remove:
                 print(f"🌊   - {base_name}@{ver}")
-            if not self._confirm_action(f"Uninstall all versions of '{base_name}'? [Y/n]"):
+            if not self._confirm_action(f"Uninstall all versions of '{base_name}'?"):
                 print("🌊 Uninstall cancelled.")
                 return
         elif '@' in package_spec:
@@ -839,7 +839,7 @@ class MacWaveCLI:
             print(f"🌊 Found {len(to_remove)} specified version(s) of '{base_name}':")
             for _, ver in to_remove:
                 print(f"🌊   - {base_name}@{ver}")
-            if not self._confirm_action(f"Uninstall these versions of '{base_name}'? [Y/n]"):
+            if not self._confirm_action(f"Uninstall these versions of '{base_name}'?"):
                 print("🌊 Uninstall cancelled.")
                 return
         else:
