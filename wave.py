@@ -353,6 +353,12 @@ class MacWaveCLI:
         # 额外补充：支持procursus数字后缀排序
 
         # ---------- 废弃版本（2026年8月14日第一版）开始 ----------
+        # 注：此为2026年8月5日版本，随着项目v1.0.0-beta3开始支持ldid软件包被引入
+        # 8月5日引入（v1.0.0-beta3）ldid，但到8月14日发现由于不符合PEP 440标准，有时会崩溃
+        # 所以在v1.0.0-rc2（8月14日）引入下方补丁，最后一个采用此代码的版本为v1.0.0-RC3
+        # 1.0.0-rc4起，由于下方代码会把2.1.5-procursusX统一视为2.1.5，但后来需要引入2.1.5-procursus、2.1.5-procursus1、…、2.1.5-procursus7
+        # 所以废弃下列补丁，作者修改了正则表达式，以正确识别和排列2.1.5-procursus、2.1.5-procursus1、…、2.1.5-procursus7版本
+        # 修改后的补丁详见对应位置注释
         # def safe_parse_version(v):
         #     v = str(v)
         #     match = re.search(r'(\d+\.\d+\.\d+)', v)
