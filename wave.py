@@ -733,80 +733,172 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
+        # 获取要安装的版本
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
-            if release:
-                version = release.get("version")
-                if version:
-                    final_path = install_dir / f"{safe_name}@{version}"
-                else:
-                    final_path = install_dir / safe_name
-                self.download_binary(release["binary_url"], safe_name, args, install_dir, release, final_path=final_path)
-                self.install_package(safe_name, args, version, install_dir, final_path=final_path)
-            return
-
-        if args.beta_version:
+            version = release.get("version")
+        elif args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
-            if beta_release:
-                version = beta_release.get("version")
-                if version:
-                    final_path = install_dir / f"{safe_name}@{version}"
-                else:
-                    final_path = install_dir / safe_name
-                self.download_binary(beta_release["binary_url"], safe_name, args, install_dir, beta_release, final_path=final_path)
-                self.install_package(safe_name, args, beta_release.get("version"), install_dir, final_path=final_path)
-                return
-            else:
+            if not beta_release:
                 print(f"🌊 No beta version found for '{safe_name}'.")
                 if self._confirm_action("Do you want to install the latest stable version instead?"):
-                    pass
+                    release = self.find_package(repo_data, safe_name, args)
+                    version = release.get("version")
                 else:
                     print("🌊 Installation cancelled.")
                     return
-
-        release = self.find_package(repo_data, safe_name, args)
-        version = release.get("version")
-        if version:
-            final_path = install_dir / f"{safe_name}@{version}"
+            else:
+                release = beta_release
+                version = release.get("version")
         else:
+            release = self.find_package(repo_data, safe_name, args)
+            version = release.get("version")
+
+        if not version:
             final_path = install_dir / safe_name
+        else:
+            final_path = install_dir / f"{safe_name}@{version}"
+
+        # ========== 智能已安装检查 ==========
+        # 扫描 bin 目录下所有该包的文件
+        existing_versions = []
+        for f in install_dir.glob(f"{safe_name}@*"):
+            ver = f.name.split('@', 1)[1]
+            existing_versions.append(ver)
+
+        if existing_versions:
+            if version in existing_versions:
+                # 要安装的版本已存在
+                print(f"🌊 \033[93mVersion {version} of '{safe_name}' is already installed.\033[0m")
+                print(f"🌊 \033[93mDo you want to reinstall it? [Y/n]:\033[0m")
+                if not self._confirm_action(""):
+                    print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}@{version}' preserved.\033[0m")
+                    return
+            else:
+                # 已有其他版本，安装的是新版本
+                print(f"🌊 \033[93mExisting version(s) of '{safe_name}' found:\033[0m")
+                for v in existing_versions:
+                    print(f"🌊 \033[93m  - {safe_name}@{v}\033[0m")
+                print(f"🌊 \033[93mDo you want to install the latest version ({version})?\033[0m")
+                print(f"🌊 \033[93mContinue installation will NOT delete existing versions [Y/n]:\033[0m")
+                if not self._confirm_action(""):
+                    print(f"🌊 \033[32mInstallation cancelled.\033[0m")
+                    return
+        # ======================================
+
         self.download_binary(release["binary_url"], safe_name, args, install_dir, release, final_path=final_path)
-        self.install_package(safe_name, args, release.get("version"), install_dir, final_path=final_path)
+        self.install_package(safe_name, args, version, install_dir, final_path=final_path)
 
     def handle_uninstall(self, args):
-        safe_name = args.package_name.lower()
+        package_spec = args.package_name
+        safe_name = package_spec.lower()
+
         if self._is_protected(safe_name):
             print(f"🌊 \033[31mERROR: Cannot uninstall protected package: {safe_name}\033[0m")
             return
 
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        if not INSTALLED_DB.exists():
-            print("🌊 No packages installed. Nothing to uninstall.")
-            return
+        install_dir = INSTALL_DIR
 
+        # ========== 解析卸载目标 ==========
+        if package_spec.endswith('@*'):
+            # 卸载所有版本
+            base_name = safe_name.rstrip('@*')
+            to_remove = []
+            for f in install_dir.glob(f"{base_name}@*"):
+                ver = f.name.split('@', 1)[1]
+                to_remove.append((f, ver))
+            if not to_remove:
+                print(f"🌊 No versions of '{base_name}' found to uninstall.")
+                return
+            print(f"🌊 Found {len(to_remove)} version(s) of '{base_name}':")
+            for _, ver in to_remove:
+                print(f"🌊   - {base_name}@{ver}")
+            if not self._confirm_action(f"Uninstall all versions of '{base_name}'? [Y/n]"):
+                print("🌊 Uninstall cancelled.")
+                return
+        elif '@' in package_spec:
+            # 解析多个版本：ldid@v1@v2@v3
+            parts = package_spec.split('@')
+            base_name = parts[0].lower()
+            versions_to_remove = parts[1:]
+            to_remove = []
+            for ver in versions_to_remove:
+                target = install_dir / f"{base_name}@{ver}"
+                if target.exists():
+                    to_remove.append((target, ver))
+                else:
+                    print(f"🌊 \033[93mWarning: {base_name}@{ver} not found, skipping.\033[0m")
+            if not to_remove:
+                print(f"🌊 No specified versions of '{base_name}' found to uninstall.")
+                return
+            print(f"🌊 Found {len(to_remove)} specified version(s) of '{base_name}':")
+            for _, ver in to_remove:
+                print(f"🌊   - {base_name}@{ver}")
+            if not self._confirm_action(f"Uninstall these versions of '{base_name}'? [Y/n]"):
+                print("🌊 Uninstall cancelled.")
+                return
+        else:
+            # 只卸载一个版本（从 installed.json 读取）
+            base_name = safe_name
+            if not INSTALLED_DB.exists():
+                print("🌊 No packages installed. Nothing to uninstall.")
+                return
+            try:
+                with open(INSTALLED_DB, 'r') as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                    installed = json.load(f)
+                if base_name not in installed:
+                    print(f"🌊 Error: Package '{base_name}' is not installed.")
+                    return
+                binary_path = Path(installed[base_name].get('binary_path', str(install_dir / base_name)))
+                if not self._safe_delete_binary(binary_path):
+                    return
+                with open(INSTALLED_DB, 'w') as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    del installed[base_name]
+                    f.seek(0)
+                    f.truncate()
+                    json.dump(installed, f, indent=2)
+                print(f"🌊 Successfully uninstalled '{base_name}'.")
+                return
+            except Exception as e:
+                print(f"🌊 Error: Failed to uninstall package: {e}")
+                return
+        # ======================================
+
+        # ========== 执行删除 ==========
+        deleted_count = 0
+        for file_path, ver in to_remove:
+            try:
+                if self._safe_delete_binary(file_path):
+                    deleted_count += 1
+                    print(f"🌊 Removed {base_name}@{ver}")
+                else:
+                    print(f"🌊 \033[31mFailed to remove {base_name}@{ver}\033[0m")
+            except Exception as e:
+                print(f"🌊 \033[31mError removing {base_name}@{ver}: {e}\033[0m")
+
+        # 从 installed.json 中删除该包的所有记录
         try:
-            with open(INSTALLED_DB, 'r') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                installed = json.load(f)
-
-            if safe_name not in installed:
-                print(f"🌊 Error: Package '{safe_name}' is not installed.")
-                return
-
-            binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
-            if not self._safe_delete_binary(binary_path):
-                return
-
-            with open(INSTALLED_DB, 'w') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                del installed[safe_name]
-                f.seek(0)
-                f.truncate()
-                json.dump(installed, f, indent=2)
-
-            print(f"🌊 Successfully uninstalled '{safe_name}'.")
+            if INSTALLED_DB.exists():
+                with open(INSTALLED_DB, 'r+') as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    installed = json.load(f)
+                    if base_name in installed:
+                        del installed[base_name]
+                        f.seek(0)
+                        f.truncate()
+                        json.dump(installed, f, indent=2)
+                        print(f"🌊 Removed '{base_name}' from installation database.")
         except Exception as e:
-            print(f"🌊 Error: Failed to uninstall package: {e}")
+            print(f"🌊 \033[31mWarning: Could not update installation database: {e}\033[0m")
+
+        if deleted_count > 0:
+            print(f"🌊 Successfully uninstalled {deleted_count} version(s) of '{base_name}'.")
+        else:
+            print(f"🌊 No versions of '{base_name}' were uninstalled.")
+        # ======================================
 
     def handle_list(self, args):
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -896,21 +988,23 @@ class MacWaveCLI:
         if homepage:
             print(f"🌊 Homepage:           {homepage}")
 
-        # ========== 当前已安装版本 ==========
-        installed_version = None
-        if INSTALLED_DB.exists():
-            try:
-                with open(INSTALLED_DB, 'r') as f:
-                    installed_data = json.load(f)
-                    if safe_name in installed_data:
-                        installed_version = installed_data[safe_name].get('version', None)
-            except:
-                pass
+        # ========== 扫描已安装版本 ==========
+        installed_versions = []
+        install_dir = INSTALL_DIR
+        for f in install_dir.glob(f"{safe_name}@*"):
+            ver = f.name.split('@', 1)[1]
+            installed_versions.append(ver)
 
-        if installed_version:
-            print(f"🌊 Installed version:  {installed_version}")
+        if installed_versions:
+            try:
+                installed_versions.sort(key=parse_version, reverse=True)
+            except:
+                installed_versions.sort(reverse=True)
+            print(f"🌊 Installed versions:")
+            for ver in installed_versions:
+                print(f"🌊   - {ver}")
         else:
-            print(f"🌊 Installed version:  Not installed")
+            print(f"🌊 Installed versions: None")
         # ====================================
 
         # ========== 多版本垂直对齐（仅第一行带 🌊） ==========
