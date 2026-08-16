@@ -344,7 +344,7 @@ class MacWaveCLI:
             except InvalidVersion:
                 pass
 
-            
+              
         # ============================== 临时补丁开始 ==============================
             
         # 临时补丁，为避免packaging解析非标准版本号崩溃
@@ -386,7 +386,7 @@ class MacWaveCLI:
             logging.warning(f"Invalid version string '{v}', falling back to 0.0.0")
             return parse_version("0.0.0")
         # ============================== 临时补丁结束 ==============================
-
+        
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
 
