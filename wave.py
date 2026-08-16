@@ -740,8 +740,14 @@ class MacWaveCLI:
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             if release:
-                self.download_binary(release["binary_url"], safe_name, args, install_dir, release)
-                self.install_package(safe_name, args, release.get("version"), install_dir)
+                # 统一路径：在调用前先算出最终文件路径
+                version = release.get("version")
+                if version:
+                    final_path = install_dir / f"{safe_name}@{version}"
+                else:
+                    final_path = install_dir / safe_name
+                self.download_binary(release["binary_url"], safe_name, args, install_dir, release, final_path=final_path)
+                self.install_package(safe_name, args, version, install_dir, final_path=final_path)
             return
 
         if args.beta_version:
