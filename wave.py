@@ -992,6 +992,8 @@ class MacWaveCLI:
         installed_versions = []
         install_dir = INSTALL_DIR
         for f in install_dir.glob(f"{safe_name}@*"):
+            if f.name.endswith('.bak'):
+                continue
             ver = f.name.split('@', 1)[1]
             installed_versions.append(ver)
 
