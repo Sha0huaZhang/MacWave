@@ -402,17 +402,17 @@ class MacWaveCLI:
         if final_path:
             cmd.extend(['--final-path', str(final_path)])
 
-        if args.verbose:
+        if args.get('verbose'):
             cmd.append('--verbose')
-        if args.proxy:
-            cmd.extend(['--proxy', args.proxy])
-        if args.skip_ssl:
+        if args.get('proxy'):
+            cmd.extend(['--proxy', args.get('proxy')])
+        if args.get('skip_ssl'):
             cmd.append('--skip-ssl')
-        if args.limit_rate:
-            cmd.extend(['--limit-rate', args.limit_rate])
-        if args.resume:
+        if args.get('limit_rate'):
+            cmd.extend(['--limit-rate', args.get('limit_rate')])
+        if args.get('resume'):
             cmd.append('--resume')
-        if args.dry_run:
+        if args.get('dry_run'):
             cmd.append('--dry-run')
 
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -507,7 +507,7 @@ class MacWaveCLI:
         self._call_installer(
             command='install',
             package_name=safe_name,
-            args=args,
+            args=vars(args),
             release=release,
             version=version,
             install_dir=install_dir,
@@ -519,10 +519,15 @@ class MacWaveCLI:
     def handle_uninstall(self, args):
         package_spec = args.package_name
 
+        safe_args = {
+            'verbose': args.verbose,
+            'dry_run': args.dry_run,
+        }
+
         self._call_installer(
             command='uninstall',
             package_name=package_spec,
-            args=args,
+            args=safe_args,
             release=None,
             version=None,
             install_dir=INSTALL_DIR,
@@ -724,7 +729,7 @@ class MacWaveCLI:
                 self._call_installer(
                     command='uninstall',
                     package_name=safe_name,
-                    args=args,
+                    args={'verbose': args.verbose, 'dry_run': args.dry_run},
                     release=None,
                     version=None,
                     install_dir=INSTALL_DIR,
@@ -740,7 +745,7 @@ class MacWaveCLI:
             self._call_installer(
                 command='install',
                 package_name=safe_name,
-                args=args,
+                args=vars(args),
                 release=release,
                 version=version,
                 install_dir=INSTALL_DIR,
