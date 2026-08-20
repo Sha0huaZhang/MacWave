@@ -382,7 +382,6 @@ class MacWaveCLI:
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def _call_installer(self, command, package_name, args, release, version, install_dir, final_path):
-        # 使用 __file__ 定位 packageinstaller.py 的绝对路径
         import os
         installer_path = os.path.join(os.path.dirname(__file__), 'packageinstaller.py')
 
@@ -390,12 +389,19 @@ class MacWaveCLI:
             'python3', installer_path,
             '--command', command,
             '--package', package_name,
-            '--version', version,
-            '--url', release.get('binary_url', ''),
-            '--sha256', release.get('sha256', ''),
-            '--dir', str(install_dir),
-            '--final-path', str(final_path)
         ]
+        if version:
+            cmd.extend(['--version', version])
+        if release:
+            if release.get('binary_url'):
+                cmd.extend(['--url', release.get('binary_url')])
+            if release.get('sha256'):
+                cmd.extend(['--sha256', release.get('sha256')])
+        if install_dir:
+            cmd.extend(['--dir', str(install_dir)])
+        if final_path:
+            cmd.extend(['--final-path', str(final_path)])
+
         if args.verbose:
             cmd.append('--verbose')
         if args.proxy:
