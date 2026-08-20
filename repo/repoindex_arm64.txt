@@ -256,7 +256,7 @@ $ PackagesDetails $
         author: "JJTech (@JJTech0130)"
         version: "1.0"
         sha256: "47faf58d245729314046a6e56f920ddd42273db41daab8502bbff5ec5b81adfb"
-        binary_name: "test_wrong_sha256"
+        binary_name: "trollrestore"
     %END%
 
 $ \PackagesDetails $
