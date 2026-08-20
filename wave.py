@@ -240,7 +240,8 @@ class MacWaveCLI:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    # <<<<<<<<<<<<<<<<<<<<<<<<<< 2.0beta起新增的repoindex.txt，为了便于维护。同时也兼容1.0的repo.json >>>>>>>>>>>>>>>>>>>>>>>>>>
+    # <<<<<<<<<<<<<<<<<<<<<<<<<< 为了便于维护，2.0beta起新增repoindex.txt，同时也保留兼容1.0的repo.json >>>>>>>>>>>>>>>>>>>>>>>>>>
+    
     def fetch_repo_data(self, args=None):
         # 优先使用新版 repoindex.txt
         repo_dir = Path.home() / '.local' / 'macwave' / 'repo'
