@@ -28,43 +28,64 @@ def repo_dict:
 <!-- ==================== Package Details ==================== -->
 [package_info:
     "ldid":
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
         version: "2.1.5-procursus7"
         arch: "any"
         sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         binary_url: "$ldid"
+        filename: "ldid"
 
     "machox":
+        homepage: "https://github.com/Sha0huaZhang/MachOX"
+        license: "MIT"
         version: "1.0.0"
         arch: "any"
         sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         binary_url: "$machox"
+        filename: "machox"
 
     "palera1n":
+        homepage: "https://github.com/palera1n/palera1n"
+        license: "MIT"
         version: "2.0.0-beta.9"
         arch: "any"
         sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         binary_url: "$palera1n"
+        filename: "palera1n"
 
     "test_001":
+        homepage: "https://macwave.org"
+        license: "MIT"
         version: "1.0.0"
         arch: "any"
         sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         binary_url: "$test_001"
+        filename: "test_001"
 
     "test_no_sha256":
+        homepage: "https://macwave.org"
+        license: "MIT"
         version: "1.0.0"
         arch: "any"
         binary_url: "$test_no_sha256"
+        filename: "test_no_sha256"
 
     "test_wrong_sha256":
+        homepage: "https://macwave.org"
+        license: "MIT"
         version: "1.0.0"
         arch: "any"
         sha256: "1111111111111111111111111111111111111111111111111111111111111111"
         binary_url: "$test_wrong_sha256"
+        filename: "test_wrong_sha256"
 
     "trollrestore":
+        homepage: "https://github.com/JJTech0130/TrollRestore"
+        license: "MIT"
         version: "1.0.0"
         arch: "any"
         sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         binary_url: "$trollrestore"
+        filename: "trollrestore"
 ]
