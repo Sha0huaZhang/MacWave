@@ -22,7 +22,7 @@ $ PackagesVersion $
 let "parse_download_version" = {parse_download_version}
 $ \PackagesVersion $
 
-$ PackagesURL &
+$ PackagesURL $
 <!-- ==================== URL Variable Definitions ==================== -->
 {repo_url:
     let "ldid" = %f% "https://github.com/ProcursusTeam/ldid/releases/download/{parse_download_version}/ldid_macosx_arm64"
