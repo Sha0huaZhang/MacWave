@@ -5,23 +5,53 @@
 
 set -e
 
+BRANCH="2.0.0-beta"
+BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
+
 INSTALL_DIR="$HOME/.local/macwave/bin"
-WAVE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py"
+REPO_DIR="$HOME/.local/macwave/repo"
+
+WAVE_URL="$BASE_URL/wave.py"
+PARSER_URL="$BASE_URL/repo/waveparser.rb"
+REPO_INDEX_URL="$BASE_URL/repo/repoindex.txt"
 
 echo "🌊 Welcome to MacWave!"
+echo "🌊 Installing from branch: $BRANCH"
 echo "🌊 Installing to $INSTALL_DIR..."
 
-# 1. Create installation directory
+# 0. 检查 Ruby 版本（要求 >= 2.6.10）
+echo "🌊 Checking Ruby version..."
+if ! command -v ruby &> /dev/null; then
+    echo "🌊 Error: Ruby is not installed. Please install Ruby 2.6.10 or higher."
+    exit 1
+fi
+
+RUBY_VERSION=$(ruby -e 'print RUBY_VERSION')
+if [[ $(echo "$RUBY_VERSION < 2.6.10" | bc) -eq 1 ]]; then
+    echo "🌊 Error: Ruby version $RUBY_VERSION is too old. Please upgrade to 2.6.10 or higher."
+    exit 1
+fi
+echo "🌊 Ruby version $RUBY_VERSION is OK."
+
+# 1. Create installation directories
 mkdir -p "$INSTALL_DIR"
+mkdir -p "$REPO_DIR"
 
 # 2. Download wave.py as 'wave'
 echo "🌊 Downloading wave.py..."
 curl -fsSL -o "$INSTALL_DIR/wave" "$WAVE_URL"
-
-# 3. Make it executable
 chmod +x "$INSTALL_DIR/wave"
 
-# 4. Install Python dependencies: requests, packaging, and rich
+# 3. Download waveparser.rb
+echo "🌊 Downloading waveparser.rb..."
+curl -fsSL -o "$REPO_DIR/waveparser.rb" "$PARSER_URL"
+chmod +x "$REPO_DIR/waveparser.rb"
+
+# 4. Download repoindex.txt
+echo "🌊 Downloading repoindex.txt..."
+curl -fsSL -o "$REPO_DIR/repoindex.txt" "$REPO_INDEX_URL"
+
+# 5. Install Python dependencies: requests, packaging, and rich
 echo "🌊 Checking Python dependencies..."
 if ! python3 -c "import requests" 2>/dev/null; then
     echo "🌊 Installing 'requests' library..."
@@ -49,7 +79,7 @@ else
     echo "🌊 'rich' library is already installed."
 fi
 
-# 5. Add to PATH in .zshrc / .bashrc
+# 6. Add to PATH in .zshrc / .bashrc
 if [[ "$SHELL" == *"zsh"* ]]; then
     RC_FILE="$HOME/.zshrc"
 elif [[ "$SHELL" == *"bash"* ]]; then
@@ -67,7 +97,7 @@ else
     echo "🌊 MacWave is already in your PATH."
 fi
 
-# 6. Final message with colored prompt
+# 7. Final message with colored prompt
 echo ""
 echo "🌊 Installation complete!"
 echo ""
@@ -80,7 +110,7 @@ echo ""
 echo "🌊 Try it now after refreshing:"
 echo "    wave install test_001"
 
-# 7. License Agreement Confirmation
+# 8. License Agreement Confirmation
 echo ""
 echo -e "\033[33mPlease read the agreement before use (see bottom of https://macwave.org).\033[0m"
 read -p "Have you read and agreed to the agreement? [Y/n] " -n 1 -r
