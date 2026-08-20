@@ -240,52 +240,61 @@ class MacWaveCLI:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
+    # <<<<<<<<<<<<<<<<<<<<<<<<<< 2.0beta起新增的repoindex.txt，为了便于维护。同时也兼容1.0的repo.json >>>>>>>>>>>>>>>>>>>>>>>>>>
     def fetch_repo_data(self, args=None):
-        REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        cache_data = None
-        cache_age = None
+        # 优先使用新版 repoindex.txt
+        repo_dir = Path.home() / '.local' / 'macwave' / 'repo'
+        repo_index_path = repo_dir / 'repoindex.txt'
+        repo_json_path = repo_dir / 'repo.json'
 
-        if REPO_CACHE.exists():
+        # 确保 repo 目录存在
+        repo_dir.mkdir(parents=True, exist_ok=True)
+
+        # 优先使用新版 repoindex.txt
+        if repo_index_path.exists():
             try:
-                with open(REPO_CACHE, 'r') as f:
-                    cache_data = json.load(f)
-                cache_age = time.time() - REPO_CACHE.stat().st_mtime
-            except (json.JSONDecodeError, OSError):
-                cache_data = None
+                # 调用 Ruby 解析器
+                import subprocess
+                parser_path = repo_dir / 'waveparser.rb'
+                result = subprocess.run(
+                    ['ruby', str(parser_path), str(repo_index_path)],
+                    capture_output=True, text=True,
+                    timeout=10  # 防止卡死
+                )
+                if result.returncode != 0:
+                    print(f"🌊 Error: waveparser.rb failed: {result.stderr}")
+                    # 如果新版解析失败，回退到旧版 JSON
+                    if repo_json_path.exists():
+                        print("🌊 Falling back to repo.json...")
+                        return self._load_legacy_json(repo_json_path)
+                    return None
+                return json.loads(result.stdout)
+            except Exception as e:
+                print(f"🌊 Error reading repoindex.txt: {e}")
+                # 出错时回退到旧版 JSON
+                if repo_json_path.exists():
+                    print("🌊 Falling back to repo.json...")
+                    return self._load_legacy_json(repo_json_path)
+                return None
 
-        if cache_data is not None and cache_age is not None and cache_age < 300:
-            return cache_data
+        # 如果新版不存在，回退到旧版 JSON
+        if repo_json_path.exists():
+            print("🌊 Using legacy repo.json format...")
+            return self._load_legacy_json(repo_json_path)
 
-        session = requests.Session()
-        session.headers.update({'User-Agent': 'MacWave/1.0.0'})
-        retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
-        session.mount('https://', HTTPAdapter(max_retries=retries))
+        # 如果两者都不存在，报错
+        print("🌊 Error: No repository data found.")
+        return None
 
-        request_kwargs = {'timeout': 30}
-
-        if args and getattr(args, 'proxy', None):
-            proxy = args.proxy
-            if proxy.startswith(('http://', 'https://')):
-                request_kwargs['proxies'] = {'http': proxy, 'https': proxy}
-
-        if args and getattr(args, 'skip_ssl', False):
-            request_kwargs['verify'] = False
-            urllib3.disable_warnings(InsecureRequestWarning)
-
+    def _load_legacy_json(self, json_path):
+        """兼容旧版 JSON 格式的读取方法"""
         try:
-            response = session.get(REPO_URL, **request_kwargs)
-            response.raise_for_status()
-            data = response.json()
-            with open(REPO_CACHE, 'w') as f:
-                json.dump(data, f, indent=2)
-            return data
-        except requests.exceptions.RequestException as e:
-            if cache_data is not None and cache_age is not None and cache_age < 3600:
-                return cache_data
-            raise RuntimeError(f"Failed to fetch repository data after retries: {e}") from e
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid JSON data received from repository: {e}") from e
-
+            with open(json_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"🌊 Error reading legacy JSON: {e}")
+            return None
+            
     def find_package(self, repo_data, package_name, args=None):
         self.log_verbose(f"Searching for package: {package_name}")
         all_releases = []
