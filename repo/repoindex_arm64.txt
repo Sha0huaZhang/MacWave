@@ -1,9 +1,11 @@
-<!--
+<!-- 
     MacWave repository index file
     Location: ~/.local/macwave/repoindex.txt
     Edit with: nano ~/.local/macwave/repoindex.txt
+    arm64
 -->
 
+$ PackagesDictionary $
 <!-- ==================== Package Name List ==================== -->
 def repo_dict:
     "ldid"
@@ -13,19 +15,30 @@ def repo_dict:
     "test_no_sha256"
     "test_wrong_sha256"
     "trollrestore"
+$ \PackagesDictionary $
 
+$ PackagesVersion $
+<!-- Get verison from wave.py -->
+let "parse_download_version" = {parse_download_version}
+$ \PackagesVersion $
+
+$ PackagesURL &
 <!-- ==================== URL Variable Definitions ==================== -->
 {repo_url:
-    let "ldid" = "https://raw.githubusercontent.com/ProcursusTeam/ldid/main/ldid"
-    let "machox" = "https://github.com/Sha0huaZhang/MachOX/releases/latest/download/machox"
-    let "palera1n" = "https://github.com/palera1n/palera1n/releases/latest/download/palera1n-macos-universal"
-    let "test_001" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_001"
+    let "ldid" = %f% "https://github.com/ProcursusTeam/ldid/releases/download/{parse_download_version}/ldid_macosx_arm64"
+    let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_arm64"
+    let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-arm64"
+    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
     let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
     let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
-    let "trollrestore" = "https://github.com/JJTech0130/TrollRestore/releases/latest/download/trollrestore"
+    let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_amd64.zip"
 }
+$ \PackagesURL $
 
+$ PackagesDetails $
 <!-- ==================== Package Details ==================== -->
+
+
 [package_info:
     "ldid":
         homepage: "https://github.com/ProcursusTeam/ldid"
@@ -89,3 +102,5 @@ def repo_dict:
         binary_url: "$trollrestore"
         filename: "trollrestore"
 ]
+
+$ \PackagesDetails $
