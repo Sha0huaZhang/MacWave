@@ -77,6 +77,8 @@ class MacWaveCLI:
             self._logger.addHandler(handler)
             self._logger.setLevel(logging.INFO)
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def _create_parser(self):
         parser = argparse.ArgumentParser(
             prog="wave",
@@ -125,10 +127,14 @@ class MacWaveCLI:
 
         return parser
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def _add_install_flags(self, parser):
         parser.add_argument('-D', '--dir', type=str, metavar='string', help='Specify an output directory')
         parser.add_argument('--ver', type=str, metavar='string', help='Install a specific version')
         parser.add_argument('-C', '--continue', dest='resume', action='store_true', help='Resume interrupted downloads')
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def _print_custom_help(self):
         print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
@@ -173,24 +179,36 @@ class MacWaveCLI:
         print()
         print("For more details, visit: https://macwave.org")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def _log(self, message: str, level: str = "info", force: bool = False):
         if self.verbose or force or level == "error":
             log_level = getattr(logging, level.upper(), logging.INFO)
             self._logger.log(log_level, f"🌊 {message}")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def log(self, message, force=False):
         self._log(message, "info", force)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def log_verbose(self, message):
         if self.verbose:
             self._log(message, "debug")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def _is_protected(self, package_name: str) -> bool:
         return package_name.lower() in PROTECTED_PACKAGES
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def _confirm_action(self, message: str) -> bool:
         response = input(f"🌊 {message} [Y/n] ").strip()
         return response == 'Y' or response == 'y'
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def _confirm_skip_ssl(self, args) -> bool:
         skip_ssl = getattr(args, 'skip_ssl', False)
@@ -205,6 +223,8 @@ class MacWaveCLI:
         else:
             console.print("🌊 Install stopped", style="bold green")
             return False
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def fetch_repo_data(self, args=None):
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
@@ -251,6 +271,8 @@ class MacWaveCLI:
             raise RuntimeError(f"Failed to fetch repository data after retries: {e}") from e
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Invalid JSON data received from repository: {e}") from e
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def find_package(self, repo_data, package_name, args=None):
         self.log_verbose(f"Searching for package: {package_name}")
@@ -357,9 +379,15 @@ class MacWaveCLI:
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def _call_installer(self, command, package_name, args, release, version, install_dir, final_path):
+        # 使用 __file__ 定位 packageinstaller.py 的绝对路径
+        import os
+        installer_path = os.path.join(os.path.dirname(__file__), 'packageinstaller.py')
+
         cmd = [
-            'python3', 'packageinstaller.py',
+            'python3', installer_path,
             '--command', command,
             '--package', package_name,
             '--version', version,
@@ -386,6 +414,8 @@ class MacWaveCLI:
             print(result.stderr)
             sys.exit(result.returncode)
         print(result.stdout.strip())
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_install(self, args):
         if args.json:
@@ -478,6 +508,8 @@ class MacWaveCLI:
             final_path=final_path
         )
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def handle_uninstall(self, args):
         package_spec = args.package_name
 
@@ -490,6 +522,8 @@ class MacWaveCLI:
             install_dir=INSTALL_DIR,
             final_path=None
         )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_list(self, args):
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -506,6 +540,8 @@ class MacWaveCLI:
                 print(f"🌊   - {pkg_name} (v{version}) -> {binary_path}")
         except Exception as e:
             print(f"🌊 Error: Could not read installed packages: {e}")
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_search(self, args):
         query = args.query.lower()
@@ -536,6 +572,8 @@ class MacWaveCLI:
             name = pkg.get("name", "Unknown")
             desc = pkg.get("description", "No description")
             print(f"🌊   - {name}: {desc}")
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_info(self, args):
         try:
@@ -607,6 +645,8 @@ class MacWaveCLI:
                 print(f"                       {ver}")
         # ====================================================
     
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def handle_update(self, args):
         print("🌊 Forcing update: fetching fresh package index...")
         try:
@@ -619,6 +659,8 @@ class MacWaveCLI:
             sys.exit(1)
         except Exception as e:
             print(f"🌊 Error: Failed to update package index: {e}")
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_upgrade(self, args):
         safe_name = args.package_name.lower()
@@ -702,6 +744,8 @@ class MacWaveCLI:
         except Exception as e:
             print(f"🌊 Error: Failed to upgrade package: {e}")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def handle_doctor(self, args):
         print("🌊 Running system diagnostics...")
         missing = []
@@ -717,12 +761,16 @@ class MacWaveCLI:
             print("🌊 \033[32mAll required dependencies are present.\033[0m")
             print("🌊 System is healthy.")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def handle_clean(self, args):
         if DOWNLOAD_TMP.exists():
             shutil.rmtree(DOWNLOAD_TMP)
             print("🌊 Cleaned up temporary download directory.")
         else:
             print("🌊 No temporary files to clean.")
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def run(self):
         args, unknown = self.parser.parse_known_args()
