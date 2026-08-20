@@ -37,26 +37,104 @@ $ \PackagesURL $
 
 $ PackagesDetails $
 <!-- ==================== Package Details ==================== -->
-
-
 [package_info:
-    "ldid":
+
+<!-- ldid -->
+"ldid":
+
+    %START%
         homepage: "https://github.com/ProcursusTeam/ldid"
         license: "MIT"
-        version: "2.1.5-procursus7"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus7" 
         arch: "any"
-        sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        binary_url: "$ldid"
-        filename: "ldid"
+        sha256: "5dff8e6b8d9dc3ff7226276c81e09930865f15381f54cb55b98b196a94c5ca50"
+        binary_name: "ldid"
+    %END%
+        
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus6" 
+        arch: "any"
+        sha256: "1751476cc3962d418c7b39ba4fe85b28596e1802278f398103ea81cd9cb5eb2b5"
+        binary_name: "ldid"
+    %END%
 
-    "machox":
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus5" 
+        arch: "any"
+        sha256: "7e25bab5151a7d6d28ba3da6cb5e2e0c921265fcd8ae66d7d43d2e1c4f8b13dd"
+        binary_name: "ldid"
+    %END%
+
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus4" 
+        arch: "any"
+        sha256: "add4817f00fa49f02798cfbfd4fd493d975b640c12534a148d1392c50698fe0e"
+        binary_name: "ldid"
+    %END%
+
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus3" 
+        arch: "any"
+        sha256: "b4a94cf70a1671ad880ed6f2a8d592dae96a8ae40c8531baea1f68e04b39573d"
+        binary_name: "ldid"
+    %END%
+
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus2" 
+        arch: "any"
+        sha256: "47ef58d2f4e77d4ce66440ce4472743a0d14486a8dc44b13567a41b5f2343728"
+        binary_name: "ldid"
+    %END%
+
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus1" 
+        arch: "any"
+        sha256: "586e8fbc2094920e6e31ef9919962238a06d40b8bdc4692ce83551689798423f"
+        binary_name: "ldid"
+    %END%
+
+    %START%
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        license: "MIT"
+        author: "Jay Freeman (saurik) / Procursus Team"
+        version: "2.1.5-procursus" 
+        arch: "any"
+        sha256: "1073f32f2ebf3020b8a2dce6b2c0d1750445df69cb09a52c2411049ae5526ae7"
+        binary_name: "ldid"
+    %END%
+
+
+"machox":
+
+    %START%
         homepage: "https://github.com/Sha0huaZhang/MachOX"
         license: "MIT"
+        author: "Sha0huaZhang (MacWave Team)"
         version: "1.0.0"
         arch: "any"
-        sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        binary_url: "$machox"
-        filename: "machox"
+        sha256: "541539ffb9a8dabf1afed6f00b216c81c5f46158db6e5dd4b139be8d2a60ba75"
+        binary_name: "machox"
+    %END%
+
 
     "palera1n":
         homepage: "https://github.com/palera1n/palera1n"
