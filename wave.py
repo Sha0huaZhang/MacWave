@@ -2,7 +2,7 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
-Version: 1.0.1
+Version: 1.0.2
 """
 
 import argparse
@@ -57,7 +57,7 @@ except ImportError:
 # 全局常量
 # ==========================================
 
-VERSION = "1.0.0"
+VERSION = "1.0.2"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
@@ -137,7 +137,7 @@ class MacWaveCLI:
     def _print_custom_help(self):
         print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
         print()
-        print("MacWave 1.0.0 🌊")
+        print("MacWave 1.0.2 🌊")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
         print("\033[35mpositional arguments:\033[0m")
