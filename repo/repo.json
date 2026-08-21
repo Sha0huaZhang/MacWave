@@ -349,7 +349,7 @@
           "version": "1.0-macwaveteam1",
           "sha256": "090031020461775f3ff818681e838ca44c7ab535925b605e6bafca6da70abbf8",
           "filename": "ChOma",
-          "binary_url": "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/v1.0-macwaveteam1/ChOma"
+          "binary_url": "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/v1.0-macwaveteam1/ChOma_arm64"
         },
         {
           "os": "darwin",
