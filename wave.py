@@ -331,9 +331,19 @@ class MacWaveCLI:
                 return parse_version(v)
             except InvalidVersion:
                 pass
+            # !!!⚠️⚠️⚠️ 每次修改此处逻辑时，仅可注释掉以前的代码，严禁删除 ⚠️⚠️⚠️!!! 
+            
+            # ---------- 2026年8月20日，1.0.1版本的新增补丁扩展开始 ----------
+            # 支持 macwaveteam 后缀，例如 1.0-macwaveteam1
+            macwave_match = re.search(r'(\d+\.\d+)-macwaveteam(\d+)', v)
+            if macwave_match:
+                base_version = macwave_match.group(1)
+                team_num = int(macwave_match.group(2))
+                # 转成 "基础版本号.team编号" 进行比较
+                return parse_version(f"{base_version}.{team_num}")
+            # ---------- 2026年8月20日，1.0.1版本的新增补丁扩展结束 ----------
 
-              
-        # ============================== 临时补丁开始 ==============================
+        # 2026年8月15日（1.0.0-rc4）的“===临时补丁开始===”位置，于2026年8月20日（1.0.1）废止，新的首部分割线位于上方，尾部分割线不变
             
         # 临时补丁，为避免packaging解析非标准版本号崩溃
         # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
