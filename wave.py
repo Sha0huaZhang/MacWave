@@ -2,7 +2,7 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
-Version: 1.1.0
+Version: 1.1.0 Beta2(232E0846)
 """
 
 import argparse
@@ -53,7 +53,7 @@ except ImportError:
 # 全局常量
 # ==========================================
 
-VERSION = "1.1.0"
+VERSION = "1.1.0 Beta2(232E0846)"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
