@@ -337,7 +337,7 @@
     },
     {
       "name": "choma",
-      "version": "1.0-macwaveteam1",
+      "version": "1.0-macwaveteam2",
       "description": "Code signature and Mach-O manipulation tool by opa334.",
       "author": "opa334",
       "homepage": "https://github.com/opa334/ChOma",
@@ -346,7 +346,7 @@
         {
           "os": "darwin",
           "arch": "arm64",
-          "version": "1.0-macwaveteam1",
+          "version": "1.0-macwaveteam2",
           "sha256": "090031020461775f3ff818681e838ca44c7ab535925b605e6bafca6da70abbf8",
           "filename": "ChOma",
           "binary_url": "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/v1.0-macwaveteam2/ChOma_arm64"
@@ -354,7 +354,7 @@
         {
           "os": "darwin",
           "arch": "amd64",
-          "version": "1.0-macwaveteam1",
+          "version": "1.0-macwaveteam2",
           "sha256": "4e4b2e94ff42109f53c403facfcbaecc55cd2313135fe25a26e47bad220762d6",
           "filename": "ChOma",
           "binary_url": "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/v1.0-macwaveteam2/ChOma_amd64"
