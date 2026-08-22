@@ -53,7 +53,7 @@ except ImportError:
 # 全局常量
 # ==========================================
 
-VERSION = "1.1.0 Beta(233F1003)"
+VERSION = "1.1.0 Beta3(233F1003)"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
