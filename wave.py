@@ -137,7 +137,7 @@ class MacWaveCLI:
     def _print_custom_help(self):
         print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
         print()
-        print("MacWave 1.0.2 🌊")
+        print("MacWave 1.0.3 🌊")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
         print("\033[35mpositional arguments:\033[0m")
