@@ -39,6 +39,22 @@
             border-radius: 0;
         }
 
+        /* 新增：屏幕小于等于7.2英寸（约691px）时，只显示logo3 */
+        @media (max-width: 691px) {
+            .logo-img.logo-1,
+            .logo-img.logo-2 {
+                display: none;
+            }
+            .logo-img.logo-3 {
+                display: block;
+            }
+        }
+
+        /* 默认隐藏logo3，大于7.2英寸时显示 */
+        .logo-img.logo-3 {
+            display: none;
+        }
+
         p {
             font-size: 1.1rem;
             line-height: 1.6;
@@ -276,8 +292,9 @@
 
     <!-- Logo Section -->
     <div class="logo-wrapper">
-        <img src="logo1.jpg" alt="MW Icon" class="logo-img">
-        <img src="logo2.jpg" alt="MacWave Text" class="logo-img">
+        <img src="logo1.jpg" alt="MW Icon" class="logo-img logo-1">
+        <img src="logo2.jpg" alt="MacWave Text" class="logo-img logo-2">
+        <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
     <p>A package manager for macOS/Linux jailbreak developers.</p>
