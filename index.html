@@ -69,6 +69,17 @@
             text-align: left;
         }
 
+        /* 手机端强制居中的类 */
+        .center-on-mobile {
+            text-align: left;
+        }
+
+        @media (max-width: 691px) {
+            .center-on-mobile {
+                text-align: center !important;
+            }
+        }
+
         .btn-github {
             display: inline-block;
             background-color: #ffffff;
@@ -305,10 +316,11 @@
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <p>A package manager for macOS/Linux jailbreak developers.</p>
+    <!-- 手机端居中的第一段 -->
+    <p class="center-on-mobile">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- Latest Version -->
-    <p style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
+    <!-- Latest Version（手机端居中） -->
+    <p class="center-on-mobile" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
         Latest Official Version : 1.0.3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Latest Beta Version : 1.1 Beta2
     </p>
 
