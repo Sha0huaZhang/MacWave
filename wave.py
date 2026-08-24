@@ -396,7 +396,7 @@ class MacWaveCLI:
 
     def _call_installer(self, command, package_name, args, release, version, install_dir, final_path):
         import os
-        installer_path = os.path.join(os.path.dirname(__file__), 'packageinstaller.py')
+        installer_path = os.path.join(os.path.dirname(__file__), 'pkginstaller.py')
 
         cmd = [
             'python3', installer_path,
