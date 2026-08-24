@@ -577,7 +577,7 @@ def main():
     parser.add_argument('--version', action='version', version=f'MacWave Package Installer {VERSION}')
     parser.add_argument('--command', required=True, choices=['install', 'uninstall'], help='Command to execute')
     parser.add_argument('--package', required=True, help='Package name')
-    parser.add_argument('--version', help='Package version')
+    parser.add_argument('--ver', help='Package version')
     parser.add_argument('--url', help='Binary URL (for install)')
     parser.add_argument('--sha256', help='SHA256 checksum (for install)')
     parser.add_argument('--dir', help='Install directory')
@@ -604,7 +604,7 @@ def main():
         installer.install_package(
             package_name=args.package,
             args=vars(args),
-            version=args.version,
+            version=args.ver,
             install_dir=Path(args.dir) if args.dir else None,
             final_path=Path(args.final_path) if args.final_path else None
         )
