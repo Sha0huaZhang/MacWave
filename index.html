@@ -41,7 +41,7 @@
             border-radius: 0;
         }
 
-        /* 默认（大屏>7.2英寸，即≥691px）：隐藏logo3，显示logo1和logo2 */
+        /* 默认（大屏）隐藏logo3 */
         .logo-img.logo-3 {
             display: none !important;
         }
@@ -59,12 +59,13 @@
             .logo-wrapper {
                 padding: 5px 18px !important;
             }
-            /* 手机端强制居中 + 分两行 */
+            /* 手机端强制居中 */
             .center-on-mobile {
                 text-align: center !important;
             }
-            .version-info .version-break {
-                display: block !important;
+            /* 手机端：去除版本号中间的空格和换行空隙 */
+            .version-info span {
+                display: none !important;
             }
         }
 
@@ -187,7 +188,7 @@
             opacity: 1;
         }
 
-        /* Contact Us - Large white title, blue line directly below it */
+        /* Contact Us */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -315,9 +316,9 @@
     <!-- 手机端居中 -->
     <p class="center-on-mobile">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- Latest Version（电脑端一行，手机端两行） -->
+    <!-- Latest Version（手机端自动去除中间空隙） -->
     <p class="center-on-mobile version-info" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
-        Latest Official Version : 1.0.3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="version-break" style="display: none;">&nbsp;</span>Latest Beta Version : 1.1 Beta2
+        Latest Official Version : 1.0.3<span style="display: none;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><br>Latest Beta Version : 1.1 Beta2
     </p>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
