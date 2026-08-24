@@ -557,6 +557,9 @@ class MacWaveCLI:
         try:
             with open(INSTALLED_DB, 'r') as f:
                 installed = json.load(f)
+            if not installed:
+                print("🌊 No packages installed yet.")
+                return
             print("🌊 Installed packages:")
             for pkg_name, info in installed.items():
                 version = info.get('version', 'unknown')
