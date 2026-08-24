@@ -44,47 +44,12 @@
             display: none !important;
         }
 
-        /* ========== 手机端 ========== */
-        @media (max-width: 690.98px) {
-            .logo-img.logo-1,
-            .logo-img.logo-2 {
-                display: none !important;
-            }
-            .logo-img.logo-3 {
-                display: block !important;
-                height: 42px;
-            }
-            .logo-wrapper {
-                padding: 5px 18px !important;
-            }
-
-            /* 手机端：版本号两行，无空格，居中 */
-            .version-block .v-line {
-                display: block;
-                margin: 0;
-                line-height: 1.6;
-            }
-            /* 手机端去掉两个span之间的空格 */
-            .version-block {
-                font-size: 0.95rem;
-                margin-top: -10px;
-                margin-bottom: 30px;
-                text-align: center;
-                letter-spacing: 0;
-            }
-            /* 手机端描述居中 */
-            .tagline {
-                text-align: center !important;
-            }
-        }
-
-        /* ========== 电脑端（默认） ========== */
+        /* ========== 电脑端版本号一行，有空格 ========== */
         .version-block .v-line {
-            display: inline;  /* 电脑端在一行 */
+            display: inline;
         }
-        /* 电脑端版本号之间有空格（通过&nbsp;或空格实现） */
         .version-block .v-line:first-child::after {
-            content: "\00a0\00a0\00a0\00a0\00a0\00a0";  /* 6个空格 */
+            content: "\00a0\00a0\00a0\00a0\00a0\00a0";
             white-space: pre;
         }
 
@@ -311,6 +276,43 @@
         .install-note a:hover {
             opacity: 0.8;
         }
+
+        /* ========== 手机端 ========== */
+        @media (max-width: 690.98px) {
+            .logo-img.logo-1,
+            .logo-img.logo-2 {
+                display: none !important;
+            }
+            .logo-img.logo-3 {
+                display: block !important;
+                height: 42px;
+            }
+            .logo-wrapper {
+                padding: 5px 18px !important;
+            }
+
+            /* 版本号：强制两行，无空格 */
+            .version-block .v-line {
+                display: block !important;
+                margin: 0 !important;
+                line-height: 1.6 !important;
+            }
+            .version-block .v-line:first-child::after {
+                content: "" !important;
+            }
+            .version-block {
+                text-align: center !important;
+                letter-spacing: 0 !important;
+                font-size: 0.95rem !important;
+                margin-top: -10px !important;
+                margin-bottom: 30px !important;
+            }
+
+            /* 手机端描述居中 */
+            .tagline {
+                text-align: center !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -321,10 +323,8 @@
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <!-- 描述：手机端居中，电脑端左对齐 -->
     <p class="tagline" style="max-width:800px;">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- 版本号：电脑端一行（有空格），手机端两行（无空格） -->
     <div class="version-block" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
         <span class="v-line">Latest Official Version : 1.0.3</span>
         <span class="v-line">Latest Beta Version : 1.1 Beta2</span>
@@ -384,7 +384,6 @@
             </p>
         </div>
 
-        <!-- Uninstall -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Uninstall MacWave</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             To completely remove MacWave from your system, run the following command in your terminal:
@@ -417,7 +416,6 @@
             <pre>~/.local/macwave/bin</pre>
         </div>
 
-        <!-- Credits -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Special Thanks</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; color: #ffffff; opacity: 1;">
             <strong>Haxx</strong> (Daniel Stenberg, Linus, Bjorn, Kjell, et al.) for <strong>cURL</strong>
@@ -504,7 +502,6 @@ trollrestore        by JJTech0130
 
     </div>
 
-    <!-- Contact Us -->
     <div class="contact-section">
         <h2>Contact Us</h2>
         <div class="contact-divider"></div>
@@ -525,7 +522,6 @@ trollrestore        by JJTech0130
         <div class="contact-hint">Click the links to open.</div>
     </div>
 
-    <!-- Disclaimer -->
     <div class="disclaimer-container">
         <div class="disclaimer">
             <p>1. Users should carefully read the agreement and possible negative impacts before operation, and bear the consequences themselves. Using MacWave means that you have agreed to the above conditions. MacWave is not responsible for any losses caused to users by MacWave or its software packages.</p>
