@@ -20,7 +20,6 @@
             box-sizing: border-box;
         }
 
-        /* White rounded card for logo */
         .logo-wrapper {
             background-color: #ffffff;
             border-radius: 30px;
@@ -41,12 +40,11 @@
             border-radius: 0;
         }
 
-        /* 默认（大屏>7.2英寸）：隐藏logo3，显示logo1和logo2 */
         .logo-img.logo-3 {
             display: none !important;
         }
 
-        /* 屏幕小于等于7.2英寸（约691px）：隐藏logo1和logo2，只显示logo3 */
+        /* ========== 手机端 ========== */
         @media (max-width: 690.98px) {
             .logo-img.logo-1,
             .logo-img.logo-2 {
@@ -59,22 +57,35 @@
             .logo-wrapper {
                 padding: 5px 18px !important;
             }
-            /* 手机端：版本号两行，紧挨居中，无空行 */
-            .version-block {
-                text-align: center;
-                margin-top: 10px;
-                margin-bottom: 20px;
-                line-height: 1.8;
-            }
+
+            /* 手机端：版本号两行，无空格，居中 */
             .version-block .v-line {
                 display: block;
                 margin: 0;
-                line-height: 1.8;
+                line-height: 1.6;
             }
-            /* 手机端让 "A package manager..." 居中 */
-            .tagline-center {
+            /* 手机端去掉两个span之间的空格 */
+            .version-block {
+                font-size: 0.95rem;
+                margin-top: -10px;
+                margin-bottom: 30px;
+                text-align: center;
+                letter-spacing: 0;
+            }
+            /* 手机端描述居中 */
+            .tagline {
                 text-align: center !important;
             }
+        }
+
+        /* ========== 电脑端（默认） ========== */
+        .version-block .v-line {
+            display: inline;  /* 电脑端在一行 */
+        }
+        /* 电脑端版本号之间有空格（通过&nbsp;或空格实现） */
+        .version-block .v-line:first-child::after {
+            content: "\00a0\00a0\00a0\00a0\00a0\00a0";  /* 6个空格 */
+            white-space: pre;
         }
 
         p {
@@ -102,7 +113,6 @@
             box-shadow: 0 8px 20px rgba(255,255,255,0.2);
         }
 
-        /* Code block and copy button styles */
         .code-container {
             position: relative;
             margin-bottom: 20px;
@@ -131,7 +141,6 @@
             font-weight: bold;
         }
 
-        /* Homebrew-style copy button */
         .copy-btn {
             position: absolute;
             top: 12px;
@@ -151,7 +160,6 @@
             background-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* Pure CSS overlapping squares icon */
         .copy-icon {
             position: relative;
             width: 18px;
@@ -188,7 +196,6 @@
             border-color: #ffffff;
         }
 
-        /* Copied animation: fill both squares with solid white, borders transparent */
         .copy-btn.copied .square-back,
         .copy-btn.copied .square-front {
             background-color: #ffffff;
@@ -196,7 +203,6 @@
             opacity: 1;
         }
 
-        /* Contact Us - Large white title, blue line directly below it */
         .contact-section {
             margin-top: 40px;
             padding: 20px 0;
@@ -211,7 +217,6 @@
             display: inline-block;
         }
 
-        /* Thin blue line under the title */
         .contact-divider {
             width: 60px;
             height: 2px;
@@ -258,7 +263,6 @@
             margin-top: 6px;
         }
 
-        /* ===== 免责声明样式 ===== */
         .disclaimer-container {
             width: 100%;
             max-width: 800px;
@@ -282,7 +286,6 @@
             text-indent: -2em;
         }
 
-        /* --- 新增样式：与 "In the terminal..." 完全一致的纯白色字体 --- */
         .install-note {
             font-size: 1.1rem;
             line-height: 1.6;
@@ -312,27 +315,23 @@
 </head>
 <body>
 
-    <!-- Logo Section -->
     <div class="logo-wrapper">
-        <!-- 默认(大屏)显示：logo1 和 logo2 -->
         <img src="logo1.jpg" alt="MW Icon" class="logo-img logo-1">
         <img src="logo2.jpg" alt="MacWave Text" class="logo-img logo-2">
-        <!-- 小屏(<=7.2英寸)只显示：logo3 -->
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <!-- 手机端居中：添加 class="tagline-center" 使该段落居中 -->
-    <p class="tagline-center" style="max-width:800px;">A package manager for macOS/Linux jailbreak developers.</p>
+    <!-- 描述：手机端居中，电脑端左对齐 -->
+    <p class="tagline" style="max-width:800px;">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- Latest Version（电脑端一行，手机端两行，无空行） -->
+    <!-- 版本号：电脑端一行（有空格），手机端两行（无空格） -->
     <div class="version-block" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
         <span class="v-line">Latest Official Version : 1.0.3</span>
         <span class="v-line">Latest Beta Version : 1.1 Beta2</span>
     </div>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
-    
-    <!-- Main Content -->
+
     <div class="content-section" style="margin: 0 auto; padding: 20px; color: #ffffff; text-align: left;">
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px;">What is MacWave?</h2>
@@ -340,15 +339,13 @@
             MacWave is a <strong>package manager</strong> that runs on <strong>macOS, Linux or WSL</strong>, specifically designed to host <strong>iOS/iPadOS jailbreak-related software packages</strong> for jailbreak developers and researchers. These packages are <strong>typically not included in mainstream package managers</strong>. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
         </p>
 
-        <!-- ====== 新增：Supported macOS Version 栏目 ====== -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported macOS Version</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 1; font-weight: bold; color: #ffffff;">
             macOS 10.15 Catalina and above
         </p>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Install MacWave(latest version)</h2>
-        
-        <!-- ====== 新增：Before installing ... 提示，完全与 "In the terminal..." 样式一致 ====== -->
+
         <p class="install-note">
             Before installing MacWave, you need to install <strong>Python</strong>(3.13 and above), view at <a href="https://python.org" target="_blank">python.org</a> <span class="small-link-text">(Click link to open)</span>
         </p>
@@ -387,7 +384,7 @@
             </p>
         </div>
 
-        <!-- ================== Uninstall Section Added Below ================== -->
+        <!-- Uninstall -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Uninstall MacWave</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             To completely remove MacWave from your system, run the following command in your terminal:
@@ -411,7 +408,6 @@
                 This command <strong>permanently removes MacWave and its configuration files</strong>. Make sure you have <strong>copied the entire command correctly</strong> before pressing Enter.
             </p>
         </div>
-        <!-- ================== End Uninstall Section ================== -->
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Download Directory</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
@@ -421,15 +417,12 @@
             <pre>~/.local/macwave/bin</pre>
         </div>
 
-        <!-- ================== Credits Section ================== -->
-        
-        <!-- Special Thanks (Header and Text) -->
+        <!-- Credits -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Special Thanks</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; color: #ffffff; opacity: 1;">
             <strong>Haxx</strong> (Daniel Stenberg, Linus, Bjorn, Kjell, et al.) for <strong>cURL</strong>
         </p>
 
-        <!-- Main Credits -->
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Credits</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
             MacWave is built upon the work of the following developers:
@@ -444,7 +437,6 @@ palera1n        by palera1n Team (Nick Chan, Ploosh, Samara, Mineek, staturnz, k
 TrollRestore    by JJTech0130
             </pre>
         </div>
-        <!-- ================== End Credits Section ================== -->
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
         <pre>
@@ -484,8 +476,8 @@ Global Flags (can be used with any command):
       --skip-ssl          Skip SSL certificate verification (insecure, with interactive confirmation)
       --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
       --dry-run           Simulate the installation without making changes
-      --json              JSON output
-      --ver string        Install a specific version
+      --json              Output in JSON format (for scripting)
+      --ver string        Install a specific version of the package
 
 For more details, visit: https://macwave.org
 </pre>
@@ -536,8 +528,6 @@ trollrestore        by JJTech0130
     <!-- Disclaimer -->
     <div class="disclaimer-container">
         <div class="disclaimer">
-
-            <!-- English Section -->
             <p>1. Users should carefully read the agreement and possible negative impacts before operation, and bear the consequences themselves. Using MacWave means that you have agreed to the above conditions. MacWave is not responsible for any losses caused to users by MacWave or its software packages.</p>
             <p>2. MacWave (especially beta versions) may affect users due to code defects, security issues, etc. Users should be aware of and accept this risk, otherwise please do not use it. MacWave is not responsible for any losses caused to users' devices, etc.</p>
             <p>3. MacWave only provides links to software packages, not the software packages themselves. MacWave is not responsible for any losses caused to users due to security vulnerabilities, malicious code, etc. of the software packages themselves. If users violate the software package agreement, MacWave is not responsible.</p>
@@ -553,7 +543,7 @@ trollrestore        by JJTech0130
             <p>13. MacWave does not use subscriptions, one-time purchases, or in-app purchases. Any individuals or organizations claiming to help obtain in-app purchases, especially those charging fees, are unofficial. MacWave is not responsible for any losses caused by this.</p>
             <p>14. MacWave's source code is fully open. Any individuals or organizations claiming to provide core code, especially those charging fees, are unofficial. MacWave is not responsible for any losses caused by this.</p>
             <p>15. MacWave does not use a membership system. Any individuals or organizations claiming to offer memberships, especially those charging fees, are unofficial. MacWave is not responsible for any losses caused by this.</p>
-            <p>16. MacWave has only one version, and it is publicly available. There are no “Personal Edition”, “Enterprise Edition”, “Custom Edition”, or similar variants. Any such claims are counterfeit. MacWave is not responsible for any losses caused by this.</p>
+            <p>16. MacWave has only one version, and it is publicly available. There are no "Personal Edition", "Enterprise Edition", "Custom Edition", or similar variants. Any such claims are counterfeit. MacWave is not responsible for any losses caused by this.</p>
             <p>17. The only official website is <strong>https://macwave.org</strong>. Any other websites are not official. MacWave is not responsible for any losses caused by this.</p>
             <p>18. Using MacWave does not require registration, nor does it require activation codes, etc. Any individuals or organizations claiming to help register MacWave accounts, provide MacWave accounts, activation codes, etc., especially those charging fees, are unofficial. MacWave is not responsible for any losses caused by this.</p>
             <p>19. Downloading MacWave may consume network data. Users should be aware of this and handle it properly. MacWave is not responsible for any losses caused by this.</p>
@@ -572,10 +562,7 @@ trollrestore        by JJTech0130
             <p>32. MacWave is not responsible for any losses caused by incomplete downloads of executable scripts due to network fluctuations, etc.</p>
             <p>33. MacWave is not responsible for any losses suffered by users due to force majeure.</p>
             <p>34. MacWave has no cooperation with any company or profit-making organization. Any claims of cooperation with MacWave by companies or profit-making organizations are counterfeit. MacWave is not responsible for any losses caused by this.</p>
-
             <br><br>
-
-            <!-- Chinese Section -->
             <p>1. 用户在操作前应仔细阅读协议及可能造成的负面影响，并自行承担后果，使用MacWave即视为已达成上述条件。MacWave及其软件包对使用者造成损失的，MacWave不承担责任</p>
             <p>2. MacWave（尤其是beta版）可能由于自身代码缺陷、安全问题等对用户造成影响，用户应知悉并接受这一风险，否则请勿使用。对用户的设备等造成损失的，MacWave不承担责任</p>
             <p>3. MacWave仅提供指向软件包的链接，不提供软件包本身。软件包因本身的安全漏洞、恶意代码等对用户造成损失的，MacWave不承担责任。用户如果违反软件包协议，MacWave不承担责任</p>
@@ -591,7 +578,7 @@ trollrestore        by JJTech0130
             <p>13. MacWave不使用订阅制、买断制或内购，任何宣称可以帮忙获取内购的个人、组织等，尤其是收取费用的均为非官方。由此造成损失的，MacWave不承担责任。</p>
             <p>14. MacWave的源代码全部公开。任何宣称可以提供核心代码的个人、组织等，尤其是收取费用的均为非官方。由此造成损失的，MacWave不承担责任。</p>
             <p>15. MacWave不使用会员制。任何宣称可以申请会员的个人、组织等，尤其是收取费用的均为非官方。由此造成损失的，MacWave不承担责任。</p>
-            <p>16. MacWave只有一个版本，且公开。不存在“个人版”“企业版”“定制版”或类似内容，如有，均属伪造。由此造成损失的，MacWave不承担责任。</p>
+            <p>16. MacWave只有一个版本，且公开。不存在"个人版""企业版""定制版"或类似内容，如有，均属伪造。由此造成损失的，MacWave不承担责任。</p>
             <p>17. 官方唯一网址为https://macwave.org，其他网址均不是官方网址。因此造成损失的，MacWave不承担责任</p>
             <p>18. 使用MacWave无需注册，也没有激活码等，任何宣称可以帮忙注册MacWave账号，提供MacWave账号、激活码等的个人、组织等，尤其是收取费用的均为非官方。由此造成损失的，MacWave不承担责任。</p>
             <p>19. 下载MacWave可能会消耗网络流量，下载前须知悉并妥善处理，否则造成损失的，MacWave不承担责任</p>
@@ -605,16 +592,14 @@ trollrestore        by JJTech0130
             <p>27. 由于操作系统或虚拟机自身的Bug导致用户运行MacWave造成损失的，MacWave不承担责任</p>
             <p>28. 由于私自改装硬件设备等原因导致MacWave未按预期运行并导致损失的，MacWave不承担责任</p>
             <p>29. 用于非官方用途导致损失的，MacWave不承担责任</p>
-            <p>30. 允许私自分发MacWave及其软件包、修改版等，但必须注明原作者及官方网站，并明确告知其他人此版本为改版，禁止以“官方正版”等描述分发非正版产品及软件包。非官方版本可能也会造成损失。如果违反且造成损失，MacWave不承担责任</p>
+            <p>30. 允许私自分发MacWave及其软件包、修改版等，但必须注明原作者及官方网站，并明确告知其他人此版本为改版，禁止以"官方正版"等描述分发非正版产品及软件包。非官方版本可能也会造成损失。如果违反且造成损失，MacWave不承担责任</p>
             <p>31. 未经原作者允许，不得以滥用、复用、注册商标等方式侵占MacWave图标及其名称，或以充分使用户联想、关联的方式侵占</p>
             <p>32. 由于网络波动等原因导致软件可执行脚本下载不全并造成损失的，MacWave不承担责任</p>
             <p>33. 由于不可抗力因素导致用户蒙受损失的，MacWave不承担责任</p>
             <p>34. MacWave未与任何公司或营利组织等产生合作，如有公司或营利组织等声称与MacWave合作均属伪造。由此造成损失的，MacWave不承担责任</p>
-
         </div>
     </div>
 
-    <!-- JavaScript for Copy Functionality -->
     <script>
         function copyCode(btn) {
             const pre = btn.parentElement.querySelector('pre');
