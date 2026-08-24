@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>MacWave</title> <!-- 一开始这里有浪花（🌊）表情包，但现在我去掉了 -->
+    <title>MacWave</title>
     <style>
         body {
             background-color: #0a1b3f;
@@ -17,7 +17,7 @@
             text-align: center;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box; /* 修复移动端溢出 */
+            box-sizing: border-box;
         }
 
         /* White rounded card for logo */
@@ -31,7 +31,7 @@
             gap: 0;
             margin-bottom: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            min-height: 50px; /* 防止图片未加载时白框缩成一条线 */
+            min-height: 50px;
         }
 
         .logo-img {
@@ -41,13 +41,13 @@
             border-radius: 0;
         }
 
-        /* 默认（大屏>7.2英寸）：隐藏logo3，显示logo1和logo2 */
+        /* 默认（大屏>7.2英寸，即≥691px）：隐藏logo3，显示logo1和logo2 */
         .logo-img.logo-3 {
             display: none !important;
         }
 
-        /* 屏幕小于等于7.2英寸（约691px）：隐藏logo1和logo2，只显示logo3 */
-        @media (max-width: 691px) {
+        /* 屏幕小于7.2英寸（<691px）：隐藏logo1和logo2，只显示logo3 */
+        @media (max-width: 690.98px) {
             .logo-img.logo-1,
             .logo-img.logo-2 {
                 display: none !important;
@@ -59,8 +59,11 @@
             .logo-wrapper {
                 padding: 5px 18px !important;
             }
-            /* 手机端：版本信息强制分两行显示 */
-            .version-info br {
+            /* 手机端强制居中 + 分两行 */
+            .center-on-mobile {
+                text-align: center !important;
+            }
+            .version-info .version-break {
                 display: block !important;
             }
         }
@@ -71,17 +74,6 @@
             opacity: 0.9;
             max-width: 800px;
             text-align: left;
-        }
-
-        /* 手机端强制居中的类 */
-        .center-on-mobile {
-            text-align: left;
-        }
-
-        @media (max-width: 691px) {
-            .center-on-mobile {
-                text-align: center !important;
-            }
         }
 
         .btn-github {
@@ -316,16 +308,16 @@
         <!-- 默认(大屏)显示：logo1 和 logo2 -->
         <img src="logo1.jpg" alt="MW Icon" class="logo-img logo-1">
         <img src="logo2.jpg" alt="MacWave Text" class="logo-img logo-2">
-        <!-- 小屏(<=7.2英寸)只显示：logo3 -->
+        <!-- 小屏(<691px)只显示：logo3 -->
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
     <!-- 手机端居中 -->
     <p class="center-on-mobile">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- Latest Version（手机端居中 + 分两行） -->
+    <!-- Latest Version（电脑端一行，手机端两行） -->
     <p class="center-on-mobile version-info" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
-        Latest Official Version : 1.0.3<br>Latest Beta Version : 1.1 Beta2
+        Latest Official Version : 1.0.3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="version-break" style="display: none;">&nbsp;</span>Latest Beta Version : 1.1 Beta2
     </p>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
