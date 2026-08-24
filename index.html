@@ -57,7 +57,11 @@
                 height: 42px;
             }
             .logo-wrapper {
-                padding: 5px 18px !important; 
+                padding: 5px 18px !important;
+            }
+            /* 手机端：版本信息强制分两行显示 */
+            .version-info br {
+                display: block !important;
             }
         }
 
@@ -279,22 +283,22 @@
 
         /* --- 新增样式：与 "In the terminal..." 完全一致的纯白色字体 --- */
         .install-note {
-            font-size: 1.1rem;          /* 与 p 标签一致 (1.1rem) */
+            font-size: 1.1rem;
             line-height: 1.6;
             opacity: 0.9;
             max-width: 800px;
             text-align: left;
-            color: #ffffff;             /* 纯白色 */
+            color: #ffffff;
             margin-top: 0;
             margin-bottom: 10px;
         }
         .install-note strong {
             font-weight: bold;
-            color: #ffffff;             /* 保持纯白 */
+            color: #ffffff;
         }
         .install-note .small-link-text {
-            font-size: 0.825rem;        /* 1.1rem * 0.75 = 0.825rem */
-            display: inline-block;      /* 保证内联但能正确应用字体大小 */
+            font-size: 0.825rem;
+            display: inline-block;
         }
         .install-note a {
             color: #ffffff;
@@ -316,12 +320,12 @@
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <!-- 手机端居中的第一段 -->
+    <!-- 手机端居中 -->
     <p class="center-on-mobile">A package manager for macOS/Linux jailbreak developers.</p>
 
-    <!-- Latest Version（手机端居中） -->
-    <p class="center-on-mobile" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
-        Latest Official Version : 1.0.3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Latest Beta Version : 1.1 Beta2
+    <!-- Latest Version（手机端居中 + 分两行） -->
+    <p class="center-on-mobile version-info" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
+        Latest Official Version : 1.0.3<br>Latest Beta Version : 1.1 Beta2
     </p>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
@@ -511,6 +515,10 @@ trollrestore        by JJTech0130
         <h2>Contact Us</h2>
         <div class="contact-divider"></div>
         <div class="contact-items">
+            <div class="contact-item">
+                <span class="contact-label">GitHub</span>
+                <a href="https://github.com/Sha0huaZhang" target="_blank">@Sha0huaZhang</a>
+            </div>
             <div class="contact-item">
                 <span class="contact-label">Twitter</span>
                 <a href="https://twitter.com/MacWave_Official" target="_blank">@MacWave_Official</a>
