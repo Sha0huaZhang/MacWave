@@ -404,7 +404,7 @@ class MacWaveCLI:
             '--package', package_name,
         ]
         if version:
-            cmd.extend(['--version', version])
+            cmd.extend(['--ver', version])
         if release:
             if release.get('binary_url'):
                 cmd.extend(['--url', release.get('binary_url')])
