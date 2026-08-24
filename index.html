@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>MacWave</title> <!-- 一开始这里有浪花（🌊）表情包，但现在我去掉了 -->
+    <title>MacWave</title>
     <style>
         body {
             background-color: #0a1b3f;
@@ -17,7 +17,7 @@
             text-align: center;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box; /* 修复移动端溢出 */
+            box-sizing: border-box;
         }
 
         /* White rounded card for logo */
@@ -31,7 +31,7 @@
             gap: 0;
             margin-bottom: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            min-height: 50px; /* 防止图片未加载时白框缩成一条线 */
+            min-height: 50px;
         }
 
         .logo-img {
@@ -70,6 +70,10 @@
                 display: block;
                 margin: 0;
                 line-height: 1.8;
+            }
+            /* 手机端让 "A package manager..." 居中 */
+            .tagline-center {
+                text-align: center !important;
             }
         }
 
@@ -317,13 +321,13 @@
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <!-- 手机端居中 -->
-    <p>A package manager for macOS/Linux jailbreak developers.</p>
+    <!-- 手机端居中：添加 class="tagline-center" 使该段落居中 -->
+    <p class="tagline-center" style="max-width:800px;">A package manager for macOS/Linux jailbreak developers.</p>
 
     <!-- Latest Version（电脑端一行，手机端两行，无空行） -->
     <div class="version-block" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
         <span class="v-line">Latest Official Version : 1.0.3</span>
-        <span class="v-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Latest Beta Version : 1.1 Beta2</span>
+        <span class="v-line">Latest Beta Version : 1.1 Beta2</span>
     </div>
 
     <a href="https://github.com/Sha0huaZhang/MacWave" class="btn-github">View On GitHub</a>
@@ -480,8 +484,8 @@ Global Flags (can be used with any command):
       --skip-ssl          Skip SSL certificate verification (insecure, with interactive confirmation)
       --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
       --dry-run           Simulate the installation without making changes
-      --json              Output in JSON format (for scripting)
-      --ver string        Install a specific version of the package
+      --json              JSON output
+      --ver string        Install a specific version
 
 For more details, visit: https://macwave.org
 </pre>
