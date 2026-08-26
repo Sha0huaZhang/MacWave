@@ -1,0 +1,166 @@
+<!-- 
+    MacWave repository index file
+    Location: ~/.local/macwave/repoindex.txt
+    Edit with: nano ~/.local/macwave/repoindex.txt
+    arm64
+-->
+
+$ PackagesDictionary $
+<!-- ==================== Package Name List ==================== -->
+def repo_dict:
+    "ldid"
+    "machox"
+    "palera1n"
+    "test_001"
+    "test_no_sha256"
+    "test_wrong_sha256"
+    "trollrestore"
+$ \PackagesDictionary $
+
+$ PackagesVersion $
+<!-- Get verison from wave.py -->
+let "parse_download_version" = {parse_download_version}
+$ \PackagesVersion $
+
+$ PackagesURL $
+<!-- ==================== URL Variable Definitions ==================== -->
+{repo_url:
+    let "ldid" = %f% "https://github.com/ProcursusTeam/ldid/releases/download/{parse_download_version}/ldid_macosx_arm64"
+    let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_arm64"
+    let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-arm64"
+    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
+    let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
+    let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
+    let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_amd64.zip"
+}
+$ \PackagesURL $
+
+$ PackagesDetails $
+<!-- ==================== Package Details ==================== -->
+[package_info:
+
+
+<!-- description = des,
+     homepage = hom,
+     license = lic
+     author = aut
+     version = ver
+     sha256 = sha256
+     binary_name = bin_name -->
+    
+<!-- ldid -->
+"ldid":
+
+    %START%
+        description: "Link Identity Editor. Put real or fake signatures in a Mach-O."
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        lic: "MIT"
+        aut: "Jay Freeman (saurik) / Procursus Team"
+        ver: "2.1.5-procursus7"
+             "2.1.5-procursus6" 
+             "2.1.5-procursus5" 
+             "2.1.5-procursus4" 
+             "2.1.5-procursus3" 
+             "2.1.5-procursus2" 
+             "2.1.5-procursus1" 
+             "2.1.5-procursus" 
+        sha256: "5dff8e6b8d9dc3ff7226276c81e09930865f15381f54cb55b98b196a94c5ca50"
+                "1751476cc3962d418c7b39ba4fe85b28596e1802278f398103ea81cd9cb5eb2b"
+                "7e25bab5151a7d6d28ba3da6cb5e2e0c921265fcd8ae66d7d43d2e1c4f8b13dd"
+                "add4817f00fa49f02798cfbfd4fd493d975b640c12534a148d1392c50698fe0e"
+                "b4a94cf70a1671ad880ed6f2a8d592dae96a8ae40c8531baea1f68e04b39573d"
+                "47ef58d2f4e77d4ce66440ce4472743a0d14486a8dc44b13567a41b5f2343728"
+                "586e8fbc2094920e6e31ef9919962238a06d40b8bdc4692ce83551689798423f"
+                "1073f32f2ebf3020b8a2dce6b2c0d1750445df69cb09a52c2411049ae5526ae7"
+        bin_name: "ldid"
+    %END%
+    
+<!-- MachOX -->
+"machox":
+
+    %START%
+        des: "CoreTrust bypass for iOS 16.7 (20H19) & 17.0.1"
+        hom: "https://github.com/Sha0huaZhang/MachOX"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
+        sha256: "541539ffb9a8dabf1afed6f00b216c81c5f46158db6e5dd4b139be8d2a60ba75"
+        bin_name: "machox"
+    %END%
+
+<!-- palera1n -->
+"palera1n":
+
+    %START%
+        des: "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher."
+        hom: "https://github.com/palera1n/palera1n"
+        lic: "MIT"
+        aut: "palera1n Team"
+        ver: "2.4"
+             "2.3"
+             "2.2"
+             "2.0.2"
+             "2.0.1"
+             "2.0"
+        sha256: "950c357b6ae5df36128f6e42a3c6d371e55aeb69a5afcde276f096276210d0c9"
+                "f214a46978ced3b66ab2555ff51681f21bf13fd97d5b692aa420a4ba6a71d263"
+                "c2409bb56d4e0d619852f769af60f74e952869b94881e0e0e34990443c78599f"
+                "ed100fdb0d19e3372648e943f381b07e50ca3136ccfd5d31470fef16945d960d"
+                "32a58eefdf94ba9487a85c7eb960441af6544fe8ec92a76ba2f25fc95388f556"
+                "34a7f7c70f6293c8f1ca5c5da50e75a1beed66fe60bda2738aace1b71f452ea8"
+        bin_name: "palera1n"
+    %END%
+
+<!-- test_001 -->
+"test_001":
+
+    %START%
+        description:  "MacWave test package."
+        homepage: "https://github.com/Sha0huaZhang/test_001"
+        license: "MIT"
+        author: "Sha0huaZhang (MacWave Team)"
+        version: "1.0.0"
+        sha256: "4594d33a91d3fd2a92d23619d1e664c9098df3ac0a3961f2322cee7eab96a5d2"
+        binary_name: "test_001"
+    %END%
+
+<!-- test_no_sha256 -->
+"test_no_sha256":
+
+    %START%
+        description:  "MacWave test package."
+        homepage: "https://github.com/Sha0huaZhang/MacWave"
+        license: "MIT"
+        author: "Sha0huaZhang (MacWave Team)"
+        version: "1.0.0"
+        <!-- keep here (sha256) empty -->
+        binary_name: "test_no_sha256"
+    %END%
+
+<!-- test_wrong_sha256 -->
+"test_wrong_sha256":
+
+    %START%
+        description:  "MacWave test package."
+        homepage: "https://github.com/Sha0huaZhang/MacWave"
+        license: "MIT"
+        author: "Sha0huaZhang (MacWave Team)"
+        version: "1.0.0"
+        sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        binary_name: "test_wrong_sha256"
+    %END%
+
+<!-- trollrestore -->
+"trollrestore":
+
+    %START%
+        description:  "MacWave test package."
+        homepage: "https://github.com/JJTech0130/TrollRestore"
+        license: "MIT"
+        author: "JJTech (@JJTech0130)"
+        version: "1.0"
+        sha256: "47faf58d245729314046a6e56f920ddd42273db41daab8502bbff5ec5b81adfb"
+        binary_name: "trollrestore"
+    %END%
+
+$ \PackagesDetails $
