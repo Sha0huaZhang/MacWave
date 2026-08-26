@@ -377,7 +377,7 @@ class PackageInstaller:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
 
-    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None):
+    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
         if install_dir is None:
             install_dir = INSTALL_DIR
         if final_path is None:
@@ -389,7 +389,11 @@ class PackageInstaller:
 
         try:
             print(f"🌊 Successfully installed {package_name} to {final_path}")
-            self._record_installation(package_name, version, install_dir, final_path=final_path)
+            # 只有 skip_db_update 为 False 时才记录到 installed.json
+            if not skip_db_update:
+                self._record_installation(package_name, version, install_dir, final_path=final_path)
+            else:
+                self.log_verbose("Skipping DB update (--skip-db-update specified)")
 
             path_dirs = os.environ.get("PATH", "").split(":")
             if str(install_dir) not in path_dirs:
@@ -588,6 +592,7 @@ def main():
     parser.add_argument('--limit-rate', help='Limit download speed')
     parser.add_argument('--resume', action='store_true', help='Resume interrupted download')
     parser.add_argument('--dry-run', action='store_true', help='Dry run')
+    parser.add_argument('--skip-db-update', action='store_true', help='Skip updating installed.json (used by wave upgrade)')
 
     args = parser.parse_args()
     installer = PackageInstaller(verbose=args.verbose)
@@ -606,7 +611,8 @@ def main():
             args=vars(args),
             version=args.ver,
             install_dir=Path(args.dir) if args.dir else None,
-            final_path=Path(args.final_path) if args.final_path else None
+            final_path=Path(args.final_path) if args.final_path else None,
+            skip_db_update=args.skip_db_update
         )
     elif args.command == 'uninstall':
         installer.uninstall_package(args.package)
