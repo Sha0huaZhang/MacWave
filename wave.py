@@ -50,15 +50,31 @@ except ImportError:
 
 
 # ==========================================
-# 全局常量
+# 配置加载
 # ==========================================
 
-VERSION = "2.0.0"
-INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
-DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
-INSTALLED_DB = Path.home() / ".local" / "macwave" / "installed.json"
-REPO_CACHE = Path.home() / ".local" / "macwave" / "repo_cache.json"
-REPO_DIR = Path.home() / ".local" / "macwave" / "repo"
+CONFIG_FILE = Path.home() / ".config" / "macwave" / "config.json"
+
+def load_config():
+    """加载配置文件，如果不存在则使用默认值"""
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                base_dir = config.get("base_dir")
+                if base_dir:
+                    return Path(base_dir)
+        except Exception:
+            pass
+    # 默认值
+    return Path.home() / ".local" / "macwave"
+
+BASE_DIR = load_config()
+INSTALL_DIR = BASE_DIR / "bin"
+DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
+INSTALLED_DB = BASE_DIR / "installed.json"
+REPO_CACHE = BASE_DIR / "repo_cache.json"
+REPO_DIR = BASE_DIR / "repo"
 PROTECTED_PACKAGES = ["wave"]
 
 
@@ -270,10 +286,8 @@ class MacWaveCLI:
         # 检查解析错误
         if result.returncode != 0:
             error_msg = result.stderr.strip()
-            # 检查是否是 parser.rb 输出的错误码格式
             if 'Parser error, error code' in error_msg:
                 raise RuntimeError(error_msg)
-            # 否则输出 stderr 或 stdout
             raise RuntimeError(f"Parser failed: {error_msg or result.stdout.strip() or 'unknown error'}")
 
         # 解析 JSON
@@ -287,7 +301,7 @@ class MacWaveCLI:
             with open(REPO_CACHE, 'w') as f:
                 json.dump(data, f, indent=2)
         except Exception:
-            pass  # 缓存失败不影响主流程
+            pass
 
         return data
 
@@ -296,35 +310,9 @@ class MacWaveCLI:
     def _normalize_repo_data(self, raw_data):
         """
         将 parser.rb 输出的新格式转为 wave.py 能理解的旧格式
-        
-        输入:
-        {
-          "ldid": {
-            "description": "...",
-            "homepage": "...",
-            "license": "...",
-            "author": "...",
-            "binary_name": "ldid",
-            "releases": [
-              { "version": "2.1.5-procursus7", "sha256": "..." },
-              { "version": "2.1.5-procursus6", "sha256": "..." }
-            ]
-          }
-        }
-        
-        输出:
-        {
-          "packages": [
-            { "name": "ldid", "version": "2.1.5-procursus7", "sha256": "...", 
-              "description": "...", "homepage": "...", "license": "...", 
-              "author": "...", "binary_name": "ldid", "arch": "any" },
-            ...
-          ]
-        }
         """
         packages = []
         for pkg_name, pkg_info in raw_data.items():
-            # 共享字段
             base_info = {
                 'name': pkg_name,
                 'description': pkg_info.get('description', ''),
@@ -337,7 +325,6 @@ class MacWaveCLI:
 
             releases = pkg_info.get('releases', [])
             if not releases:
-                # 没有 releases 时，用空版本占位
                 packages.append({**base_info, 'version': '0.0.0', 'sha256': ''})
             else:
                 for release in releases:
@@ -355,18 +342,14 @@ class MacWaveCLI:
         self.log_verbose(f"Searching for package: {package_name}")
         all_releases = []
 
-        # repo_data 可能是旧格式（有 'packages' 键）或新格式（直接是包名键）
         if "packages" in repo_data:
-            # 旧格式：直接使用
             packages_list = repo_data["packages"]
         else:
-            # 新格式：先标准化
             repo_data = self._normalize_repo_data(repo_data)
             packages_list = repo_data["packages"]
 
         for pkg in packages_list:
             if pkg.get("name") == package_name:
-                # 构建 release 对象
                 release = {
                     "version": pkg.get("version"),
                     "sha256": pkg.get("sha256", ""),
@@ -384,7 +367,6 @@ class MacWaveCLI:
             print(f"🌊 Error: Package '{package_name}' not found in repository")
             sys.exit(1)
 
-        # 如果指定了版本
         if args and getattr(args, 'ver', None):
             requested_version = args.ver
             arch = self._get_arch()
@@ -395,7 +377,6 @@ class MacWaveCLI:
             print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
             sys.exit(1)
 
-        # 如果指定了 beta 版本
         if args and getattr(args, 'beta_version', False):
             for release in all_releases:
                 if release.get("arch") == "beta":
@@ -403,7 +384,6 @@ class MacWaveCLI:
             print(f"🌊 No beta version found for '{package_name}'.")
             return None
 
-        # 获取当前架构
         current_arch = self._get_arch()
         matching_releases = []
 
@@ -423,7 +403,6 @@ class MacWaveCLI:
             except InvalidVersion:
                 pass
 
-            # 非标准版本号解析（支持 procursus 等后缀）
             base_match = re.search(r'(\d+\.\d+\.\d+)', v)
             if base_match:
                 base_version = base_match.group(1)
@@ -457,7 +436,6 @@ class MacWaveCLI:
             print(f"🌊 Error: pkginstaller.py not found at {installer_path}")
             sys.exit(1)
 
-        # 替换 URL 中的版本占位符
         binary_url = release.get('binary_url', '') if release else ''
         if binary_url and version:
             binary_url = self._replace_version_placeholder(binary_url, version)
@@ -508,8 +486,6 @@ class MacWaveCLI:
             print(json.dumps({"command": "install", "package": args.package_name}))
             return
 
-        # ========== 多版本语法支持 ==========
-        # 支持 ldid@2.1.5-procursus7 格式
         package_name = args.package_name
         if '@' in package_name:
             pkg_name, ver = package_name.split('@', 1)
@@ -527,10 +503,8 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
-        # 标准化数据
         repo_data = self._normalize_repo_data(raw_data)
 
-        # 获取要安装的版本
         if args.ver:
             release = self.find_package(repo_data, safe_name, args)
             version = release.get("version")
@@ -556,7 +530,6 @@ class MacWaveCLI:
         else:
             final_path = install_dir / f"{safe_name}@{version}"
 
-        # ========== 智能已安装检查 ==========
         existing_versions = []
         for f in install_dir.glob(f"{safe_name}@*"):
             if f.name.endswith('.bak'):
@@ -678,7 +651,6 @@ class MacWaveCLI:
         safe_name = args.package_name.lower()
         repo_data = self._normalize_repo_data(raw_data)
 
-        # 收集该包的所有版本
         versions = []
         package_info = None
         for pkg in repo_data.get("packages", []):
@@ -705,7 +677,6 @@ class MacWaveCLI:
         if homepage:
             print(f"🌊 Homepage:           {homepage}")
 
-        # 扫描已安装版本
         installed_versions = []
         install_dir = INSTALL_DIR
         for f in install_dir.glob(f"{safe_name}@*"):
@@ -754,7 +725,7 @@ class MacWaveCLI:
         if self._is_protected(safe_name):
             print(f"🌊 \033[31mERROR: Cannot upgrade protected package: {safe_name}\033[0m")
             print(f"🌊 \033[93mTo update MacWave, download the new version manually:\033[0m")
-            print(f"🌊 \033[93m  curl -fsSL -o ~/.local/macwave/bin/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+            print(f"🌊 \033[93m  curl -fsSL -o {INSTALL_DIR}/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
             return
 
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -798,10 +769,8 @@ class MacWaveCLI:
 
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
 
-            # 获取旧 binary_path
             binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
 
-            # 删除旧版本
             if binary_path.exists():
                 self._call_installer(
                     command='uninstall',
@@ -819,7 +788,6 @@ class MacWaveCLI:
             else:
                 final_path = INSTALL_DIR / safe_name
 
-            # 用排他锁保护升级过程
             with open(INSTALLED_DB, 'r+') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
 
@@ -834,7 +802,6 @@ class MacWaveCLI:
                     skip_db_update=True
                 )
 
-                # 更新 installed.json
                 f.seek(0)
                 try:
                     installed = json.load(f)
@@ -913,7 +880,6 @@ class MacWaveCLI:
                     print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
                     print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
                     if self._confirm_action(""):
-                        # 直接删除，不调用 pkginstaller（还没获取 release 信息）
                         try:
                             backup_path = binary_path.with_suffix(binary_path.suffix + ".bak")
                             if backup_path.exists():
