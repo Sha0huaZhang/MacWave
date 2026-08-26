@@ -2,7 +2,7 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
-Version: 1.1.0 Beta3(233F1003)
+Version: 1.1.0RC
 """
 
 import argparse
@@ -53,7 +53,7 @@ except ImportError:
 # 全局常量
 # ==========================================
 
-VERSION = "1.1.0 Beta3(233F1003)"
+VERSION = "1.1.0RC"
 REPO_URL = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/repo/repo.json"
 INSTALL_DIR = Path.home() / ".local" / "macwave" / "bin"
 DOWNLOAD_TMP = Path.home() / ".local" / "macwave" / "downloads" / "tmp"
@@ -226,6 +226,59 @@ class MacWaveCLI:
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    def _safe_delete_binary(self, path: Path) -> bool:
+        """安全删除二进制文件，先备份再删除"""
+        if not path.exists():
+            return True
+        try:
+            backup = path.with_suffix(path.suffix + '.bak')
+            if backup.exists():
+                backup.unlink()
+            path.rename(backup)
+            return True
+        except Exception as e:
+            self._log(f"Failed to delete {path}: {e}", "error")
+            return False
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    def _update_installed_db(self, package_name: str, version: str = None, binary_path: Path = None, action: str = 'install'):
+        """
+        原子性地更新 installed.json
+        action: 'install' 或 'uninstall'
+        """
+        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 如果文件不存在，先创建空文件
+        if not INSTALLED_DB.exists():
+            with open(INSTALLED_DB, 'w') as f:
+                json.dump({}, f)
+        
+        with open(INSTALLED_DB, 'r+') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
+            
+            f.seek(0)
+            try:
+                installed = json.load(f)
+            except json.JSONDecodeError:
+                installed = {}
+            
+            if action == 'install':
+                installed[package_name] = {
+                    'version': version,
+                    'binary_path': str(binary_path),
+                    'installed_at': time.time()
+                }
+            elif action == 'uninstall':
+                installed.pop(package_name, None)
+            
+            # 写回
+            f.seek(0)
+            json.dump(installed, f, indent=2)
+            f.truncate()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def fetch_repo_data(self, args=None):
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
         cache_data = None
@@ -346,7 +399,7 @@ class MacWaveCLI:
                 return parse_version(f"{base_version}.{team_num}")
             # ---------- 2026年8月20日，1.0.1版本的新增补丁扩展结束 ----------
 
-        # 2026年8月15日（1.0.0-rc4）的“===临时补丁开始===”位置，于2026年8月20日（1.0.1）废止，新的首部分割线位于上方，尾部分割线不变
+        # 2026年8月15日（1.0.0-rc4）的"===临时补丁开始==="位置，于2026年8月20日（1.0.1）废止，新的首部分割线位于上方，尾部分割线不变
             
         # 临时补丁，为避免packaging解析非标准版本号崩溃
         # 作者在2026年8月14日添加此补丁，旨在解决ldid版本号2.1.5-procursus7可能带来的问题
@@ -394,7 +447,7 @@ class MacWaveCLI:
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    def _call_installer(self, command, package_name, args, release, version, install_dir, final_path):
+    def _call_installer(self, command, package_name, args, release, version, install_dir, final_path, skip_db_update=False):
         import os
         installer_path = os.path.join(os.path.dirname(__file__), 'pkginstaller.py')
 
@@ -427,6 +480,8 @@ class MacWaveCLI:
             cmd.append('--resume')
         if args.get('dry_run'):
             cmd.append('--dry-run')
+        if skip_db_update:
+            cmd.append('--skip-db-update')
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -527,10 +582,19 @@ class MacWaveCLI:
             final_path=final_path
         )
 
+        # 更新 installed.json
+        self._update_installed_db(safe_name, version, final_path, 'install')
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     def handle_uninstall(self, args):
         package_spec = args.package_name
+        
+        # 解析包名（去掉 @version 后缀）
+        if '@' in package_spec:
+            safe_name = package_spec.split('@', 1)[0].lower()
+        else:
+            safe_name = package_spec.lower()
 
         safe_args = {
             'verbose': args.verbose,
@@ -546,6 +610,9 @@ class MacWaveCLI:
             install_dir=INSTALL_DIR,
             final_path=None
         )
+
+        # 从 installed.json 中移除
+        self._update_installed_db(safe_name, action='uninstall')
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -703,18 +770,21 @@ class MacWaveCLI:
             print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
             return
 
-        try:
-            with open(INSTALLED_DB, 'r') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+        # === 用排他锁保护整个升级过程 ===
+        with open(INSTALLED_DB, 'r+') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            
+            f.seek(0)
+            try:
                 installed = json.load(f)
+            except json.JSONDecodeError:
+                installed = {}
 
             if safe_name not in installed:
                 print(f"🌊 Package '{safe_name}' is not installed. Nothing to upgrade.")
                 return
 
             local_version = installed[safe_name].get('version', '0.0.0')
-            if local_version is None:
-                local_version = '0.0.0'
 
             try:
                 repo_data = self.fetch_repo_data(args)
@@ -725,6 +795,7 @@ class MacWaveCLI:
             release = self.find_package(repo_data, safe_name, args)
             remote_version = release.get("version", "unknown")
 
+            # 版本比较
             try:
                 local_v = parse_version(local_version)
                 remote_v = parse_version(remote_version)
@@ -738,26 +809,33 @@ class MacWaveCLI:
 
             print(f"🌊 Upgrading '{safe_name}' from v{local_version} to v{remote_version}...")
 
-            # 调用 packageinstaller 执行升级（删除旧版本后安装新版本）
-            binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
-            if binary_path.exists():
-                # 调用 uninstall 删除旧版本
-                self._call_installer(
-                    command='uninstall',
-                    package_name=safe_name,
-                    args={'verbose': args.verbose, 'dry_run': args.dry_run},
-                    release=None,
-                    version=None,
-                    install_dir=INSTALL_DIR,
-                    final_path=None
-                )
+            # 获取旧 binary_path
+            old_binary_path = Path(installed[safe_name].get('binary_path', str(INSTALL_DIR / safe_name)))
 
+            # --- 在锁内执行卸载 ---
+            # 直接删除二进制文件（不调用 _call_installer 去修改 installed.json）
+            if old_binary_path.exists():
+                try:
+                    if old_binary_path.is_symlink() or old_binary_path.is_file():
+                        old_binary_path.unlink()
+                        print(f"🌊 Removed old binary: {old_binary_path}")
+                    # 删除对应的 @version 文件
+                    for f in INSTALL_DIR.glob(f"{safe_name}@*"):
+                        if f.name.endswith('.bak'):
+                            continue
+                        if f != old_binary_path:
+                            f.unlink()
+                except Exception as e:
+                    print(f"🌊 Warning: Failed to remove old binary: {e}")
+
+            # --- 安装新版本 ---
             version = release.get("version")
             if version:
                 final_path = INSTALL_DIR / f"{safe_name}@{version}"
             else:
                 final_path = INSTALL_DIR / safe_name
 
+            # 调用 installer，跳过 DB 更新（由本方法统一更新）
             self._call_installer(
                 command='install',
                 package_name=safe_name,
@@ -765,11 +843,21 @@ class MacWaveCLI:
                 release=release,
                 version=version,
                 install_dir=INSTALL_DIR,
-                final_path=final_path
+                final_path=final_path,
+                skip_db_update=True
             )
 
-        except Exception as e:
-            print(f"🌊 Error: Failed to upgrade package: {e}")
+            # --- 更新 installed.json ---
+            installed[safe_name] = {
+                'version': version,
+                'binary_path': str(final_path),
+                'installed_at': time.time()
+            }
+            f.seek(0)
+            json.dump(installed, f, indent=2)
+            f.truncate()
+            
+            print(f"🌊 Successfully upgraded '{safe_name}' to v{version}")
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
