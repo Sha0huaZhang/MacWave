@@ -2,7 +2,7 @@
     MacWave repository index file
     Location: ~/.local/macwave/repoindex.txt
     Edit with: nano ~/.local/macwave/repoindex.txt
-    arm64
+    amd64
 -->
 
 $ PackagesDictionary $
