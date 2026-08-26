@@ -163,4 +163,17 @@ $ PackagesDetails $
         binary_name: "trollrestore"
     %END%
 
+<!-- choma -->
+"choma":
+
+    %START%
+        description: "Code signature and Mach-O manipulation tool by opa334"
+        homepage: "https://github.com/opa334/ChOma"
+        license: "MIT"
+        author: "opa334"
+        version: "1.0-macwaveteam2"
+        sha256: "090031020461775f3ff818681e838ca44c7ab535925b605e6bafca6da70abbf8"
+        binary_name: "choma"
+    %END%
+
 $ \PackagesDetails $
