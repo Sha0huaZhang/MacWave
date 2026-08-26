@@ -2,6 +2,7 @@
 
 # MacWave 🌊 Official Installer
 # This script downloads wave.py, installs dependencies, and configures PATH.
+# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-beta/install.sh)"
 
 set -e
 
@@ -9,7 +10,7 @@ BRANCH="2.0.0-beta"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
 
 # ==========================================
-# 交互式目录选择
+# 交互式目录选择（从 /dev/tty 读取）
 # ==========================================
 
 echo "🌊 Welcome to MacWave 2.0!"
@@ -21,7 +22,9 @@ echo "2. /opt/macwave"
 echo "3. other (enter custom directory)"
 echo ""
 echo -e "\033[33mEnter your choice:\033[0m"
-read -r choice
+
+# 从 /dev/tty 读取用户输入
+read -r choice < /dev/tty
 
 case "$choice" in
     1)
@@ -32,7 +35,7 @@ case "$choice" in
         ;;
     3)
         echo -e "\033[33mPlease enter the installation directory:\033[0m"
-        read -r custom_dir
+        read -r custom_dir < /dev/tty
         # 展开 ~ 如果用户输入了 ~
         BASE_DIR="${custom_dir/#\~/$HOME}"
         ;;
@@ -47,12 +50,10 @@ esac
 # ==========================================
 
 if [[ "$BASE_DIR" == "$HOME"* ]]; then
-    # 在用户家目录下，不需要 sudo
     USE_SUDO=""
 else
-    # 在系统目录，需要 sudo
     echo "🌊 Installing to $BASE_DIR requires administrator privileges."
-    sudo -v  # 验证 sudo 权限，会提示输入密码
+    sudo -v
     USE_SUDO="sudo"
 fi
 
@@ -98,8 +99,10 @@ if ! command -v ruby &> /dev/null; then
     exit 1
 fi
 
-RUBY_VERSION=$(ruby -e 'print RUBY_VERSION')
-if [[ $(echo "$RUBY_VERSION < 2.6.10" | bc) -eq 1 ]]; then
+RUBY_VERSION=$(ruby -e 'puts RUBY_VERSION')
+
+# 用 Ruby 自身比较版本
+if ! ruby -e "exit Gem::Version.new('$RUBY_VERSION') >= Gem::Version.new('2.6.10')" 2>/dev/null; then
     echo "🌊 Error: Ruby version $RUBY_VERSION is too old. Please upgrade to 2.6.10 or higher."
     exit 1
 fi
@@ -194,7 +197,7 @@ echo "    wave install test_001"
 echo ""
 echo -e "\033[33mPlease read the agreement before use (see bottom of https://macwave.org).\033[0m"
 echo -e "\033[33mHave you read and agreed to the agreement? [Y/n]\033[0m"
-read -r agreement
+read -r agreement < /dev/tty
 if [[ $agreement =~ ^[Yy]$ ]]; then
     echo -e "\033[32mYou have agreed to the agreement. Installation continues.\033[0m"
 else
