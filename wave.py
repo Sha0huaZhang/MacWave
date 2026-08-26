@@ -2,7 +2,7 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
-Version: 2.0.0
+Version: 2.0.0(237B1401)
 """
 
 import argparse
@@ -107,7 +107,7 @@ class MacWaveCLI:
     def _create_parser(self):
         parser = argparse.ArgumentParser(
             prog="wave",
-            description="MacWave 2.0.0\nA package manager for macOS/Linux jailbreak developers.",
+            description="MacWave 2.0.0-beta1(237B1401)\nA package manager for macOS/Linux jailbreak developers.",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             usage="wave <command> [package] [flags]",
             epilog="For more details, visit: https://macwave.org",
@@ -164,7 +164,7 @@ class MacWaveCLI:
     def _print_custom_help(self):
         print("\033[35musage: \033[38;5;197mwave <command> [package] [flags]\033[0m")
         print()
-        print("MacWave 2.0.0 🌊")
+        print("MacWave 2.0.0-beta1(237B1401) 🌊")
         print("A package manager for macOS/Linux jailbreak developers.")
         print()
         print("\033[35mpositional arguments:\033[0m")
