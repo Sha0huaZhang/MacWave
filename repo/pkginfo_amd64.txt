@@ -171,7 +171,7 @@ $ PackagesDetails $
         homepage: "https://github.com/opa334/ChOma"
         license: "MIT"
         author: "opa334"
-        version: "1.0"
+        version: "1.0-macwaveteam2"
         sha256: "4e4b2e94ff42109f53c403facfcbaecc55cd2313135fe25a26e47bad220762d6"
         binary_name: "choma"
     %END%
