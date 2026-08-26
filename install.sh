@@ -10,6 +10,19 @@ BRANCH="2.0.0-beta"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
 
 # ==========================================
+# 辅助函数：将路径中的 $HOME 替换为 ~
+# ==========================================
+
+home_to_tilde() {
+    local path="$1"
+    if [[ "$path" == "$HOME"* ]]; then
+        echo "~${path#$HOME}"
+    else
+        echo "$path"
+    fi
+}
+
+# ==========================================
 # 交互式目录选择（从 /dev/tty 读取）
 # ==========================================
 
@@ -45,6 +58,9 @@ case "$choice" in
         ;;
 esac
 
+# 用于显示的用户友好路径
+DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
+
 # ==========================================
 # 判断是否需要 sudo
 # ==========================================
@@ -52,7 +68,7 @@ esac
 if [[ "$BASE_DIR" == "$HOME"* ]]; then
     USE_SUDO=""
 else
-    echo "🌊 Installing to $BASE_DIR requires administrator privileges."
+    echo "🌊 Installing to $DISPLAY_DIR requires administrator privileges."
     sudo -v
     USE_SUDO="sudo"
 fi
@@ -79,7 +95,9 @@ cat > "$CONFIG_FILE" << EOF
   "base_dir": "$BASE_DIR"
 }
 EOF
-echo "🌊 Configuration saved to $CONFIG_FILE"
+
+CONFIG_DISPLAY=$(home_to_tilde "$CONFIG_FILE")
+echo "🌊 Configuration saved to $CONFIG_DISPLAY"
 
 # ==========================================
 # 文件 URL
@@ -181,7 +199,7 @@ fi
 
 echo ""
 echo "🌊 Installation complete!"
-echo "🌊 MacWave installed to: $BASE_DIR"
+echo "🌊 MacWave installed to: $DISPLAY_DIR"
 echo ""
 echo "🌊 To use 'wave' immediately in this terminal, run:"
 echo -e "\033[33m    source $RC_FILE\033[0m"
