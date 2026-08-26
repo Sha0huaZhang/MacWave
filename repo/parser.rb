@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # parser.rb - MacWave 2.0 仓库解析器
-# 用法: ruby parser.rb [repoindex.txt]
+# 用法: ruby parser.rb [pkginfo.txt]
 # 输出: 成功 -> JSON, 失败 -> Parser error, error code XXX
 #
 # ============================================================
@@ -18,6 +18,15 @@
 # ============================================================
 
 require 'json'
+
+# ============================================================
+# 颜色定义
+# ============================================================
+
+RED_BOLD = "\033[1;31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+RESET = "\033[0m"
 
 # ============================================================
 # 错误码 / Error Codes
@@ -375,17 +384,17 @@ end
 # ============================================================
 
 def main
-  file_path = ARGV[0] || 'repoindex.txt'
+  file_path = ARGV[0] || 'pkginfo_arm64.txt'
 
   unless File.exist?(file_path)
-    puts "Parser error, error code #{ErrorCode::FILE_NOT_FOUND}"
+    puts "#{RED_BOLD}Parser error, error code #{ErrorCode::FILE_NOT_FOUND}#{RESET}"
     exit 1
   end
 
   begin
     content = File.read(file_path, encoding: 'UTF-8')
   rescue => e
-    puts "Parser error, error code #{ErrorCode::FILE_READ_ERROR}"
+    puts "#{RED_BOLD}Parser error, error code #{ErrorCode::FILE_READ_ERROR}#{RESET}"
     exit 1
   end
 
@@ -395,9 +404,9 @@ def main
   unless success
     # 输出第一个错误的错误码
     if parser.errors.any?
-      puts "Parser error, error code #{parser.errors.first[:code]}"
+      puts "#{RED_BOLD}Parser error, error code #{parser.errors.first[:code]}#{RESET}"
     else
-      puts "Parser error, error code #{ErrorCode::UNKNOWN_ERROR}"
+      puts "#{RED_BOLD}Parser error, error code #{ErrorCode::UNKNOWN_ERROR}#{RESET}"
     end
     exit 1
   end
