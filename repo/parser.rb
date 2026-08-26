@@ -261,7 +261,7 @@ class RepoParser
         value = value.strip
 
         # 处理多行值（如果 value 为空或只有引号，可能是多行）
-        if value.empty? || value == '""'
+        if value.empty? || value == '""' || value == '"'
           @expecting_multiline = true
           @current_key = key
           @multiline_values = []
