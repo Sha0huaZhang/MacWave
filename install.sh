@@ -35,7 +35,7 @@ home_to_tilde() {
 # 交互式目录选择（从 /dev/tty 读取）
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.0!"
+echo "🌊 Welcome to MacWave 2.0.0-beta1(237B1401)!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 echo -e "${YELLOW}Where do you want to install MacWave? (Enter the number)${RESET}"
