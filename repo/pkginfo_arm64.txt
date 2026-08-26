@@ -15,6 +15,7 @@ def repo_dict:
     "test_no_sha256"
     "test_wrong_sha256"
     "trollrestore"
+    "choma"
 $ \PackagesDictionary $
 
 $ PackagesVersion $
@@ -32,6 +33,7 @@ $ PackagesURL $
     let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
     let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
     let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_arm64.zip"
+    let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/{parse_download_version}/ChOma_arm64"
 }
 $ \PackagesURL $
 
@@ -173,7 +175,7 @@ $ PackagesDetails $
         author: "opa334"
         version: "1.0-macwaveteam2"
         sha256: "090031020461775f3ff818681e838ca44c7ab535925b605e6bafca6da70abbf8"
-        binary_name: "choma"
+        binary_name: "ChOma"
     %END%
 
 $ \PackagesDetails $
