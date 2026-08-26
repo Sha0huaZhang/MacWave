@@ -22,6 +22,15 @@ from typing import Optional
 VERSION = "2.0.0"
 
 # ==========================================
+# 颜色定义
+# ==========================================
+
+RED_BOLD = '\033[1;31m'
+GREEN = '\033[32m'
+YELLOW = '\033[33m'
+RESET = '\033[0m'
+
+# ==========================================
 # 配置加载
 # ==========================================
 
@@ -57,15 +66,15 @@ try:
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print("🌊 Error: 'requests' library is not installed.")
-    print("🌊 Please install it using: pip3 install requests")
+    print(f"{RED_BOLD}🌊 Error: 'requests' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install requests{RESET}")
     sys.exit(1)
 
 try:
     from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
-    print("🌊 Error: 'packaging' library is not installed.")
-    print("🌊 Please install it using: pip3 install packaging")
+    print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
 try:
@@ -110,7 +119,7 @@ class PackageInstaller:
 
     def _safe_delete_binary(self, binary_path: Path) -> bool:
         if self._is_protected(binary_path.name):
-            print(f"🌊 \033[31mERROR: Cannot delete '{binary_path.name}' - it's protected!\033[0m")
+            print(f"{RED_BOLD}🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!{RESET}")
             return False
         try:
             if binary_path.exists():
@@ -118,12 +127,12 @@ class PackageInstaller:
                 return True
             return False
         except Exception as e:
-            print(f"🌊 \033[31mError deleting {binary_path}: {e}\033[0m")
+            print(f"{RED_BOLD}🌊 Error deleting {binary_path}: {e}{RESET}")
             return False
 
     def _confirm_missing_sha256(self) -> bool:
         console = Console()
-        console.print("🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?", style="bold red")
+        console.print(f"{RED_BOLD}🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}", style="bold red")
         response = input(f"🌊 Are you sure to continue? [Y/n] ").strip()
         return response == 'Y' or response == 'y'
 
@@ -342,9 +351,9 @@ class PackageInstaller:
                     print("🌊 Verifying SHA256...")
                     actual_sha256 = sha256_hash.hexdigest()
                     if actual_sha256 != expected_sha256:
-                        print(f"🌊 \033[31mSHA256 verification failed!\033[0m")
+                        print(f"{RED_BOLD}🌊 SHA256 verification failed!{RESET}")
                         print(f"🌊 \033[32mExpected: {expected_sha256}\033[0m")
-                        print(f"🌊 \033[31mActual:   {actual_sha256}\033[0m")
+                        print(f"{RED_BOLD}🌊 Actual:   {actual_sha256}{RESET}")
                         raise Exception("SHA256 verification failed")
                 else:
                     if not self._confirm_missing_sha256():
@@ -354,7 +363,7 @@ class PackageInstaller:
 
                 if final_path.exists():
                     if self._is_protected(final_path.name):
-                        print(f"🌊 \033[31mERROR: Cannot overwrite protected package: {final_path.name}\033[0m")
+                        print(f"{RED_BOLD}🌊 ERROR: Cannot overwrite protected package: {final_path.name}{RESET}")
                         raise Exception("Protected package overwrite attempt")
 
                     backup_path = final_path.with_suffix(final_path.suffix + ".bak")
@@ -382,14 +391,14 @@ class PackageInstaller:
         except requests.exceptions.RequestException as e:
             if self.verbose:
                 traceback.print_exc()
-            print(f"\n🌊 Error: Failed to download binary: {e}")
+            print(f"{RED_BOLD}\n🌊 Error: Failed to download binary: {e}{RESET}")
             if temp_path.exists() and temp_path.stat().st_size > 0:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
         except Exception as e:
             if self.verbose:
                 traceback.print_exc()
-            print(f"\n🌊 Error: {e}")
+            print(f"{RED_BOLD}\n🌊 Error: {e}{RESET}")
             if temp_path.exists() and temp_path.stat().st_size > 0:
                 print(f"🌊 Partial file saved at: {temp_path}")
             sys.exit(1)
@@ -401,7 +410,7 @@ class PackageInstaller:
             final_path = install_dir / package_name
 
         if not final_path.exists():
-            print("🌊 Error: Binary file not found after download.")
+            print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
             sys.exit(1)
 
         try:
@@ -419,7 +428,7 @@ class PackageInstaller:
                 print(f"🌊 Ready to ride! You can now run: {package_name}")
 
         except OSError as e:
-            print(f"🌊 Error: Failed to install package: {e}")
+            print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
             sys.exit(1)
 
     def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
@@ -449,7 +458,7 @@ class PackageInstaller:
         safe_name = package_spec.lower()
 
         if self._is_protected(safe_name):
-            print(f"🌊 \033[31mERROR: Cannot uninstall protected package: {safe_name}\033[0m")
+            print(f"{RED_BOLD}🌊 ERROR: Cannot uninstall protected package: {safe_name}{RESET}")
             return
 
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -503,7 +512,7 @@ class PackageInstaller:
                     fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                     installed = json.load(f)
                 if base_name not in installed:
-                    print(f"🌊 Error: Package '{base_name}' is not installed.")
+                    print(f"{RED_BOLD}🌊 Error: Package '{base_name}' is not installed.{RESET}")
                     return
                 binary_path = Path(installed[base_name].get('binary_path', str(install_dir / base_name)))
                 if not self._safe_delete_binary(binary_path):
@@ -514,7 +523,7 @@ class PackageInstaller:
                         bak_path.unlink()
                         print(f"🌊 Removed backup {base_name}.bak")
                     except Exception as e:
-                        print(f"🌊 \033[31mWarning: Could not remove backup {base_name}.bak: {e}\033[0m")
+                        print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}.bak: {e}{RESET}")
                 with open(INSTALLED_DB, 'w') as f:
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                     del installed[base_name]
@@ -524,7 +533,7 @@ class PackageInstaller:
                 print(f"🌊 Successfully uninstalled '{base_name}'.")
                 return
             except Exception as e:
-                print(f"🌊 Error: Failed to uninstall package: {e}")
+                print(f"{RED_BOLD}🌊 Error: Failed to uninstall package: {e}{RESET}")
                 return
 
         deleted_count = 0
@@ -539,11 +548,11 @@ class PackageInstaller:
                             bak_path.unlink()
                             print(f"🌊 Removed backup {base_name}@{ver}.bak")
                         except Exception as e:
-                            print(f"🌊 \033[31mWarning: Could not remove backup {base_name}@{ver}.bak: {e}\033[0m")
+                            print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}@{ver}.bak: {e}{RESET}")
                 else:
-                    print(f"🌊 \033[31mFailed to remove {base_name}@{ver}\033[0m")
+                    print(f"{RED_BOLD}🌊 Failed to remove {base_name}@{ver}{RESET}")
             except Exception as e:
-                print(f"🌊 \033[31mError removing {base_name}@{ver}: {e}\033[0m")
+                print(f"{RED_BOLD}🌊 Error removing {base_name}@{ver}: {e}{RESET}")
 
         try:
             if INSTALLED_DB.exists():
@@ -557,7 +566,7 @@ class PackageInstaller:
                         json.dump(installed, f, indent=2)
                         print(f"🌊 Removed '{base_name}' from installation database.")
         except Exception as e:
-            print(f"🌊 \033[31mWarning: Could not update installation database: {e}\033[0m")
+            print(f"{RED_BOLD}🌊 Warning: Could not update installation database: {e}{RESET}")
 
         if deleted_count > 0:
             print(f"🌊 Successfully uninstalled {deleted_count} version(s) of '{base_name}'.")
@@ -574,12 +583,12 @@ class PackageInstaller:
             return True
 
         console = Console()
-        console.print("🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
+        console.print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}", style="bold red")
         if self._confirm_action(""):
-            console.print("🌊 Install continue", style="bold red")
+            console.print(f"{GREEN}🌊 Install continue{RESET}", style="bold green")
             return True
         else:
-            console.print("🌊 Install stopped", style="bold green")
+            console.print(f"{RED_BOLD}🌊 Install stopped{RESET}", style="bold red")
             return False
 
 
