@@ -102,12 +102,12 @@ $ PackagesDetails $
              "2.0.2"
              "2.0.1"
              "2.0"
-        sha256: "950c357b6ae5df36128f6e42a3c6d371e55aeb69a5afcde276f096276210d0c9"
-                "f214a46978ced3b66ab2555ff51681f21bf13fd97d5b692aa420a4ba6a71d263"
-                "c2409bb56d4e0d619852f769af60f74e952869b94881e0e0e34990443c78599f"
-                "ed100fdb0d19e3372648e943f381b07e50ca3136ccfd5d31470fef16945d960d"
-                "32a58eefdf94ba9487a85c7eb960441af6544fe8ec92a76ba2f25fc95388f556"
-                "34a7f7c70f6293c8f1ca5c5da50e75a1beed66fe60bda2738aace1b71f452ea8"
+        sha256: "a1a798c4b9d9f0c74794f7d8c3bd3a4c01eee1c874b4980096d26e9403293047"
+                "9c167ac97ec94855ff534746cb7b7e8077046f850edf53839a988659b08cb26e"
+                "7b9e2c91cf0a993ec23f56426fac5cc5b7c6cf94ae8a0015ac704642cb1c4682"
+                "27b2cb20ea8962fb56e5a26220dc4d0db228a09b764bf1b30a262f75c6720f0b"
+                "b245b05e0a06b02118dc74396bb4d350235cba96accc7306e38ef2602fa76c26"
+                "3cb52fb0394cc3693adfe9f506117abf140cc080884e6b3552db0c14034f2604"
         bin_name: "palera1n"
     %END%
 
