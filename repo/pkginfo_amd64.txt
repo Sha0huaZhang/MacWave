@@ -32,6 +32,7 @@ $ PackagesURL $
     let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
     let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
     let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_amd64.zip"
+    let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/{parse_download_version}/ChOma_amd64"
 }
 $ \PackagesURL $
 
@@ -84,7 +85,7 @@ $ PackagesDetails $
         lic: "MIT"
         aut: "Sha0huaZhang (MacWave Team)"
         ver: "1.0.0"
-        sha256: "541539ffb9a8dabf1afed6f00b216c81c5f46158db6e5dd4b139be8d2a60ba75"
+        sha256: "957a3ab20a9f409e4abe5cc37a3fae9b2f1588f1353f2acd6029f444dfded5e4"
         bin_name: "machox"
     %END%
 
@@ -159,8 +160,20 @@ $ PackagesDetails $
         license: "MIT"
         author: "JJTech (@JJTech0130)"
         version: "1.0"
-        sha256: "47faf58d245729314046a6e56f920ddd42273db41daab8502bbff5ec5b81adfb"
+        sha256: "3855a23fed9b2ec4b84d85a69bce0b31429f6b7107d12d0a067b44ac13ef16fb"
         binary_name: "trollrestore"
+
+<!-- choma -->
+"choma":
+
+    %START%
+        description: "Code signature and Mach-O manipulation tool by opa334"
+        homepage: "https://github.com/opa334/ChOma"
+        license: "MIT"
+        author: "opa334"
+        version: "1.0"
+        sha256: "4e4b2e94ff42109f53c403facfcbaecc55cd2313135fe25a26e47bad220762d6"
+        binary_name: "choma"
     %END%
 
 $ \PackagesDetails $
