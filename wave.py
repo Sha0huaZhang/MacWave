@@ -21,6 +21,15 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
 # ==========================================
+# 颜色定义
+# ==========================================
+
+RED_BOLD = '\033[1;31m'
+GREEN = '\033[32m'
+YELLOW = '\033[33m'
+RESET = '\033[0m'
+
+# ==========================================
 # 依赖库检查
 # ==========================================
 
@@ -31,15 +40,15 @@ try:
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print("🌊 Error: 'requests' library is not installed.")
-    print("🌊 Please install it using: pip3 install requests")
+    print(f"{RED_BOLD}🌊 Error: 'requests' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install requests{RESET}")
     sys.exit(1)
 
 try:
     from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
-    print("🌊 Error: 'packaging' library is not installed.")
-    print("🌊 Please install it using: pip3 install packaging")
+    print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
 try:
@@ -232,12 +241,12 @@ class MacWaveCLI:
             return True
 
         console = Console()
-        console.print("🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?", style="bold red")
+        console.print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}", style="bold red")
         if self._confirm_action(""):
-            console.print("🌊 Install continue", style="bold red")
+            console.print(f"{GREEN}🌊 Install continue{RESET}", style="bold green")
             return True
         else:
-            console.print("🌊 Install stopped", style="bold green")
+            console.print(f"{RED_BOLD}🌊 Install stopped{RESET}", style="bold red")
             return False
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -364,7 +373,7 @@ class MacWaveCLI:
                 all_releases.append(release)
 
         if not all_releases:
-            print(f"🌊 Error: Package '{package_name}' not found in repository")
+            print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
             sys.exit(1)
 
         if args and getattr(args, 'ver', None):
@@ -374,14 +383,14 @@ class MacWaveCLI:
                 if release.get("version") == requested_version:
                     if release.get("arch") == arch or release.get("arch") == "any":
                         return release
-            print(f"🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.")
+            print(f"{RED_BOLD}🌊 Error: Could not find version '{requested_version}' for package '{package_name}'.{RESET}")
             sys.exit(1)
 
         if args and getattr(args, 'beta_version', False):
             for release in all_releases:
                 if release.get("arch") == "beta":
                     return release
-            print(f"🌊 No beta version found for '{package_name}'.")
+            print(f"{RED_BOLD}🌊 No beta version found for '{package_name}'.{RESET}")
             return None
 
         current_arch = self._get_arch()
@@ -393,7 +402,7 @@ class MacWaveCLI:
                 matching_releases.append(release)
 
         if not matching_releases:
-            print(f"🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'")
+            print(f"{RED_BOLD}🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'{RESET}")
             sys.exit(1)
 
         def safe_parse_version(v):
@@ -433,7 +442,7 @@ class MacWaveCLI:
         installer_path = Path(__file__).parent / 'pkginstaller.py'
 
         if not installer_path.exists():
-            print(f"🌊 Error: pkginstaller.py not found at {installer_path}")
+            print(f"{RED_BOLD}🌊 Error: pkginstaller.py not found at {installer_path}{RESET}")
             sys.exit(1)
 
         binary_url = release.get('binary_url', '') if release else ''
@@ -495,7 +504,7 @@ class MacWaveCLI:
         try:
             raw_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
 
         safe_name = args.package_name.lower()
@@ -511,7 +520,7 @@ class MacWaveCLI:
         elif args.beta_version:
             beta_release = self.find_package(repo_data, safe_name, args)
             if not beta_release:
-                print(f"🌊 No beta version found for '{safe_name}'.")
+                print(f"{RED_BOLD}🌊 No beta version found for '{safe_name}'.{RESET}")
                 if self._confirm_action("Do you want to install the latest stable version instead?"):
                     release = self.find_package(repo_data, safe_name, args)
                     version = release.get("version")
@@ -603,7 +612,7 @@ class MacWaveCLI:
                 binary_path = info.get('binary_path', 'unknown')
                 print(f"🌊   - {pkg_name} (v{version}) -> {binary_path}")
         except Exception as e:
-            print(f"🌊 Error: Could not read installed packages: {e}")
+            print(f"{RED_BOLD}🌊 Error: Could not read installed packages: {e}{RESET}")
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -612,7 +621,7 @@ class MacWaveCLI:
         try:
             raw_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
 
         repo_data = self._normalize_repo_data(raw_data)
@@ -645,7 +654,7 @@ class MacWaveCLI:
         try:
             raw_data = self.fetch_repo_data(args)
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
 
         safe_name = args.package_name.lower()
@@ -662,7 +671,7 @@ class MacWaveCLI:
                     versions.append(ver)
 
         if not package_info:
-            print(f"🌊 Error: Package '{safe_name}' not found in repository")
+            print(f"{RED_BOLD}🌊 Error: Package '{safe_name}' not found in repository{RESET}")
             sys.exit(1)
 
         try:
@@ -712,10 +721,10 @@ class MacWaveCLI:
             repo_data = self._normalize_repo_data(raw_data)
             print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
         except RuntimeError as e:
-            print(f"🌊 {e}")
+            print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
         except Exception as e:
-            print(f"🌊 Error: Failed to update package index: {e}")
+            print(f"{RED_BOLD}🌊 Error: Failed to update package index: {e}{RESET}")
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -723,9 +732,9 @@ class MacWaveCLI:
         safe_name = args.package_name.lower()
 
         if self._is_protected(safe_name):
-            print(f"🌊 \033[31mERROR: Cannot upgrade protected package: {safe_name}\033[0m")
-            print(f"🌊 \033[93mTo update MacWave, download the new version manually:\033[0m")
-            print(f"🌊 \033[93m  curl -fsSL -o {INSTALL_DIR}/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py\033[0m")
+            print(f"{RED_BOLD}🌊 ERROR: Cannot upgrade protected package: {safe_name}{RESET}")
+            print(f"{YELLOW}🌊 To update MacWave, download the new version manually:{RESET}")
+            print(f"{YELLOW}🌊   curl -fsSL -o {INSTALL_DIR}/wave https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py{RESET}")
             return
 
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -749,7 +758,7 @@ class MacWaveCLI:
             try:
                 raw_data = self.fetch_repo_data(args)
             except RuntimeError as e:
-                print(f"🌊 {e}")
+                print(f"{RED_BOLD}🌊 {e}{RESET}")
                 sys.exit(1)
 
             repo_data = self._normalize_repo_data(raw_data)
@@ -819,7 +828,7 @@ class MacWaveCLI:
             print(f"🌊 Successfully upgraded '{safe_name}' to v{version}")
 
         except Exception as e:
-            print(f"🌊 Error: Failed to upgrade package: {e}")
+            print(f"{RED_BOLD}🌊 Error: Failed to upgrade package: {e}{RESET}")
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -831,7 +840,7 @@ class MacWaveCLI:
                 missing.append(cmd)
 
         if missing:
-            print(f"🌊 \033[31mMissing dependencies: {', '.join(missing)}\033[0m")
+            print(f"{RED_BOLD}🌊 Missing dependencies: {', '.join(missing)}{RESET}")
             print("🌊 Please install the missing software packages manually.")
             sys.exit(1)
         else:
@@ -872,7 +881,7 @@ class MacWaveCLI:
             if args.command == "install" and hasattr(args, 'package_name'):
                 safe_name = args.package_name.lower()
                 if self._is_protected(safe_name):
-                    print(f"🌊 \033[31mERROR: Cannot install protected package: {safe_name}\033[0m")
+                    print(f"{RED_BOLD}🌊 ERROR: Cannot install protected package: {safe_name}{RESET}")
                     sys.exit(1)
 
                 binary_path = INSTALL_DIR / safe_name
@@ -887,7 +896,7 @@ class MacWaveCLI:
                             binary_path.rename(backup_path)
                             print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
                         except Exception as e:
-                            print(f"🌊 Error: Failed to remove old version: {e}")
+                            print(f"{RED_BOLD}🌊 Error: Failed to remove old version: {e}{RESET}")
                             sys.exit(1)
                     else:
                         print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
@@ -913,7 +922,7 @@ class MacWaveCLI:
             if handler:
                 handler(args)
             else:
-                print(f"🌊 Error: Unknown command '{args.command}'")
+                print(f"{RED_BOLD}🌊 Error: Unknown command '{args.command}'{RESET}")
                 sys.exit(1)
 
         except KeyboardInterrupt:
@@ -924,7 +933,7 @@ class MacWaveCLI:
         except Exception as e:
             if self.verbose:
                 traceback.print_exc()
-            print(f"\n🌊 Fatal error: {e}")
+            print(f"{RED_BOLD}\n🌊 Fatal error: {e}{RESET}")
             sys.exit(1)
 
 
