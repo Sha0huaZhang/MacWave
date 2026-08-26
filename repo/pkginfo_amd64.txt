@@ -117,26 +117,26 @@ $ PackagesDetails $
 "test_001":
 
     %START%
-        description:  "MacWave test package."
-        homepage: "https://github.com/Sha0huaZhang/test_001"
-        license: "MIT"
-        author: "Sha0huaZhang (MacWave Team)"
-        version: "1.0.0"
+        des:  "MacWave test package."
+        hom: "https://github.com/Sha0huaZhang/test_001"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
         sha256: "4594d33a91d3fd2a92d23619d1e664c9098df3ac0a3961f2322cee7eab96a5d2"
-        binary_name: "test_001"
+        bin_name: "test_001"
     %END%
 
 <!-- test_no_sha256 -->
 "test_no_sha256":
 
     %START%
-        description:  "MacWave test package."
-        homepage: "https://github.com/Sha0huaZhang/MacWave"
-        license: "MIT"
-        author: "Sha0huaZhang (MacWave Team)"
-        version: "1.0.0"
+        des:  "MacWave test package."
+        hom: "https://github.com/Sha0huaZhang/MacWave"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
         <!-- keep here (sha256) empty -->
-        binary_name: "test_no_sha256"
+        bin_name: "test_no_sha256"
     %END%
 
 <!-- test_wrong_sha256 -->
@@ -156,25 +156,25 @@ $ PackagesDetails $
 "trollrestore":
 
     %START%
-        description:  "MacWave test package."
-        homepage: "https://github.com/JJTech0130/TrollRestore"
-        license: "MIT"
-        author: "JJTech (@JJTech0130)"
-        version: "1.0"
+        des:  "MacWave test package."
+        hom: "https://github.com/JJTech0130/TrollRestore"
+        lic: "MIT"
+        aut: "JJTech (@JJTech0130)"
+        ver: "1.0"
         sha256: "3855a23fed9b2ec4b84d85a69bce0b31429f6b7107d12d0a067b44ac13ef16fb"
-        binary_name: "trollrestore"
+        bin_name: "trollrestore"
 
 <!-- choma -->
 "choma":
 
     %START%
-        description: "Code signature and Mach-O manipulation tool by opa334"
-        homepage: "https://github.com/opa334/ChOma"
-        license: "MIT"
-        author: "opa334"
-        version: "1.0-macwaveteam2"
+        des: "Code signature and Mach-O manipulation tool by opa334"
+        hom: "https://github.com/opa334/ChOma"
+        lic: "MIT"
+        aut: "opa334"
+        ver: "1.0-macwaveteam2"
         sha256: "4e4b2e94ff42109f53c403facfcbaecc55cd2313135fe25a26e47bad220762d6"
-        binary_name: "choma"
+        bin_name: "ChOma"
     %END%
 
 $ \PackagesDetails $
