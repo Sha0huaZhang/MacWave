@@ -1,14 +1,20 @@
 #!/bin/bash
 
 # MacWave 🌊 Official Installer
-# This script downloads wave.py, installs dependencies, and configures PATH.
+# This script downloads wave.py, pkginstaller.py, installs dependencies, and configures PATH.
 
 set -e
 
+BRANCH="1.1.0-beta"
+BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
+
 INSTALL_DIR="$HOME/.local/macwave/bin"
-WAVE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/wave.py"
+
+WAVE_URL="$BASE_URL/wave.py"
+INSTALLER_URL="$BASE_URL/pkginstaller.py"
 
 echo "🌊 Welcome to MacWave!"
+echo "🌊 Installing from branch: $BRANCH"
 echo "🌊 Installing to $INSTALL_DIR..."
 
 # 1. Create installation directory
@@ -17,9 +23,12 @@ mkdir -p "$INSTALL_DIR"
 # 2. Download wave.py as 'wave'
 echo "🌊 Downloading wave.py..."
 curl -fsSL -o "$INSTALL_DIR/wave" "$WAVE_URL"
-
-# 3. Make it executable
 chmod +x "$INSTALL_DIR/wave"
+
+# 3. Download pkginstaller.py
+echo "🌊 Downloading pkginstaller.py..."
+curl -fsSL -o "$INSTALL_DIR/pkginstaller.py" "$INSTALLER_URL"
+chmod +x "$INSTALL_DIR/pkginstaller.py"
 
 # 4. Install Python dependencies: requests, packaging, and rich
 echo "🌊 Checking Python dependencies..."
