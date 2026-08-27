@@ -107,6 +107,16 @@ CONFIG_DISPLAY=$(home_to_tilde "$CONFIG_FILE")
 echo "🌊 Configuration saved to $CONFIG_DISPLAY"
 
 # ==========================================
+# 删除旧版 repo.json（如果存在）
+# ==========================================
+
+OLD_JSON="$REPO_DIR/repo.json"
+if [ -f "$OLD_JSON" ]; then
+    echo "🌊 Removing old repo.json (legacy format)..."
+    $USE_SUDO rm -f "$OLD_JSON"
+fi
+
+# ==========================================
 # 检测系统架构
 # ==========================================
 
