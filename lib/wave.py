@@ -2,7 +2,6 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
-Version: 2.0.0-dev
 """
 
 import argparse
@@ -21,6 +20,7 @@ from typing import Optional, Dict, Any, Union
 
 # 绝对路径，无死循环：配置永远固定在这个位置（允许普通用户修改）
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
+VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
 # 引入分离的模块
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
@@ -84,7 +84,8 @@ def load_config():
     return Path.home() / ".local" / "macwave"
 
 BASE_DIR = load_config()
-# 根据新目录结构定义路径INSTALL_DIR = BASE_DIR / "bin"                    # 存放第三方包
+# 根据新目录结构定义路径
+INSTALL_DIR = BASE_DIR / "bin"                    # 存放第三方包
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"     # 临时下载目录
 REPO_DIR = BASE_DIR / "pkg"                       # 存放解析器和包信息
 REPO_CACHE = BASE_DIR / "pkg" / "repo_cache.json" # 缓存
@@ -94,11 +95,28 @@ PROTECTED_PACKAGES = ["wave"]
 
 
 # ==========================================
+# 版本号获取（统一从 VERSION.json 读取）
+# ==========================================
+
+def get_version():
+    """从 /opt/macwave_config/VERSION.json 获取主程序版本号"""
+    if VERSION_FILE.exists():
+        try:
+            with open(VERSION_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get("version", "unknown")
+        except Exception:
+            pass
+    return "unknown"
+
+
+# ==========================================
 # 核心类
 # ==========================================
 
 class MacWaveCLI:
     def __init__(self):
+        self.version = get_version()
         self.parser = self._create_parser()
         self.verbose = False
         self._logger = logging.getLogger("MacWave")
@@ -111,7 +129,7 @@ class MacWaveCLI:
     def _create_parser(self):
         parser = argparse.ArgumentParser(
             prog="wave",
-            description="MacWave 2.0.0-dev\nA package manager for macOS/Linux jailbreak developers.",
+            description=f"MacWave {self.version}\nA package manager for macOS/Linux jailbreak developers.",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             usage="wave <command> [package] [flags]",
             epilog="For more details, visit: https://macwave.org",
@@ -119,7 +137,7 @@ class MacWaveCLI:
         )
 
         parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
-        parser.add_argument('-V', '--version', action='version', version=f'MacWave {VERSION} 🌊')
+        parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version} 🌊')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         parser.add_argument('-B', '--beta-version', action='store_true', help='Install the latest beta version')
         parser.add_argument('--proxy', type=str, metavar='string', help='Specify an HTTP/HTTPS proxy')
