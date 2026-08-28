@@ -75,13 +75,11 @@ class RepoParser
       line = @content[i]
       stripped = line.strip
 
-      # ---------- 跳过空行 ----------
       if stripped.empty?
         i += 1
         next
       end
 
-      # ---------- 跳过注释 ----------
       if stripped.start_with?('<!--')
         if stripped.include?('-->')
           i += 1
@@ -94,7 +92,6 @@ class RepoParser
         next
       end
 
-      # ---------- 处理 $ ... $ 区块标记（改变解析状态） ----------
       if stripped.start_with?('$') && stripped.end_with?('$')
         stripped = stripped.gsub(/^\$\s*|\s*\$/, '').strip
         stripped = stripped.gsub(/^\\/, '').strip
@@ -112,14 +109,12 @@ class RepoParser
         next
       end
 
-      # ---------- 在 URL 区：处理 let 模板 ----------
       if @state == :urls && stripped.start_with?('let ')
         @current_let_key = stripped.split('=')[0].strip.gsub(/^let\s+/, '').gsub(/"/, '')
         i += 1
         next
       end
 
-      # ---------- 在详情区：处理包名 ----------
       if @state == :details && stripped.match?(/^"[^"]+":\s*$/)
         finalize_package
 
@@ -141,7 +136,6 @@ class RepoParser
         next
       end
 
-      # ---------- 处理 %START% 和 %END% ----------
       if stripped == '%START%'
         @in_start_block = true
         @current_fields = {}
@@ -160,7 +154,6 @@ class RepoParser
         next
       end
 
-      # ---------- 在详情区且处于 %START% 和 %END% 之间 ----------
       if @state == :details && @in_start_block
         # 收集多行列表的后续值（被引号包裹的缩进行）
         if @current_list_key && stripped.start_with?('"') && stripped.end_with?('"')
@@ -212,7 +205,7 @@ class RepoParser
         end
       end
 
-      # ---------- 其他情况全部跳过 ----------
+      # 其他情况全部跳过
       i += 1
     end
 
