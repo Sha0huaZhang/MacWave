@@ -2,10 +2,6 @@
 
 require 'json'
 
-# MacWave 仓库解析器
-# 用法: ruby pkgparser.rb [pkginfo.txt]
-# 输出: MacWave 兼容的 JSON（包含 URL 模板、包信息、所有 releases）
-
 class MacWaveParser
   def self.parse(content)
     # 去掉所有注释
@@ -17,18 +13,20 @@ class MacWaveParser
       url_templates[pkg] = url
     end
 
-    # 2. 状态机解析包详情
-    packages = {}
+    # 2. 逐行状态机解析包
+    packages = []
     current_package = nil
     current_fields = {}
     current_versions = []
     current_sha256s = []
     in_start_block = false
+    in_ver_list = false
+    in_sha256_list = false
 
     clean.each_line do |line|
       stripped = line.strip
 
-      # 解析包名: "ldid":
+      # 遇到新的包名
       if stripped.match?(/^"[^"]+":\s*$/)
         # 结算上一个包
         if current_package
@@ -48,7 +46,9 @@ class MacWaveParser
             }
           end
 
-          packages[current_package] = {
+          packages << {
+            'name' => current_package,
+            'version' => current_versions.first || '0.0.0',
             'description' => current_fields['description'] || '',
             'homepage' => current_fields['homepage'] || '',
             'license' => current_fields['license'] || '',
@@ -62,12 +62,19 @@ class MacWaveParser
         current_fields = {}
         current_versions = []
         current_sha256s = []
+        in_ver_list = false
+        in_sha256_list = false
         next
       end
 
       # 解析 %START%
       if stripped == '%START%'
         in_start_block = true
+        current_fields = {}
+        current_versions = []
+        current_sha256s = []
+        in_ver_list = false
+        in_sha256_list = false
         next
       end
 
@@ -77,19 +84,20 @@ class MacWaveParser
         next
       end
 
-      # 在 %START% 和 %END% 之间
+      # 必须在 %START% 和 %END% 之间
       next unless in_start_block
 
-      # 处理多行版本和 SHA256
-      if stripped.start_with?('"') && stripped.end_with?('"')
+      # 处理多行版本列表
+      if in_ver_list && stripped.start_with?('"') && stripped.end_with?('"')
         value = stripped.gsub(/\A"|"\z/, '')
-        if current_versions.any? && current_sha256s.empty?
-          # 如果是版本号后续
-          current_versions << value
-        elsif current_sha256s.any? && current_versions.any?
-          # 如果是 SHA256 后续
-          current_sha256s << value
-        end
+        current_versions << value
+        next
+      end
+
+      # 处理多行 SHA256 列表
+      if in_sha256_list && stripped.start_with?('"') && stripped.end_with?('"')
+        value = stripped.gsub(/\A"|"\z/, '')
+        current_sha256s << value
         next
       end
 
@@ -110,8 +118,12 @@ class MacWaveParser
           current_fields['author'] = value
         when 'ver'
           current_versions = [value]
+          in_ver_list = true
+          in_sha256_list = false
         when 'sha256'
           current_sha256s = [value]
+          in_sha256_list = true
+          in_ver_list = false
         when 'bin_name'
           current_fields['binary_name'] = value
         end
@@ -136,7 +148,9 @@ class MacWaveParser
         }
       end
 
-      packages[current_package] = {
+      packages << {
+        'name' => current_package,
+        'version' => current_versions.first || '0.0.0',
         'description' => current_fields['description'] || '',
         'homepage' => current_fields['homepage'] || '',
         'license' => current_fields['license'] || '',
@@ -147,9 +161,9 @@ class MacWaveParser
     end
 
     # 3. 把 URL 模板塞进包信息
-    packages.each do |name, info|
-      if url_templates[name]
-        info['binary_url'] = url_templates[name]
+    packages.each do |pkg|
+      if url_templates[pkg['name']]
+        pkg['binary_url'] = url_templates[pkg['name']]
       end
     end
 
