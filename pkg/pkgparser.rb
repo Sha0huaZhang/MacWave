@@ -33,13 +33,13 @@ RESET = "\033[0m"
 # ============================================================
 
 module ErrorCode
-  FILE_NOT_FOUND = '001'          # 文件未找到
-  FILE_READ_ERROR = '002'         # 文件读取失败
-  SYNTAX_ERROR = '003'            # 语法错误
-  VERSION_SHA256_MISMATCH = '004' # 版本号与 SHA256 数量不匹配
-  UNKNOWN_FIELD = '005'           # 未知字段
-  INDENT_ERROR = '006'            # 缩进错误
-  UNKNOWN_ERROR = '099'           # 其他未知错误
+  FILE_NOT_FOUND = '001'
+  FILE_READ_ERROR = '002'
+  SYNTAX_ERROR = '003'
+  VERSION_SHA256_MISMATCH = '004'
+  UNKNOWN_FIELD = '005'
+  INDENT_ERROR = '006'
+  UNKNOWN_ERROR = '099'
 end
 
 # ============================================================
@@ -82,11 +82,9 @@ class RepoParser
     @current_fields = {}
     @current_versions = []
     @current_sha256s = []
-    @expecting_multiline = false
-    @current_key = nil
-    @multiline_values = []
+    @current_multiline_key = nil
+    @current_multiline_values = []
     @parse_download_version = nil
-    @repo_urls = {}  # 存储 URL 模板
   end
 
   def parse(content)
@@ -98,12 +96,6 @@ class RepoParser
       if line.include?('parse_download_version')
         match = line.match(/let\s+"parse_download_version"\s*=\s*\{([^}]+)\}/)
         @parse_download_version = match[1] if match
-      end
-
-      # 提取 let "包名" = %f% "URL"
-      if line.match?(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/)
-        match = line.match(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/)
-        @repo_urls[match[1]] = match[2] if match
       end
     end
 
@@ -118,7 +110,7 @@ class RepoParser
         next
       end
 
-      # 跳过注释 <!-- ... -->
+      # 跳过注释
       if stripped.start_with?('<!--')
         if stripped.include?('-->')
           i += 1
@@ -137,36 +129,14 @@ class RepoParser
         next
       end
 
-      # 跳过 def repo_dict: 区块
-      if stripped == 'def repo_dict:'
+      # 跳过 def repo_dict:, {repo_url:, let, [package_info:, }, ]
+      if stripped == 'def repo_dict:' || stripped == '{repo_url:' || stripped == '}' || stripped == 'let' || stripped == '[package_info:' || stripped == ']'
         i += 1
         next
       end
 
-      # 跳过 {repo_url: 区块
-      if stripped == '{repo_url:'
-        i += 1
-        next
-      end
-
-      if stripped == '}'
-        i += 1
-        next
-      end
-
-      # 跳过 let 定义
+      # 跳过 let 定义行（只要以 let 开头的都跳过）
       if stripped.start_with?('let ')
-        i += 1
-        next
-      end
-
-      # 跳过 [package_info:
-      if stripped == '[package_info:'
-        i += 1
-        next
-      end
-
-      if stripped == ']'
         i += 1
         next
       end
@@ -199,9 +169,8 @@ class RepoParser
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @expecting_multiline = false
-        @multiline_values = []
-        @current_key = nil
+        @current_multiline_key = nil
+        @current_multiline_values = []
         i += 1
         next
       end
@@ -212,11 +181,16 @@ class RepoParser
       if stripped == '%END%'
         @in_start_block = false
 
-        # 处理当前收集的数据
         unless @current_package.nil?
-          # 如果有缩进的多行值，处理它们
-          if @expecting_multiline && @multiline_values.any?
-            process_multiline_values
+          # 处理可能剩余的多行值
+          if @current_multiline_key && @current_multiline_values.any?
+            if @current_multiline_key == 'ver'
+              @current_versions.concat(@current_multiline_values)
+            elsif @current_multiline_key == 'sha256'
+              @current_sha256s.concat(@current_multiline_values)
+            end
+            @current_multiline_key = nil
+            @current_multiline_values = []
           end
 
           # 检查是否有多版本数据
@@ -237,7 +211,6 @@ class RepoParser
               return false
             end
           elsif @current_fields.key?('version')
-            # 单版本模式：从字段中取
             release = {
               'version' => @current_fields['version'],
               'sha256' => @current_fields['sha256'] || ''
@@ -245,20 +218,18 @@ class RepoParser
             @packages[@current_package]['releases'] << release
           end
 
-          # 保存共享字段（所有版本共享）
+          # 保存共享字段
           %w[description homepage license author binary_name].each do |field|
             if @current_fields.key?(field)
               @packages[@current_package][field] = @current_fields[field]
             end
           end
 
-          # 按版本从新到旧排序
           begin
             @packages[@current_package]['releases'].sort! do |a, b|
               compare_versions(b['version'], a['version'])
             end
           rescue
-            # 如果版本比较失败，保持原顺序
           end
         end
 
@@ -267,9 +238,34 @@ class RepoParser
       end
 
       # ============================================================
+      # 解析带引号的多行值（例如 "2.1.5-procursus7"）
+      # ============================================================
+      if @current_multiline_key && stripped.start_with?('"') && stripped.end_with?('"')
+        value = stripped[1..-2]  # 去除首尾双引号
+        @current_multiline_values << value
+        i += 1
+        next
+      end
+
+      # ============================================================
       # 解析字段: key: "value"
       # ============================================================
-      if @in_start_block && stripped.include?(':') && !stripped.start_with?('<!--')
+      if @in_start_block && stripped.include?(':')
+        # 先结算之前的多行值
+        if @current_multiline_key && @current_multiline_values.any?
+          if @current_multiline_key == 'ver'
+            @current_versions.concat(@current_multiline_values)
+          elsif @current_multiline_key == 'sha256'
+            @current_sha256s.concat(@current_multiline_values)
+          end
+          @current_multiline_key = nil
+          @current_multiline_values = []
+        end
+
+        key, value = stripped.split(':', 2)
+        key = key.strip
+        value = value.strip
+
         # 检查缩进
         indent = line.length - line.lstrip.length
         unless indent % INDENT_SIZE == 0
@@ -278,26 +274,23 @@ class RepoParser
           return false
         end
 
-        key, value = stripped.split(':', 2)
-        key = key.strip
-        value = value.strip
-
         # 处理多行值（如果 value 为空或只有引号，可能是多行）
         if value.empty? || value == '""' || value == '"'
-          @expecting_multiline = true
-          @current_key = key
-          @multiline_values = []
+          @current_multiline_key = key
+          @current_multiline_values = []
           i += 1
           next
         end
 
-        # 移除 value 两端的引号
-        value = value.tr('"', '')
+        # 去引号
+        if value.start_with?('"') && value.end_with?('"')
+          value = value[1..-2]
+        end
 
         # 映射字段名
         normalized_key = FIELD_MAP[key] || key
 
-        # 检查是否为未知字段（不在映射表中）
+        # 检查是否为未知字段
         unless FIELD_MAP.value?(normalized_key) || normalized_key == 'sha256'
           error(ErrorCode::UNKNOWN_FIELD, "unknown field: '#{key}'")
           return false
@@ -316,30 +309,17 @@ class RepoParser
         next
       end
 
-      # ============================================================
-      # 解析多行值（缩进的行）
-      # ============================================================
-      if @expecting_multiline && stripped.start_with?('"')
-        value = stripped.tr('"', '')
-        @multiline_values << value
-        i += 1
-        next
-      end
-
-      # 多行值结束（遇到非缩进行或空行）
-      if @expecting_multiline && !stripped.start_with?('"') && !stripped.empty?
-        process_multiline_values
-        @expecting_multiline = false
-        # 不增加 i，重新处理当前行
-        next
-      end
-
+      # 如果不在多行模式下，遇到其他行直接跳过
       i += 1
     end
 
     # 处理最后一个未闭合的块
-    if @expecting_multiline && @multiline_values.any?
-      process_multiline_values
+    if @current_multiline_key && @current_multiline_values.any?
+      if @current_multiline_key == 'ver'
+        @current_versions.concat(@current_multiline_values)
+      elsif @current_multiline_key == 'sha256'
+        @current_sha256s.concat(@current_multiline_values)
+      end
     end
 
     @errors.empty?
@@ -347,25 +327,7 @@ class RepoParser
 
   private
 
-  def process_multiline_values
-    return unless @current_key
-
-    normalized_key = FIELD_MAP[@current_key] || @current_key
-
-    if normalized_key == 'version'
-      @current_versions.concat(@multiline_values)
-    elsif normalized_key == 'sha256'
-      @current_sha256s.concat(@multiline_values)
-    else
-      @current_fields[normalized_key] = @multiline_values.join(' ')
-    end
-
-    @multiline_values = []
-    @current_key = nil
-  end
-
   def compare_versions(v1, v2)
-    # 简单版本比较：按点分割，逐段比较
     parts1 = v1.to_s.split('.').map { |p| p.match?(/^\d+$/) ? p.to_i : p }
     parts2 = v2.to_s.split('.').map { |p| p.match?(/^\d+$/) ? p.to_i : p }
 
@@ -423,13 +385,7 @@ def main
     exit 1
   end
 
-  # 输出包含 URL 模板的 JSON
-  output = {
-    'packages' => parser.packages,
-    'repo_urls' => parser.repo_urls,
-    'parse_download_version' => parser.parse_download_version
-  }
-  puts JSON.pretty_generate(output)
+  puts JSON.pretty_generate(parser.packages)
 end
 
 main if __FILE__ == $0
