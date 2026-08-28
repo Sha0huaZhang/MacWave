@@ -19,6 +19,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
+# 绝对路径，无死循环：配置永远固定在这个位置（允许普通用户修改）
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
@@ -306,30 +307,30 @@ class MacWaveCLI:
         self.log_verbose(f"Searching for package: {package_name}")
         all_releases = []
 
-        # 兼容字典和列表两种格式
+        # 提取 packages，兼容字典和列表两种格式
         packages = repo_data.get("packages", [])
 
         if isinstance(packages, dict):
-            # 如果是从字典读（旧逻辑）
+            # ✅ 字典格式：直接通过 key 查找
             if package_name in packages:
-                pkg = packages[package_name]
-                for release in pkg.get("releases", []):
+                pkg_info = packages[package_name]
+                releases = pkg_info.get("releases", [])
+                for release in releases:
                     all_releases.append({
                         "version": release.get("version"),
                         "sha256": release.get("sha256", ""),
-                        "binary_url": pkg.get("binary_url", ""),
+                        "binary_url": pkg_info.get("binary_url", ""),
                         "arch": release.get("arch", "any"),
-                        "description": pkg.get("description", ""),
-                        "homepage": pkg.get("homepage", ""),
-                        "license": pkg.get("license", ""),
-                        "author": pkg.get("author", ""),
-                        "binary_name": pkg.get("binary_name", package_name)
+                        "description": pkg_info.get("description", ""),
+                        "homepage": pkg_info.get("homepage", ""),
+                        "license": pkg_info.get("license", ""),
+                        "author": pkg_info.get("author", ""),
+                        "binary_name": pkg_info.get("binary_name", package_name)
                     })
         else:
-            # 如果是从列表读（你朋友写的），遍历找出匹配的包
+            # ✅ 列表格式：遍历查找
             for pkg in packages:
                 if pkg.get("name") == package_name:
-                    # 把列表里的包解析成 releases
                     for release in pkg.get("releases", []):
                         all_releases.append({
                             "version": release.get("version"),
@@ -376,7 +377,7 @@ class MacWaveCLI:
             print(f"{RED_BOLD}🌊 Error: No release found for architecture '{current_arch}' or 'any' for package '{package_name}'{RESET}")
             sys.exit(1)
 
-        # 已抽离到 versionparser.py
+        # 使用 versionparser 排序
         matching_releases.sort(key=lambda r: safe_parse_version(r.get("version", "0.0.0")), reverse=True)
         return matching_releases[0]
 
