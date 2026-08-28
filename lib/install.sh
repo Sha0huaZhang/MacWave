@@ -2,7 +2,7 @@
 
 # MacWave 🌊 Official Installer
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh | bash
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh)"
 
 set -e
 
@@ -122,7 +122,6 @@ if [[ "$BASE_DIR" == "$HOME"* ]]; then
     USE_SUDO=""
 else
     echo -e "${YELLOW}🌊 Installing to $DISPLAY_DIR requires administrator privileges.${RESET}"
-    # 获取一次 sudo 权限
     sudo -v
     USE_SUDO="sudo"
 fi
@@ -135,31 +134,29 @@ INSTALL_DIR="$BASE_DIR/bin"
 REPO_DIR="$BASE_DIR/pkg"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
-CONFIG_DIR="/opt/macwave_config"  # 强制固定配置目录，解决死循环
+CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
-# 注意：这里全部加上 $USE_SUDO，确保系统级目录也能创建
 $USE_SUDO mkdir -p "$INSTALL_DIR"
 $USE_SUDO mkdir -p "$REPO_DIR"
 $USE_SUDO mkdir -p "$LIB_DIR"
 $USE_SUDO mkdir -p "$DOWNLOAD_DIR"
 
-# 固定创建系统级配置目录
 $USE_SUDO mkdir -p "$CONFIG_DIR"
 $USE_SUDO chmod 755 "$CONFIG_DIR"
 
 # ==========================================
-# 写入配置文件
+# 写入配置文件（关键修复：使用 tee 配合 sudo 解决重定向问题！）
 # ==========================================
 
-$USE_SUDO cat > "$CONFIG_FILE" << EOF
+$USE_SUDO tee "$CONFIG_FILE" > /dev/null << EOF
 {
   "base_dir": "$BASE_DIR"
 }
 EOF
 
-$USE_SUDO cat > "$VERSION_FILE" << EOF
+$USE_SUDO tee "$VERSION_FILE" > /dev/null << EOF
 {
   "version": "2.0.0-beta2(240E1644)",
   "components": {
