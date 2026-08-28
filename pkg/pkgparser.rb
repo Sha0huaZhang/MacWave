@@ -4,91 +4,149 @@ require 'json'
 
 # MacWave 仓库解析器
 # 用法: ruby pkgparser.rb [pkginfo.txt]
-# 输出: MacWave 兼容的 JSON 格式（包含 URL 模板、包信息、所有 releases）
+# 输出: MacWave 兼容的 JSON（包含 URL 模板、包信息、所有 releases）
 
 class MacWaveParser
   def self.parse(content)
-    # 去除所有注释
+    # 去掉所有注释
     clean = content.gsub(/<!--.*?-->/m, '')
 
-    # 1. 提取 URL 模板（最重要的适配点！）
+    # 1. 提取 URL 模板
     url_templates = {}
     clean.scan(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/) do |pkg, url|
       url_templates[pkg] = url
     end
 
-    # 2. 解析包详情（%START% 到 %END%）
+    # 2. 状态机解析包详情
     packages = {}
-    clean.scan(/"([^"]+)"\s*:\s*%START%\s*(.*?)\s*%END%/m) do |name, details|
-      # 基础信息
-      base = {
-        'description' => '',
-        'homepage' => '',
-        'license' => '',
-        'author' => '',
-        'binary_name' => name,
-        'releases' => []
-      }
+    current_package = nil
+    current_fields = {}
+    current_versions = []
+    current_sha256s = []
+    in_start_block = false
 
-      versions = []
-      sha256s = []
-      bin_name = name
+    clean.each_line do |line|
+      stripped = line.strip
 
-      # 解析键值对
-      details.scan(/([a-z_]+)\s*:\s*(.*?)(?=\n\s*[a-z_]+\s*:|$)/m) do |key, raw_value|
-        value = raw_value.strip.gsub(/\A"|"\z/, '')
+      # 解析包名: "ldid":
+      if stripped.match?(/^"[^"]+":\s*$/)
+        # 结算上一个包
+        if current_package
+          releases = []
+          if current_versions.any?
+            current_versions.each_with_index do |v, idx|
+              releases << {
+                'version' => v,
+                'sha256' => current_sha256s[idx] || '',
+                'arch' => 'any'
+              }
+            end
+          else
+            releases << {
+              'version' => '0.0.0',
+              'sha256' => current_sha256s.first || ''
+            }
+          end
+
+          packages[current_package] = {
+            'description' => current_fields['description'] || '',
+            'homepage' => current_fields['homepage'] || '',
+            'license' => current_fields['license'] || '',
+            'author' => current_fields['author'] || '',
+            'binary_name' => current_fields['binary_name'] || current_package,
+            'releases' => releases
+          }
+        end
+
+        current_package = stripped.gsub(/"/, '').chomp(':')
+        current_fields = {}
+        current_versions = []
+        current_sha256s = []
+        next
+      end
+
+      # 解析 %START%
+      if stripped == '%START%'
+        in_start_block = true
+        next
+      end
+
+      # 解析 %END%
+      if stripped == '%END%'
+        in_start_block = false
+        next
+      end
+
+      # 在 %START% 和 %END% 之间
+      next unless in_start_block
+
+      # 处理多行版本和 SHA256
+      if stripped.start_with?('"') && stripped.end_with?('"')
+        value = stripped.gsub(/\A"|"\z/, '')
+        if current_versions.any? && current_sha256s.empty?
+          # 如果是版本号后续
+          current_versions << value
+        elsif current_sha256s.any? && current_versions.any?
+          # 如果是 SHA256 后续
+          current_sha256s << value
+        end
+        next
+      end
+
+      # 解析 key: value
+      if stripped.include?(':')
+        key, value = stripped.split(':', 2)
+        key = key.strip
+        value = value.strip.gsub(/\A"|"\z/, '')
 
         case key
         when 'des'
-          base['description'] = value
+          current_fields['description'] = value
         when 'hom'
-          base['homepage'] = value
+          current_fields['homepage'] = value
         when 'lic'
-          base['license'] = value
+          current_fields['license'] = value
         when 'aut'
-          base['author'] = value
+          current_fields['author'] = value
         when 'ver'
-          # 多行版本处理
-          if raw_value.include?("\n")
-            versions = raw_value.split("\n").map { |v| v.strip.gsub(/\A"|"\z/, '') }.reject(&:empty?)
-          else
-            versions = [value]
-          end
+          current_versions = [value]
         when 'sha256'
-          # 多行 SHA256 处理
-          if raw_value.include?("\n")
-            sha256s = raw_value.split("\n").map { |v| v.strip.gsub(/\A"|"\z/, '') }.reject(&:empty?)
-          else
-            sha256s = [value]
-          end
+          current_sha256s = [value]
         when 'bin_name'
-          bin_name = value
+          current_fields['binary_name'] = value
         end
       end
+    end
 
-      base['binary_name'] = bin_name
-      base['homepage'] = base['homepage'] || ''
-
-      # 3. 构建 releases（版本和 SHA256 严格按顺序一一对应）
-      if versions.any?
-        versions.each_with_index do |v, idx|
-          base['releases'] << {
+    # 结算最后一个包
+    if current_package
+      releases = []
+      if current_versions.any?
+        current_versions.each_with_index do |v, idx|
+          releases << {
             'version' => v,
-            'sha256' => sha256s[idx] || '',
+            'sha256' => current_sha256s[idx] || '',
             'arch' => 'any'
           }
         end
       else
-        base['releases'] << {
+        releases << {
           'version' => '0.0.0',
-          'sha256' => sha256s.first || ''
+          'sha256' => current_sha256s.first || ''
         }
       end
 
-      packages[name] = base
+      packages[current_package] = {
+        'description' => current_fields['description'] || '',
+        'homepage' => current_fields['homepage'] || '',
+        'license' => current_fields['license'] || '',
+        'author' => current_fields['author'] || '',
+        'binary_name' => current_fields['binary_name'] || current_package,
+        'releases' => releases
+      }
     end
 
-    # 4. 把 URL 模板塞进包信息里（wave.py 的 _replace_version_placeholder 会用到它）
+    # 3. 把 URL 模板塞进包信息
     packages.each do |name, info|
       if url_templates[name]
         info['binary_url'] = url_templates[name]
