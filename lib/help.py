@@ -4,6 +4,9 @@ MacWave Help Module
 负责展示命令行帮助信息。
 """
 
+import json
+from pathlib import Path
+
 # 颜色定义
 RED = '\033[31m'
 GREEN = '\033[32m'
@@ -14,12 +17,27 @@ BOLD = '\033[1m'
 PURPLE = '\033[35m'
 ORANGE = '\033[38;5;197m'
 
+# 版本文件绝对路径
+VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
+
+def get_project_version():
+    """从 VERSION.json 获取主程序版本号"""
+    if VERSION_FILE.exists():
+        try:
+            with open(VERSION_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get("version", "unknown")
+        except Exception:
+            pass
+    return "unknown"
+
 
 def print_custom_help():
     """展示主程序的帮助信息"""
+    version = get_project_version()
     print(f"{PURPLE}usage: {ORANGE}wave <command> [package] [flags]{RESET}")
     print()
-    print("MacWave 2.0.0-dev 🌊")
+    print(f"MacWave {version} 🌊")
     print("A package manager for macOS/Linux jailbreak developers.")
     print()
     print(f"{PURPLE}positional arguments:{RESET}")
