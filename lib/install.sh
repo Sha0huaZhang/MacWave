@@ -2,7 +2,7 @@
 
 # MacWave 🌊 Official Installer
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh)"
+# Usage: curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh | bash
 
 set -e
 
@@ -122,6 +122,7 @@ if [[ "$BASE_DIR" == "$HOME"* ]]; then
     USE_SUDO=""
 else
     echo -e "${YELLOW}🌊 Installing to $DISPLAY_DIR requires administrator privileges.${RESET}"
+    # 获取一次 sudo 权限
     sudo -v
     USE_SUDO="sudo"
 fi
@@ -138,26 +139,27 @@ CONFIG_DIR="/opt/macwave_config"  # 强制固定配置目录，解决死循环
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
+# 注意：这里全部加上 $USE_SUDO，确保系统级目录也能创建
 $USE_SUDO mkdir -p "$INSTALL_DIR"
 $USE_SUDO mkdir -p "$REPO_DIR"
 $USE_SUDO mkdir -p "$LIB_DIR"
-mkdir -p "$DOWNLOAD_DIR"
+$USE_SUDO mkdir -p "$DOWNLOAD_DIR"
 
-# 固定创建系统级配置目录，并赋予普通用户读写权限
-mkdir -p "$CONFIG_DIR"
-chmod 755 "$CONFIG_DIR"
+# 固定创建系统级配置目录
+$USE_SUDO mkdir -p "$CONFIG_DIR"
+$USE_SUDO chmod 755 "$CONFIG_DIR"
 
 # ==========================================
 # 写入配置文件
 # ==========================================
 
-cat > "$CONFIG_FILE" << EOF
+$USE_SUDO cat > "$CONFIG_FILE" << EOF
 {
   "base_dir": "$BASE_DIR"
 }
 EOF
 
-cat > "$VERSION_FILE" << EOF
+$USE_SUDO cat > "$VERSION_FILE" << EOF
 {
   "version": "2.0.0-beta2(240E1644)",
   "components": {
@@ -167,11 +169,23 @@ cat > "$VERSION_FILE" << EOF
 }
 EOF
 
-# 允许普通用户修改配置
-chmod 644 "$CONFIG_FILE"
-chmod 644 "$VERSION_FILE"
-chown "$(whoami)": "$CONFIG_FILE" 2>/dev/null || true
-chown "$(whoami)": "$VERSION_FILE" 2>/dev/null || true
+# ==========================================
+# 关键：把所有权交还给当前真实用户（解决必须 sudo bash 的问题！）
+# ==========================================
+
+CURRENT_USER=$(whoami)
+
+# 如果安装的是系统目录，把整个安装目录交给用户管理
+if [[ "$BASE_DIR" != "$HOME"* ]]; then
+    $USE_SUDO chown -R "$CURRENT_USER": "$BASE_DIR"
+    $USE_SUDO chmod -R 755 "$BASE_DIR"
+fi
+
+# 配置目录同样交还给用户，允许用户随时修改配置
+$USE_SUDO chown -R "$CURRENT_USER": "$CONFIG_DIR"
+$USE_SUDO chmod 755 "$CONFIG_DIR"
+$USE_SUDO chmod 644 "$CONFIG_FILE"
+$USE_SUDO chmod 644 "$VERSION_FILE"
 
 echo "🌊 Configuration saved to /opt/macwave_config/config.json"
 echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
