@@ -115,20 +115,15 @@ fi
 DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
 
 # ==========================================
-# 判断是否需要 sudo（在脚本主体开始前先要密码！）
+# 判断是否需要 sudo（无论安装到哪，只要涉及 /opt 都强制获取）
 # ==========================================
 
-if [[ "$BASE_DIR" == "$HOME"* ]]; then
-    USE_SUDO=""
-else
-    echo -e "${YELLOW}🌊 Installing to $DISPLAY_DIR requires administrator privileges.${RESET}"
-    # 用 /dev/tty 强制交互输入密码！避开管道输入！
-    sudo -v < /dev/tty
-    USE_SUDO="sudo"
-fi
+echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
+sudo -v
+USE_SUDO="sudo"
 
 # ==========================================
-# 创建目录（适配最新的 User Directory 结构）
+# 创建目录（全用 sudo 创建）
 # ==========================================
 
 INSTALL_DIR="$BASE_DIR/bin"
@@ -139,34 +134,32 @@ CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
-$USE_SUDO mkdir -p "$INSTALL_DIR"
-$USE_SUDO mkdir -p "$REPO_DIR"
-$USE_SUDO mkdir -p "$LIB_DIR"
-$USE_SUDO mkdir -p "$DOWNLOAD_DIR"
-
-$USE_SUDO mkdir -p "$CONFIG_DIR"
-$USE_SUDO chmod 755 "$CONFIG_DIR"
+sudo mkdir -p "$INSTALL_DIR"
+sudo mkdir -p "$REPO_DIR"
+sudo mkdir -p "$LIB_DIR"
+sudo mkdir -p "$DOWNLOAD_DIR"
+sudo mkdir -p "$CONFIG_DIR"
+sudo chmod 755 "$CONFIG_DIR"
 
 # ==========================================
-# 写入配置文件（使用 sudo 但不依赖管道输入密码）
+# 写入配置文件（使用 sudo tee 写入）
 # ==========================================
 
-# 临时用 root 写入文件（因为刚才 sudo -v 已经刷新了凭证，后面 sudo 不再需要输密码）
-$USE_SUDO bash -c "cat > '$CONFIG_FILE' << EOF
+sudo tee "$CONFIG_FILE" > /dev/null << EOF
 {
-  \"base_dir\": \"$BASE_DIR\"
+  "base_dir": "$BASE_DIR"
 }
-EOF"
+EOF
 
-$USE_SUDO bash -c "cat > '$VERSION_FILE' << EOF
+sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  \"version\": \"2.0.0-beta2(240E1644)\",
-  \"components\": {
-    \"installer\": \"2.0.0-beta2(240E1644)\",
-    \"parser\": \"2.0.0-beta2(240E1644)\"
+  "version": "2.0.0-beta2(240E1644)",
+  "components": {
+    "installer": "2.0.0-beta2(240E1644)",
+    "parser": "2.0.0-beta2(240E1644)"
   }
 }
-EOF"
+EOF
 
 # ==========================================
 # 关键：把所有权交还给当前真实用户
@@ -174,15 +167,11 @@ EOF"
 
 CURRENT_USER=$(whoami)
 
-if [[ "$BASE_DIR" != "$HOME"* ]]; then
-    $USE_SUDO chown -R "$CURRENT_USER": "$BASE_DIR"
-    $USE_SUDO chmod -R 755 "$BASE_DIR"
-fi
-
-$USE_SUDO chown -R "$CURRENT_USER": "$CONFIG_DIR"
-$USE_SUDO chmod 755 "$CONFIG_DIR"
-$USE_SUDO chmod 644 "$CONFIG_FILE"
-$USE_SUDO chmod 644 "$VERSION_FILE"
+sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+sudo chown -R "$CURRENT_USER": "$CONFIG_DIR"
+sudo chmod 755 "$CONFIG_DIR"
+sudo chmod 644 "$CONFIG_FILE"
+sudo chmod 644 "$VERSION_FILE"
 
 echo "🌊 Configuration saved to /opt/macwave_config/config.json"
 echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
@@ -194,7 +183,7 @@ echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
 OLD_JSON="$REPO_DIR/repo.json"
 if [ -f "$OLD_JSON" ]; then
     echo "🌊 Removing old repo.json (legacy format)..."
-    $USE_SUDO rm -f "$OLD_JSON"
+    sudo rm -f "$OLD_JSON"
 fi
 
 # ==========================================
@@ -231,24 +220,24 @@ echo "🌊 Ruby version $RUBY_VERSION is OK."
 # ==========================================
 
 echo "🌊 Downloading wave..."
-$USE_SUDO curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
-$USE_SUDO chmod +x "$LIB_DIR/wave"
+sudo curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
+sudo chmod +x "$LIB_DIR/wave"
 
 echo "🌊 Downloading help.py..."
-$USE_SUDO curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
+sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
 
 echo "🌊 Downloading pkginstaller.py..."
-$USE_SUDO curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
+sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
 echo "🌊 Downloading versionparser.py..."
-$USE_SUDO curl -fsSL -o "$REPO_DIR/versionparser.py" "$VERSION_PARSER_URL"
+sudo curl -fsSL -o "$REPO_DIR/versionparser.py" "$VERSION_PARSER_URL"
 
 echo "🌊 Downloading pkgparser.rb..."
-$USE_SUDO curl -fsSL -o "$REPO_DIR/pkgparser.rb" "$PARSER_URL"
-$USE_SUDO chmod +x "$REPO_DIR/pkgparser.rb"
+sudo curl -fsSL -o "$REPO_DIR/pkgparser.rb" "$PARSER_URL"
+sudo chmod +x "$REPO_DIR/pkgparser.rb"
 
 echo "🌊 Downloading pkginfo_${ARCH}.txt..."
-$USE_SUDO curl -fsSL -o "$REPO_DIR/pkginfo_${ARCH}.txt" "$PKGINFO_URL"
+sudo curl -fsSL -o "$REPO_DIR/pkginfo_${ARCH}.txt" "$PKGINFO_URL"
 
 # ==========================================
 # 安装 Python 依赖
