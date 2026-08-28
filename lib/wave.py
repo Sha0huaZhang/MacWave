@@ -2,6 +2,7 @@
 """
 MacWave
 A package manager for macOS/Linux jailbreak developers.
+Version: 2.0.0-beta2(240E1644)
 """
 
 import argparse
@@ -306,26 +307,42 @@ class MacWaveCLI:
         self.log_verbose(f"Searching for package: {package_name}")
         all_releases = []
 
-        if "packages" in repo_data:
-            packages_list = repo_data["packages"]
-        else:
-            repo_data = self._normalize_repo_data(repo_data)
-            packages_list = repo_data["packages"]
+        # ⬇️⬇️⬇️ 关键修复：兼容字典和列表两种格式 ⬇️⬇️⬇️
+        packages = repo_data.get("packages", [])
 
-        for pkg in packages_list:
-            if pkg.get("name") == package_name:
-                release = {
-                    "version": pkg.get("version"),
-                    "sha256": pkg.get("sha256", ""),
-                    "binary_url": pkg.get("binary_url", ""),
-                    "arch": pkg.get("arch", "any"),
-                    "description": pkg.get("description", ""),
-                    "homepage": pkg.get("homepage", ""),
-                    "license": pkg.get("license", ""),
-                    "author": pkg.get("author", ""),
-                    "binary_name": pkg.get("binary_name", package_name)
-                }
-                all_releases.append(release)
+        if isinstance(packages, dict):
+            # 如果是从字典读（旧逻辑）
+            if package_name in packages:
+                pkg = packages[package_name]
+                for release in pkg.get("releases", []):
+                    all_releases.append({
+                        "version": release.get("version"),
+                        "sha256": release.get("sha256", ""),
+                        "binary_url": pkg.get("binary_url", ""),
+                        "arch": release.get("arch", "any"),
+                        "description": pkg.get("description", ""),
+                        "homepage": pkg.get("homepage", ""),
+                        "license": pkg.get("license", ""),
+                        "author": pkg.get("author", ""),
+                        "binary_name": pkg.get("binary_name", package_name)
+                    })
+        else:
+            # 如果是从列表读（你朋友写的），遍历找出匹配的包
+            for pkg in packages:
+                if pkg.get("name") == package_name:
+                    # 把列表里的包解析成 releases
+                    for release in pkg.get("releases", []):
+                        all_releases.append({
+                            "version": release.get("version"),
+                            "sha256": release.get("sha256", ""),
+                            "binary_url": pkg.get("binary_url", ""),
+                            "arch": release.get("arch", "any"),
+                            "description": pkg.get("description", ""),
+                            "homepage": pkg.get("homepage", ""),
+                            "license": pkg.get("license", ""),
+                            "author": pkg.get("author", ""),
+                            "binary_name": pkg.get("binary_name", package_name)
+                        })
 
         if not all_releases:
             print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
