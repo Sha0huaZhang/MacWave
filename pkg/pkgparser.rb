@@ -54,7 +54,7 @@ FIELD_MAP = {
   'ver' => 'version',
   'sha256' => 'sha256',
   'bin_name' => 'binary_name',
-  # 兼容全称（防止手滑写错）
+  # 兼容全称
   'description' => 'description',
   'homepage' => 'homepage',
   'license' => 'license',
