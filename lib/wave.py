@@ -19,7 +19,6 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
-# 绝对路径，无死循环：配置永远固定在这个位置（允许普通用户修改）
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
