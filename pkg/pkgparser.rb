@@ -33,12 +33,19 @@ RESET = "\033[0m"
 # ============================================================
 
 module ErrorCode
+  # 001: 文件未找到
   FILE_NOT_FOUND = '001'
+  # 002: 文件读取失败
   FILE_READ_ERROR = '002'
+  # 003: 语法错误
   SYNTAX_ERROR = '003'
+  # 004: 版本号与 SHA256 数量不匹配
   VERSION_SHA256_MISMATCH = '004'
+  # 005: 未知字段
   UNKNOWN_FIELD = '005'
+  # 006: 缩进错误
   INDENT_ERROR = '006'
+  # 099: 其他未知错误
   UNKNOWN_ERROR = '099'
 end
 
@@ -53,14 +60,7 @@ FIELD_MAP = {
   'aut' => 'author',
   'ver' => 'version',
   'sha256' => 'sha256',
-  'bin_name' => 'binary_name',
-  # 兼容全称
-  'description' => 'description',
-  'homepage' => 'homepage',
-  'license' => 'license',
-  'author' => 'author',
-  'version' => 'version',
-  'binary_name' => 'binary_name'
+  'bin_name' => 'binary_name'
 }.freeze
 
 # ============================================================
@@ -68,8 +68,6 @@ FIELD_MAP = {
 # ============================================================
 
 class RepoParser
-  INDENT_SIZE = 4
-
   attr_reader :packages, :errors
 
   def initialize
@@ -78,39 +76,32 @@ class RepoParser
     @line_num = 0
     @content = []
     @current_package = nil
-    @in_start_block = false
     @current_fields = {}
     @current_versions = []
     @current_sha256s = []
-    @current_multiline_key = nil
-    @current_multiline_values = []
-    @parse_download_version = nil
+    @current_ver_sha_pairs = []
+    @current_list_key = nil
+    @current_list_values = []
+    @state = :initial
+    @in_start_block = false
   end
 
   def parse(content)
     @content = content.each_line.map(&:chomp)
     i = 0
 
-    # 第一遍扫描：提取 parse_download_version 和 URL 模板
-    @content.each do |line|
-      if line.include?('parse_download_version')
-        match = line.match(/let\s+"parse_download_version"\s*=\s*\{([^}]+)\}/)
-        @parse_download_version = match[1] if match
-      end
-    end
-
     while i < @content.length
       @line_num = i + 1
       line = @content[i]
       stripped = line.strip
 
-      # 跳过空行
+      # ---------- 跳过空行 ----------
       if stripped.empty?
         i += 1
         next
       end
 
-      # 跳过注释
+      # ---------- 跳过注释 ----------
       if stripped.start_with?('<!--')
         if stripped.include?('-->')
           i += 1
@@ -123,29 +114,36 @@ class RepoParser
         next
       end
 
-      # 跳过 $ ... $ 区块标记
+      # ---------- 处理 $ ... $ 区块标记（改变解析状态） ----------
       if stripped.start_with?('$') && stripped.end_with?('$')
+        stripped = stripped.gsub(/^\$\s*|\s*\$/, '').strip
+        stripped = stripped.gsub(/^\\/, '').strip
+        case stripped
+        when 'PackagesDictionary'
+          @state = :dictionary
+        when 'PackagesURL'
+          @state = :urls
+        when 'PackagesDetails'
+          @state = :details
+        else
+          @state = :initial
+        end
         i += 1
         next
       end
 
-      # 跳过 def repo_dict:, {repo_url:, let, [package_info:, }, ]
-      if stripped == 'def repo_dict:' || stripped == '{repo_url:' || stripped == '}' || stripped == 'let' || stripped == '[package_info:' || stripped == ']'
+      # ---------- 在 URL 区：处理 let 模板 ----------
+      if @state == :urls && stripped.start_with?('let ')
+        @current_let_key = stripped.split('=')[0].strip.gsub(/^let\s+/, '').gsub(/"/, '')
         i += 1
         next
       end
 
-      # 跳过 let 定义行（只要以 let 开头的都跳过）
-      if stripped.start_with?('let ')
-        i += 1
-        next
-      end
+      # ---------- 在详情区：处理包名 ----------
+      if @state == :details && stripped.match?(/^"[^"]+":\s*$/)
+        finalize_package
 
-      # ============================================================
-      # 解析包名: "ldid":
-      # ============================================================
-      if stripped.match?(/^"[^"]+":\s*$/)
-        @current_package = stripped.tr('":', '')
+        @current_package = stripped.split(':')[0].gsub(/"/, '').strip
         @packages[@current_package] = {
           'description' => '',
           'homepage' => '',
@@ -157,175 +155,144 @@ class RepoParser
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
+        @current_ver_sha_pairs = []
+        @current_list_key = nil
+        @current_list_values = []
         i += 1
         next
       end
 
-      # ============================================================
-      # 解析 %START%
-      # ============================================================
+      # ---------- 处理 %START% 和 %END% ----------
       if stripped == '%START%'
         @in_start_block = true
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @current_multiline_key = nil
-        @current_multiline_values = []
+        @current_ver_sha_pairs = []
+        @current_list_key = nil
+        @current_list_values = []
         i += 1
         next
       end
 
-      # ============================================================
-      # 解析 %END%
-      # ============================================================
       if stripped == '%END%'
         @in_start_block = false
-
-        unless @current_package.nil?
-          # 处理可能剩余的多行值
-          if @current_multiline_key && @current_multiline_values.any?
-            if @current_multiline_key == 'ver'
-              @current_versions.concat(@current_multiline_values)
-            elsif @current_multiline_key == 'sha256'
-              @current_sha256s.concat(@current_multiline_values)
-            end
-            @current_multiline_key = nil
-            @current_multiline_values = []
-          end
-
-          # 检查是否有多版本数据
-          if @current_versions.any?
-            # 多版本模式：ver 和 sha256 按顺序配对
-            if @current_versions.length == @current_sha256s.length
-              @current_versions.each_with_index do |ver, idx|
-                sha = @current_sha256s[idx] || ''
-                release = {
-                  'version' => ver,
-                  'sha256' => sha
-                }
-                @packages[@current_package]['releases'] << release
-              end
-            else
-              error(ErrorCode::VERSION_SHA256_MISMATCH,
-                    "version count (#{@current_versions.length}) != sha256 count (#{@current_sha256s.length})")
-              return false
-            end
-          elsif @current_fields.key?('version')
-            release = {
-              'version' => @current_fields['version'],
-              'sha256' => @current_fields['sha256'] || ''
-            }
-            @packages[@current_package]['releases'] << release
-          end
-
-          # 保存共享字段
-          %w[description homepage license author binary_name].each do |field|
-            if @current_fields.key?(field)
-              @packages[@current_package][field] = @current_fields[field]
-            end
-          end
-
-          begin
-            @packages[@current_package]['releases'].sort! do |a, b|
-              compare_versions(b['version'], a['version'])
-            end
-          rescue
-          end
-        end
-
+        finalize_package
         i += 1
         next
       end
 
-      # ============================================================
-      # 解析带引号的多行值（例如 "2.1.5-procursus7"）
-      # ============================================================
-      if @current_multiline_key && stripped.start_with?('"') && stripped.end_with?('"')
-        value = stripped[1..-2]  # 去除首尾双引号
-        @current_multiline_values << value
-        i += 1
-        next
-      end
-
-      # ============================================================
-      # 解析字段: key: "value"
-      # ============================================================
-      if @in_start_block && stripped.include?(':')
-        # 先结算之前的多行值
-        if @current_multiline_key && @current_multiline_values.any?
-          if @current_multiline_key == 'ver'
-            @current_versions.concat(@current_multiline_values)
-          elsif @current_multiline_key == 'sha256'
-            @current_sha256s.concat(@current_multiline_values)
-          end
-          @current_multiline_key = nil
-          @current_multiline_values = []
-        end
-
-        key, value = stripped.split(':', 2)
-        key = key.strip
-        value = value.strip
-
-        # 检查缩进
-        indent = line.length - line.lstrip.length
-        unless indent % INDENT_SIZE == 0
-          error(ErrorCode::INDENT_ERROR,
-                "indentation must be multiple of #{INDENT_SIZE}, got #{indent}")
-          return false
-        end
-
-        # 处理多行值（如果 value 为空或只有引号，可能是多行）
-        if value.empty? || value == '""' || value == '"'
-          @current_multiline_key = key
-          @current_multiline_values = []
+      # ---------- 在详情区且处于 %START% 和 %END% 之间 ----------
+      if @state == :details && @in_start_block
+        # 收集多行列表的后续值（被引号包裹的缩进行）
+        if @current_list_key && stripped.start_with?('"') && stripped.end_with?('"')
+          value = stripped.gsub(/\A"|"\z/, '')
+          @current_list_values << value
           i += 1
           next
         end
 
-        # 去引号
-        if value.start_with?('"') && value.end_with?('"')
-          value = value[1..-2]
+        if stripped.include?(':')
+          indent = line.length - line.lstrip.length
+          unless indent % 4 == 0
+            error(ErrorCode::INDENT_ERROR, "indentation must be multiple of 4, got #{indent}")
+            return false
+          end
+
+          # 结算上一个多行列表
+          if @current_list_key
+            if @current_list_key == 'version'
+              @current_versions.concat(@current_list_values)
+            elsif @current_list_key == 'sha256'
+              @current_sha256s.concat(@current_list_values)
+            end
+            @current_list_key = nil
+            @current_list_values = []
+          end
+
+          key, value = stripped.split(':', 2)
+          key = key.strip
+          value = value.strip
+          value = value.gsub(/\A"|"\z/, '')
+
+          unless FIELD_MAP.key?(key)
+            error(ErrorCode::UNKNOWN_FIELD, "unknown field: '#{key}'")
+            return false
+          end
+
+          normalized_key = FIELD_MAP[key]
+
+          if normalized_key == 'version' || normalized_key == 'sha256'
+            @current_list_key = normalized_key
+            @current_list_values = [value]
+          else
+            @current_fields[normalized_key] = value
+          end
+
+          i += 1
+          next
         end
-
-        # 映射字段名
-        normalized_key = FIELD_MAP[key] || key
-
-        # 检查是否为未知字段
-        unless FIELD_MAP.value?(normalized_key) || normalized_key == 'sha256'
-          error(ErrorCode::UNKNOWN_FIELD, "unknown field: '#{key}'")
-          return false
-        end
-
-        # 特殊处理 ver 和 sha256（累加）
-        if normalized_key == 'version'
-          @current_versions << value
-        elsif normalized_key == 'sha256'
-          @current_sha256s << value
-        else
-          @current_fields[normalized_key] = value
-        end
-
-        i += 1
-        next
       end
 
-      # 如果不在多行模式下，遇到其他行直接跳过
+      # ---------- 其他情况全部跳过 ----------
       i += 1
     end
 
-    # 处理最后一个未闭合的块
-    if @current_multiline_key && @current_multiline_values.any?
-      if @current_multiline_key == 'ver'
-        @current_versions.concat(@current_multiline_values)
-      elsif @current_multiline_key == 'sha256'
-        @current_sha256s.concat(@current_multiline_values)
-      end
-    end
+    # 文件末尾收尾
+    finalize_package
 
     @errors.empty?
   end
 
   private
+
+  def finalize_package
+    return unless @current_package
+
+    # 结算最后可能未处理的列表
+    if @current_list_key
+      if @current_list_key == 'version'
+        @current_versions.concat(@current_list_values)
+      elsif @current_list_key == 'sha256'
+        @current_sha256s.concat(@current_list_values)
+      end
+      @current_list_key = nil
+      @current_list_values = []
+    end
+
+    # 检查数量是否匹配
+    if @current_versions.any? || @current_sha256s.any?
+      unless @current_versions.length == @current_sha256s.length
+        error(ErrorCode::VERSION_SHA256_MISMATCH,
+              "version count (#{@current_versions.length}) != sha256 count (#{@current_sha256s.length})")
+        return false
+      end
+
+      @current_versions.each_with_index do |ver, idx|
+        sha = @current_sha256s[idx] || ''
+        @packages[@current_package]['releases'] << {
+          'version' => ver,
+          'sha256' => sha
+        }
+      end
+    end
+
+    # 保存共享字段
+    %w[description homepage license author binary_name].each do |field|
+      if @current_fields.key?(field)
+        @packages[@current_package][field] = @current_fields[field]
+      end
+    end
+
+    # 按版本排序
+    begin
+      @packages[@current_package]['releases'].sort! do |a, b|
+        compare_versions(b['version'], a['version'])
+      end
+    rescue
+      # 保持原顺序
+    end
+  end
 
   def compare_versions(v1, v2)
     parts1 = v1.to_s.split('.').map { |p| p.match?(/^\d+$/) ? p.to_i : p }
