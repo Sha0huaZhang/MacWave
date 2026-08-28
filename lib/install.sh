@@ -2,7 +2,7 @@
 
 # MacWave 🌊 Official Installer
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/install.sh)"
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh)"
 
 set -e
 
@@ -35,7 +35,7 @@ home_to_tilde() {
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.0.0-dev!"
+echo "🌊 Welcome to MacWave 2.0.0-beta2(240E1644)!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -159,10 +159,10 @@ EOF
 
 cat > "$VERSION_FILE" << EOF
 {
-  "version": "2.0.0-dev",
+  "version": "2.0.0-beta2(240E1644)",
   "components": {
-    "installer": "2.0.0-dev",
-    "parser": "2.0.0-dev"
+    "installer": "2.0.0-beta2(240E1644)",
+    "parser": "2.0.0-beta2(240E1644)"
   }
 }
 EOF
