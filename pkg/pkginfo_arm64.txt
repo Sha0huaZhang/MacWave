@@ -54,7 +54,7 @@ $ PackagesDetails $
 "ldid":
 
     %START%
-        desc: "Link Identity Editor. Put real or fake signatures in a Mach-O."
+        des: "Link Identity Editor. Put real or fake signatures in a Mach-O."
         home: "https://github.com/ProcursusTeam/ldid"
         lic: "MIT"
         aut: "Jay Freeman (saurik) / Procursus Team"
