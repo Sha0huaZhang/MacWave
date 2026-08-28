@@ -115,14 +115,15 @@ fi
 DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
 
 # ==========================================
-# 判断是否需要 sudo
+# 判断是否需要 sudo（在脚本主体开始前先要密码！）
 # ==========================================
 
 if [[ "$BASE_DIR" == "$HOME"* ]]; then
     USE_SUDO=""
 else
     echo -e "${YELLOW}🌊 Installing to $DISPLAY_DIR requires administrator privileges.${RESET}"
-    sudo -v
+    # 用 /dev/tty 强制交互输入密码！避开管道输入！
+    sudo -v < /dev/tty
     USE_SUDO="sudo"
 fi
 
@@ -147,38 +148,37 @@ $USE_SUDO mkdir -p "$CONFIG_DIR"
 $USE_SUDO chmod 755 "$CONFIG_DIR"
 
 # ==========================================
-# 写入配置文件（关键修复：使用 tee 配合 sudo 解决重定向问题！）
+# 写入配置文件（使用 sudo 但不依赖管道输入密码）
 # ==========================================
 
-$USE_SUDO tee "$CONFIG_FILE" > /dev/null << EOF
+# 临时用 root 写入文件（因为刚才 sudo -v 已经刷新了凭证，后面 sudo 不再需要输密码）
+$USE_SUDO bash -c "cat > '$CONFIG_FILE' << EOF
 {
-  "base_dir": "$BASE_DIR"
+  \"base_dir\": \"$BASE_DIR\"
 }
-EOF
+EOF"
 
-$USE_SUDO tee "$VERSION_FILE" > /dev/null << EOF
+$USE_SUDO bash -c "cat > '$VERSION_FILE' << EOF
 {
-  "version": "2.0.0-beta2(240E1644)",
-  "components": {
-    "installer": "2.0.0-beta2(240E1644)",
-    "parser": "2.0.0-beta2(240E1644)"
+  \"version\": \"2.0.0-beta2(240E1644)\",
+  \"components\": {
+    \"installer\": \"2.0.0-beta2(240E1644)\",
+    \"parser\": \"2.0.0-beta2(240E1644)\"
   }
 }
-EOF
+EOF"
 
 # ==========================================
-# 关键：把所有权交还给当前真实用户（解决必须 sudo bash 的问题！）
+# 关键：把所有权交还给当前真实用户
 # ==========================================
 
 CURRENT_USER=$(whoami)
 
-# 如果安装的是系统目录，把整个安装目录交给用户管理
 if [[ "$BASE_DIR" != "$HOME"* ]]; then
     $USE_SUDO chown -R "$CURRENT_USER": "$BASE_DIR"
     $USE_SUDO chmod -R 755 "$BASE_DIR"
 fi
 
-# 配置目录同样交还给用户，允许用户随时修改配置
 $USE_SUDO chown -R "$CURRENT_USER": "$CONFIG_DIR"
 $USE_SUDO chmod 755 "$CONFIG_DIR"
 $USE_SUDO chmod 644 "$CONFIG_FILE"
