@@ -19,8 +19,6 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-VERSION = "2.0.0"
-
 # ==========================================
 # 颜色定义
 # ==========================================
@@ -31,13 +29,27 @@ YELLOW = '\033[33m'
 RESET = '\033[0m'
 
 # ==========================================
-# 配置加载
+# 配置加载（无死循环：固定读取 /opt/macwave_config）
 # ==========================================
 
-CONFIG_FILE = Path.home() / ".config" / "macwave" / "config.json"
+CONFIG_FILE = Path("/opt/macwave_config/config.json")
+VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
+
+def get_version():
+    """从 /opt/macwave_config/VERSION.json 获取版本号"""
+    if VERSION_FILE.exists():
+        try:
+            with open(VERSION_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get("version", "unknown")
+        except Exception:
+            pass
+    return "unknown"
+
+VERSION = get_version()
 
 def load_config():
-    """加载配置文件，如果不存在则使用默认值"""
+    """强制加载 /opt/macwave_config/config.json"""
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r') as f:
@@ -52,7 +64,7 @@ def load_config():
 BASE_DIR = load_config()
 INSTALL_DIR = BASE_DIR / "bin"
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
-INSTALLED_DB = BASE_DIR / "installed.json"
+INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"  # 移到 pkg/ 下
 PROTECTED_PACKAGES = ["wave"]
 
 # ==========================================
