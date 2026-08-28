@@ -4,7 +4,7 @@ require 'json'
 
 class MacWaveParser
   def self.parse(content)
-    # 去掉所有注释
+    
     clean = content.gsub(/<!--.*?-->/m, '')
 
     # 1. 提取 URL 模板
