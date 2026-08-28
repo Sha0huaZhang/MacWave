@@ -13,8 +13,8 @@ class MacWaveParser
       url_templates[pkg] = url
     end
 
-    # 2. 逐行状态机解析包
-    packages = []
+    # 2. 解析包（输出为字典格式，完全匹配 wave.py 的 _normalize_repo_data）
+    packages = {}
     current_package = nil
     current_fields = {}
     current_versions = []
@@ -46,9 +46,7 @@ class MacWaveParser
             }
           end
 
-          packages << {
-            'name' => current_package,
-            'version' => current_versions.first || '0.0.0',
+          packages[current_package] = {
             'description' => current_fields['description'] || '',
             'homepage' => current_fields['homepage'] || '',
             'license' => current_fields['license'] || '',
@@ -148,9 +146,7 @@ class MacWaveParser
         }
       end
 
-      packages << {
-        'name' => current_package,
-        'version' => current_versions.first || '0.0.0',
+      packages[current_package] = {
         'description' => current_fields['description'] || '',
         'homepage' => current_fields['homepage'] || '',
         'license' => current_fields['license'] || '',
@@ -161,9 +157,9 @@ class MacWaveParser
     end
 
     # 3. 把 URL 模板塞进包信息
-    packages.each do |pkg|
-      if url_templates[pkg['name']]
-        pkg['binary_url'] = url_templates[pkg['name']]
+    packages.each do |name, info|
+      if url_templates[name]
+        info['binary_url'] = url_templates[name]
       end
     end
 
