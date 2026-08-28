@@ -50,17 +50,25 @@ module ErrorCode
 end
 
 # ============================================================
-# 字段映射（简称 -> 全称）
+# 字段映射（简称 -> 全称，同时支持全称）
 # ============================================================
 
 FIELD_MAP = {
+  # 简称
   'des' => 'description',
   'hom' => 'homepage',
   'lic' => 'license',
   'aut' => 'author',
   'ver' => 'version',
   'sha256' => 'sha256',
-  'bin_name' => 'binary_name'
+  'bin_name' => 'binary_name',
+  # 全称（兼容）
+  'description' => 'description',
+  'homepage' => 'homepage',
+  'license' => 'license',
+  'author' => 'author',
+  'version' => 'version',
+  'binary_name' => 'binary_name'
 }.freeze
 
 # ============================================================
