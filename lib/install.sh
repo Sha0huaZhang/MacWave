@@ -136,6 +136,7 @@ LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
 CONFIG_DIR="/opt/macwave_config"  # 强制固定配置目录，解决死循环
 CONFIG_FILE="$CONFIG_DIR/config.json"
+VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
 $USE_SUDO mkdir -p "$INSTALL_DIR"
 $USE_SUDO mkdir -p "$REPO_DIR"
@@ -156,11 +157,24 @@ cat > "$CONFIG_FILE" << EOF
 }
 EOF
 
+cat > "$VERSION_FILE" << EOF
+{
+  "version": "2.0.0-dev",
+  "components": {
+    "installer": "2.0.0-dev",
+    "parser": "2.0.0-dev"
+  }
+}
+EOF
+
 # 允许普通用户修改配置
 chmod 644 "$CONFIG_FILE"
+chmod 644 "$VERSION_FILE"
 chown "$(whoami)": "$CONFIG_FILE" 2>/dev/null || true
+chown "$(whoami)": "$VERSION_FILE" 2>/dev/null || true
 
 echo "🌊 Configuration saved to /opt/macwave_config/config.json"
+echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
 
 # ==========================================
 # 删除旧版 repo.json（如果存在）
