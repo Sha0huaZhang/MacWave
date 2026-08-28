@@ -1,0 +1,180 @@
+<!-- 
+    MacWave repository index file
+    Location: ~/.local/macwave/repoindex.txt
+    Edit with: nano ~/.local/macwave/repoindex.txt
+    amd64
+-->
+
+$ PackagesDictionary $
+<!-- ==================== Package Name List ==================== -->
+def repo_dict:
+    "ldid"
+    "machox"
+    "palera1n"
+    "test_001"
+    "test_no_sha256"
+    "test_wrong_sha256"
+    "trollrestore"
+    "choma"
+$ \PackagesDictionary $
+
+$ PackagesVersion $
+<!-- Get verison from wave.py -->
+let "parse_download_version" = {parse_download_version}
+$ \PackagesVersion $
+
+$ PackagesURL $
+<!-- ==================== URL Variable Definitions ==================== -->
+{repo_url:
+    let "ldid" = %f% "https://github.com/ProcursusTeam/ldid/releases/download/{parse_download_version}/ldid_macosx_x86_64"
+    let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_x86_64"
+    let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-x86_64"
+    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
+    let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
+    let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
+    let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_amd64.zip"
+    let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/{parse_download_version}/ChOma_amd64"
+}
+$ \PackagesURL $
+
+$ PackagesDetails $
+<!-- ==================== Package Details ==================== -->
+[package_info:
+
+
+<!-- description = des,
+     homepage = hom,
+     license = lic
+     author = aut
+     version = ver
+     sha256 = sha256
+     binary_name = bin_name -->
+    
+<!-- ldid -->
+"ldid":
+
+    %START%
+        description: "Link Identity Editor. Put real or fake signatures in a Mach-O."
+        homepage: "https://github.com/ProcursusTeam/ldid"
+        lic: "MIT"
+        aut: "Jay Freeman (saurik) / Procursus Team"
+        ver: "2.1.5-procursus7"
+             "2.1.5-procursus6" 
+             "2.1.5-procursus5" 
+             "2.1.5-procursus4" 
+             "2.1.5-procursus3" 
+             "2.1.5-procursus2" 
+             "2.1.5-procursus1" 
+             "2.1.5-procursus" 
+        sha256: "9d46e0feedf96e399edfca09872802ba21e729f79c01927ad25ea2b0a35bca23"
+                "86f1ce8aef67fda767ca00fc553cdb9b1a8e8b82c5d648c6c533a7c98cabceb2"
+                "a947fe20f509b87a12ba47c37352c40b4046c0487809f58d61f981e7e8c130a2
+                "d8f9c0d5e7c0bca6c95a6a4c859fc3809f4ac304a4f3c82c4c7ba36202703218"
+                "775a9541ab43aa7952cfc76fb75f8f697143bbac3903812208ac075d96ecc8c5"
+                "696dd7044a7894a166da07016729816603f9586de5918663fdf211588e60247d"
+                "2dfd6c7f7e180a74d3247d97d6498f8f2de9265d89cc518f7ed1222919331b19"
+                "6476c93629e775c7dda28946ae576e776c9952e4991e88256d6f7df7545e30c2"
+        bin_name: "ldid"
+    %END%
+    
+<!-- MachOX -->
+"machox":
+
+    %START%
+        des: "CoreTrust bypass for iOS 16.7 (20H19) & 17.0.1"
+        hom: "https://github.com/Sha0huaZhang/MachOX"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
+        sha256: "957a3ab20a9f409e4abe5cc37a3fae9b2f1588f1353f2acd6029f444dfded5e4"
+        bin_name: "machox"
+    %END%
+
+<!-- palera1n -->
+"palera1n":
+
+    %START%
+        des: "Jailbreak for A8 through A11, T2 devices, on iOS/iPadOS/tvOS 15.0, bridgeOS 5.0 and higher."
+        hom: "https://github.com/palera1n/palera1n"
+        lic: "MIT"
+        aut: "palera1n Team"
+        ver: "2.4"
+             "2.3"
+             "2.2"
+             "2.0.2"
+             "2.0.1"
+             "2.0"
+        sha256: "a1a798c4b9d9f0c74794f7d8c3bd3a4c01eee1c874b4980096d26e9403293047"
+                "9c167ac97ec94855ff534746cb7b7e8077046f850edf53839a988659b08cb26e"
+                "7b9e2c91cf0a993ec23f56426fac5cc5b7c6cf94ae8a0015ac704642cb1c4682"
+                "27b2cb20ea8962fb56e5a26220dc4d0db228a09b764bf1b30a262f75c6720f0b"
+                "b245b05e0a06b02118dc74396bb4d350235cba96accc7306e38ef2602fa76c26"
+                "3cb52fb0394cc3693adfe9f506117abf140cc080884e6b3552db0c14034f2604"
+        bin_name: "palera1n"
+    %END%
+
+<!-- test_001 -->
+"test_001":
+
+    %START%
+        des:  "MacWave test package."
+        hom: "https://github.com/Sha0huaZhang/test_001"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
+        sha256: "4594d33a91d3fd2a92d23619d1e664c9098df3ac0a3961f2322cee7eab96a5d2"
+        bin_name: "test_001"
+    %END%
+
+<!-- test_no_sha256 -->
+"test_no_sha256":
+
+    %START%
+        des:  "MacWave test package."
+        hom: "https://github.com/Sha0huaZhang/MacWave"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
+        <!-- keep here (sha256) empty -->
+        bin_name: "test_no_sha256"
+    %END%
+
+<!-- test_wrong_sha256 -->
+"test_wrong_sha256":
+
+    %START%
+        description:  "MacWave test package."
+        homepage: "https://github.com/Sha0huaZhang/MacWave"
+        license: "MIT"
+        author: "Sha0huaZhang (MacWave Team)"
+        version: "1.0.0"
+        sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        binary_name: "test_wrong_sha256"
+    %END%
+
+<!-- trollrestore -->
+"trollrestore":
+
+    %START%
+        des:  "MacWave test package."
+        hom: "https://github.com/JJTech0130/TrollRestore"
+        lic: "MIT"
+        aut: "JJTech (@JJTech0130)"
+        ver: "1.0"
+        sha256: "3855a23fed9b2ec4b84d85a69bce0b31429f6b7107d12d0a067b44ac13ef16fb"
+        bin_name: "trollrestore"
+
+<!-- choma -->
+"choma":
+
+    %START%
+        des: "Code signature and Mach-O manipulation tool by opa334"
+        hom: "https://github.com/opa334/ChOma"
+        lic: "MIT"
+        aut: "opa334"
+        ver: "1.0-macwaveteam2"
+        sha256: "4e4b2e94ff42109f53c403facfcbaecc55cd2313135fe25a26e47bad220762d6"
+        bin_name: "ChOma"
+    %END%
+
+$ \PackagesDetails $
