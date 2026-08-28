@@ -13,7 +13,7 @@ class MacWaveParser
       url_templates[pkg] = url
     end
 
-    # 2. 解析包（输出为字典格式，完全匹配 wave.py 的 _normalize_repo_data）
+    # 2. 逐行状态机解析包（输出字典格式）
     packages = {}
     current_package = nil
     current_fields = {}
