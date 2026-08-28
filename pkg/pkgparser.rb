@@ -4,76 +4,28 @@
 # pkgparser.rb - MacWave 2.0 仓库解析器
 # 用法: ruby pkgparser.rb [pkginfo.txt]
 # 输出: 成功 -> JSON, 失败 -> Parser error, error code XXX
-#
-# ============================================================
-# 错误码说明 / Error Code Reference
-# ============================================================
-# 001  - 文件未找到 / File not found
-# 002  - 文件读取失败 / Failed to read file
-# 003  - 语法错误 / Syntax error
-# 004  - 版本号与 SHA256 数量不匹配 / Version count does not match SHA256 count
-# 005  - 未知字段 / Unknown field
-# 006  - 缩进错误 / Indentation error
-# 099  - 其他未知错误 / Other unknown error
-# ============================================================
 
 require 'json'
 
-# ============================================================
-# 颜色定义
-# ============================================================
-
-RED_BOLD = "\033[1;31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-RESET = "\033[0m"
-
-# ============================================================
-# 错误码 / Error Codes
-# ============================================================
-
 module ErrorCode
-  # 001: 文件未找到
   FILE_NOT_FOUND = '001'
-  # 002: 文件读取失败
   FILE_READ_ERROR = '002'
-  # 003: 语法错误
   SYNTAX_ERROR = '003'
-  # 004: 版本号与 SHA256 数量不匹配
   VERSION_SHA256_MISMATCH = '004'
-  # 005: 未知字段
   UNKNOWN_FIELD = '005'
-  # 006: 缩进错误
   INDENT_ERROR = '006'
-  # 099: 其他未知错误
   UNKNOWN_ERROR = '099'
 end
 
-# ============================================================
-# 字段映射（简称 -> 全称，同时支持全称）
-# ============================================================
-
 FIELD_MAP = {
-  # 简称
   'des' => 'description',
   'hom' => 'homepage',
   'lic' => 'license',
   'aut' => 'author',
   'ver' => 'version',
   'sha256' => 'sha256',
-  'bin_name' => 'binary_name',
-  # 全称（兼容）
-  'description' => 'description',
-  'homepage' => 'homepage',
-  'license' => 'license',
-  'author' => 'author',
-  'version' => 'version',
-  'binary_name' => 'binary_name'
+  'bin_name' => 'binary_name'
 }.freeze
-
-# ============================================================
-# 解析器
-# ============================================================
 
 class RepoParser
   attr_reader :packages, :errors
@@ -87,7 +39,6 @@ class RepoParser
     @current_fields = {}
     @current_versions = []
     @current_sha256s = []
-    @current_ver_sha_pairs = []
     @current_list_key = nil
     @current_list_values = []
     @state = :initial
@@ -103,13 +54,11 @@ class RepoParser
       line = @content[i]
       stripped = line.strip
 
-      # ---------- 跳过空行 ----------
       if stripped.empty?
         i += 1
         next
       end
 
-      # ---------- 跳过注释 ----------
       if stripped.start_with?('<!--')
         if stripped.include?('-->')
           i += 1
@@ -122,7 +71,6 @@ class RepoParser
         next
       end
 
-      # ---------- 处理 $ ... $ 区块标记（改变解析状态） ----------
       if stripped.start_with?('$') && stripped.end_with?('$')
         stripped = stripped.gsub(/^\$\s*|\s*\$/, '').strip
         stripped = stripped.gsub(/^\\/, '').strip
@@ -140,14 +88,12 @@ class RepoParser
         next
       end
 
-      # ---------- 在 URL 区：处理 let 模板 ----------
       if @state == :urls && stripped.start_with?('let ')
         @current_let_key = stripped.split('=')[0].strip.gsub(/^let\s+/, '').gsub(/"/, '')
         i += 1
         next
       end
 
-      # ---------- 在详情区：处理包名 ----------
       if @state == :details && stripped.match?(/^"[^"]+":\s*$/)
         finalize_package
 
@@ -163,20 +109,17 @@ class RepoParser
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @current_ver_sha_pairs = []
         @current_list_key = nil
         @current_list_values = []
         i += 1
         next
       end
 
-      # ---------- 处理 %START% 和 %END% ----------
       if stripped == '%START%'
         @in_start_block = true
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @current_ver_sha_pairs = []
         @current_list_key = nil
         @current_list_values = []
         i += 1
@@ -190,7 +133,6 @@ class RepoParser
         next
       end
 
-      # ---------- 在详情区且处于 %START% 和 %END% 之间 ----------
       if @state == :details && @in_start_block
         # 收集多行列表的后续值（被引号包裹的缩进行）
         if @current_list_key && stripped.start_with?('"') && stripped.end_with?('"')
@@ -242,7 +184,7 @@ class RepoParser
         end
       end
 
-      # ---------- 其他情况全部跳过 ----------
+      # 其他情况全部跳过
       i += 1
     end
 
