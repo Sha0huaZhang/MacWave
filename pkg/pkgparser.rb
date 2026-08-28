@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# parser.rb - MacWave 2.0 仓库解析器
-# 用法: ruby parser.rb [pkginfo.txt]
+# pkgparser.rb - MacWave 2.0 仓库解析器
+# 用法: ruby pkgparser.rb [pkginfo.txt]
 # 输出: 成功 -> JSON, 失败 -> Parser error, error code XXX
 #
 # ============================================================
@@ -33,13 +33,13 @@ RESET = "\033[0m"
 # ============================================================
 
 module ErrorCode
-  FILE_NOT_FOUND = '001'          # 文件未找到 / File not found
-  FILE_READ_ERROR = '002'         # 文件读取失败 / Failed to read file
-  SYNTAX_ERROR = '003'            # 语法错误 / Syntax error
-  VERSION_SHA256_MISMATCH = '004' # 版本号与 SHA256 数量不匹配 / Version count does not match SHA256 count
-  UNKNOWN_FIELD = '005'           # 未知字段 / Unknown field
-  INDENT_ERROR = '006'            # 缩进错误 / Indentation error
-  UNKNOWN_ERROR = '099'           # 其他未知错误 / Other unknown error
+  FILE_NOT_FOUND = '001'          # 文件未找到
+  FILE_READ_ERROR = '002'         # 文件读取失败
+  SYNTAX_ERROR = '003'            # 语法错误
+  VERSION_SHA256_MISMATCH = '004' # 版本号与 SHA256 数量不匹配
+  UNKNOWN_FIELD = '005'           # 未知字段
+  INDENT_ERROR = '006'            # 缩进错误
+  UNKNOWN_ERROR = '099'           # 其他未知错误
 end
 
 # ============================================================
@@ -53,7 +53,14 @@ FIELD_MAP = {
   'aut' => 'author',
   'ver' => 'version',
   'sha256' => 'sha256',
-  'bin_name' => 'binary_name'
+  'bin_name' => 'binary_name',
+  # 兼容全称（防止手滑写错）
+  'description' => 'description',
+  'homepage' => 'homepage',
+  'license' => 'license',
+  'author' => 'author',
+  'version' => 'version',
+  'binary_name' => 'binary_name'
 }.freeze
 
 # ============================================================
@@ -79,17 +86,24 @@ class RepoParser
     @current_key = nil
     @multiline_values = []
     @parse_download_version = nil
+    @repo_urls = {}  # 存储 URL 模板
   end
 
   def parse(content)
     @content = content.each_line.map(&:chomp)
     i = 0
 
-    # 第一遍扫描：提取 parse_download_version
+    # 第一遍扫描：提取 parse_download_version 和 URL 模板
     @content.each do |line|
       if line.include?('parse_download_version')
         match = line.match(/let\s+"parse_download_version"\s*=\s*\{([^}]+)\}/)
         @parse_download_version = match[1] if match
+      end
+
+      # 提取 let "包名" = %f% "URL"
+      if line.match?(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/)
+        match = line.match(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/)
+        @repo_urls[match[1]] = match[2] if match
       end
     end
 
@@ -129,7 +143,7 @@ class RepoParser
         next
       end
 
-      # 跳过 {repo_url: 区块（但提取 URL 变量）
+      # 跳过 {repo_url: 区块
       if stripped == '{repo_url:'
         i += 1
         next
@@ -140,7 +154,7 @@ class RepoParser
         next
       end
 
-      # 跳过 let 定义（但提取 URL 模板）
+      # 跳过 let 定义
       if stripped.start_with?('let ')
         i += 1
         next
@@ -211,7 +225,6 @@ class RepoParser
             if @current_versions.length == @current_sha256s.length
               @current_versions.each_with_index do |ver, idx|
                 sha = @current_sha256s[idx] || ''
-                # 版本排序：越新越靠前
                 release = {
                   'version' => ver,
                   'sha256' => sha
@@ -285,7 +298,7 @@ class RepoParser
         normalized_key = FIELD_MAP[key] || key
 
         # 检查是否为未知字段（不在映射表中）
-        unless FIELD_MAP.key?(key) || key == 'sha256'
+        unless FIELD_MAP.value?(normalized_key) || normalized_key == 'sha256'
           error(ErrorCode::UNKNOWN_FIELD, "unknown field: '#{key}'")
           return false
         end
@@ -402,7 +415,6 @@ def main
   success = parser.parse(content)
 
   unless success
-    # 输出第一个错误的错误码
     if parser.errors.any?
       puts "#{RED_BOLD}Parser error, error code #{parser.errors.first[:code]}#{RESET}"
     else
@@ -411,8 +423,13 @@ def main
     exit 1
   end
 
-  # 输出 JSON
-  puts JSON.pretty_generate(parser.packages)
+  # 输出包含 URL 模板的 JSON
+  output = {
+    'packages' => parser.packages,
+    'repo_urls' => parser.repo_urls,
+    'parse_download_version' => parser.parse_download_version
+  }
+  puts JSON.pretty_generate(output)
 end
 
 main if __FILE__ == $0
