@@ -274,79 +274,51 @@ class MacWaveCLI:
 
         return data
 
-    def _normalize_repo_data(self, raw_data):
-        """
-        将 pkgparser.rb 输出的新格式转为 wave.py 能理解的旧格式
-        """
-        packages = []
-        for pkg_name, pkg_info in raw_data.items():
-            base_info = {
-                'name': pkg_name,
-                'description': pkg_info.get('description', ''),
-                'homepage': pkg_info.get('homepage', ''),
-                'license': pkg_info.get('license', ''),
-                'author': pkg_info.get('author', ''),
-                'binary_name': pkg_info.get('binary_name', pkg_name),
-                'arch': 'any'
-            }
-
-            releases = pkg_info.get('releases', [])
-            if not releases:
-                packages.append({**base_info, 'version': '0.0.0', 'sha256': ''})
-            else:
-                for release in releases:
-                    packages.append({
-                        **base_info,
-                        'version': release.get('version', '0.0.0'),
-                        'sha256': release.get('sha256', '')
-                    })
-
-        return {'packages': packages}
-
     def find_package(self, repo_data, package_name, args=None):
         self.log_verbose(f"Searching for package: {package_name}")
         all_releases = []
 
-        # 提取 packages，兼容字典和列表两种格式
-        packages = repo_data.get("packages", [])
+        # 直接从字典里读
+        packages = repo_data.get("packages", {})
 
         if isinstance(packages, dict):
-            # ✅ 字典格式：直接通过 key 查找
             if package_name in packages:
-                pkg_info = packages[package_name]
-                releases = pkg_info.get("releases", [])
-                for release in releases:
+                pkg = packages[package_name]
+                for release in pkg.get("releases", []):
                     all_releases.append({
                         "version": release.get("version"),
                         "sha256": release.get("sha256", ""),
-                        "binary_url": pkg_info.get("binary_url", ""),
+                        "binary_url": pkg.get("binary_url", ""),
                         "arch": release.get("arch", "any"),
-                        "description": pkg_info.get("description", ""),
-                        "homepage": pkg_info.get("homepage", ""),
-                        "license": pkg_info.get("license", ""),
-                        "author": pkg_info.get("author", ""),
-                        "binary_name": pkg_info.get("binary_name", package_name)
+                        "description": pkg.get("description", ""),
+                        "homepage": pkg.get("homepage", ""),
+                        "license": pkg.get("license", ""),
+                        "author": pkg.get("author", ""),
+                        "binary_name": pkg.get("binary_name", package_name)
                     })
+
+            if not all_releases:
+                print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
+                sys.exit(1)
         else:
-            # ✅ 列表格式：遍历查找
+            # 如果之前有列表，就遍历列表
             for pkg in packages:
                 if pkg.get("name") == package_name:
-                    for release in pkg.get("releases", []):
-                        all_releases.append({
-                            "version": release.get("version"),
-                            "sha256": release.get("sha256", ""),
-                            "binary_url": pkg.get("binary_url", ""),
-                            "arch": release.get("arch", "any"),
-                            "description": pkg.get("description", ""),
-                            "homepage": pkg.get("homepage", ""),
-                            "license": pkg.get("license", ""),
-                            "author": pkg.get("author", ""),
-                            "binary_name": pkg.get("binary_name", package_name)
-                        })
+                    all_releases.append({
+                        "version": pkg.get("version"),
+                        "sha256": pkg.get("sha256", ""),
+                        "binary_url": pkg.get("binary_url", ""),
+                        "arch": pkg.get("arch", "any"),
+                        "description": pkg.get("description", ""),
+                        "homepage": pkg.get("homepage", ""),
+                        "license": pkg.get("license", ""),
+                        "author": pkg.get("author", ""),
+                        "binary_name": pkg.get("binary_name", package_name)
+                    })
 
-        if not all_releases:
-            print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
-            sys.exit(1)
+            if not all_releases:
+                print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
+                sys.exit(1)
 
         if args and getattr(args, 'ver', None):
             requested_version = args.ver
@@ -460,17 +432,15 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
-        repo_data = self._normalize_repo_data(raw_data)
-
         if args.ver:
-            release = self.find_package(repo_data, safe_name, args)
+            release = self.find_package(raw_data, safe_name, args)
             version = release.get("version")
         elif args.beta_version:
-            beta_release = self.find_package(repo_data, safe_name, args)
+            beta_release = self.find_package(raw_data, safe_name, args)
             if not beta_release:
                 print(f"{RED_BOLD}🌊 No beta version found for '{safe_name}'.{RESET}")
                 if self._confirm_action("Do you want to install the latest stable version instead?"):
-                    release = self.find_package(repo_data, safe_name, args)
+                    release = self.find_package(raw_data, safe_name, args)
                     version = release.get("version")
                 else:
                     print("🌊 Installation cancelled.")
@@ -479,7 +449,7 @@ class MacWaveCLI:
                 release = beta_release
                 version = release.get("version")
         else:
-            release = self.find_package(repo_data, safe_name, args)
+            release = self.find_package(raw_data, safe_name, args)
             version = release.get("version")
 
         if not version:
@@ -566,12 +536,12 @@ class MacWaveCLI:
             print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
 
-        repo_data = self._normalize_repo_data(raw_data)
+        repo_data = raw_data
         matches = []
 
         if "packages" in repo_data:
-            for pkg in repo_data["packages"]:
-                name = pkg.get("name", "").lower()
+            for pkg_name, pkg in repo_data["packages"].items():
+                name = pkg.get("name", pkg_name).lower()
                 desc = pkg.get("description", "").lower()
                 if args.fuzzy:
                     if query in name or query in desc:
@@ -598,17 +568,18 @@ class MacWaveCLI:
             sys.exit(1)
 
         safe_name = args.package_name.lower()
-        repo_data = self._normalize_repo_data(raw_data)
+        repo_data = raw_data
 
         versions = []
         package_info = None
-        for pkg in repo_data.get("packages", []):
-            if pkg.get("name") == safe_name:
+        for pkg_name, pkg in repo_data.get("packages", {}).items():
+            if pkg_name == safe_name:
                 if package_info is None:
                     package_info = pkg.copy()
-                ver = pkg.get("version")
-                if ver and ver not in versions:
-                    versions.append(ver)
+                for release in pkg.get("releases", []):
+                    ver = release.get("version")
+                    if ver and ver not in versions:
+                        versions.append(ver)
 
         if not package_info:
             print(f"{RED_BOLD}🌊 Error: Package '{safe_name}' not found in repository{RESET}")
@@ -619,7 +590,7 @@ class MacWaveCLI:
         except:
             versions.sort(reverse=True)
 
-        print(f"🌊 Name:               {package_info.get('name', 'Unknown')}")
+        print(f"🌊 Name:               {package_info.get('name', safe_name)}")
         print(f"🌊 Author:             {package_info.get('author', 'Unknown')}")
         print(f"🌊 Description:        {package_info.get('description', 'No description')}")
         homepage = package_info.get('homepage')
@@ -656,8 +627,10 @@ class MacWaveCLI:
             if REPO_CACHE.exists():
                 REPO_CACHE.unlink()
             raw_data = self.fetch_repo_data(args)
-            repo_data = self._normalize_repo_data(raw_data)
-            print(f"🌊 Package index updated successfully. Found {len(repo_data.get('packages', []))} packages.")
+            if "packages" in raw_data:
+                print(f"🌊 Package index updated successfully. Found {len(raw_data['packages'])} packages.")
+            else:
+                print(f"🌊 Package index updated successfully.")
         except RuntimeError as e:
             print(f"{RED_BOLD}🌊 {e}{RESET}")
             sys.exit(1)
@@ -697,8 +670,7 @@ class MacWaveCLI:
                 print(f"{RED_BOLD}🌊 {e}{RESET}")
                 sys.exit(1)
 
-            repo_data = self._normalize_repo_data(raw_data)
-            release = self.find_package(repo_data, safe_name, args)
+            release = self.find_package(raw_data, safe_name, args)
             remote_version = release.get("version", "unknown")
 
             try:
