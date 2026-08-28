@@ -4,18 +4,6 @@
 # pkgparser.rb - MacWave 2.0 仓库解析器
 # 用法: ruby pkgparser.rb [pkginfo.txt]
 # 输出: 成功 -> JSON, 失败 -> Parser error, error code XXX
-#
-# ============================================================
-# 错误码说明 / Error Code Reference
-# ============================================================
-# 001  - 文件未找到 / File not found
-# 002  - 文件读取失败 / Failed to read file
-# 003  - 语法错误 / Syntax error
-# 004  - 版本号与 SHA256 数量不匹配 / Version count does not match SHA256 count
-# 005  - 未知字段 / Unknown field
-# 006  - 缩进错误 / Indentation error
-# 099  - 其他未知错误 / Other unknown error
-# ============================================================
 
 require 'json'
 
@@ -33,42 +21,27 @@ RESET = "\033[0m"
 # ============================================================
 
 module ErrorCode
-  # 001: 文件未找到
   FILE_NOT_FOUND = '001'
-  # 002: 文件读取失败
   FILE_READ_ERROR = '002'
-  # 003: 语法错误
   SYNTAX_ERROR = '003'
-  # 004: 版本号与 SHA256 数量不匹配
   VERSION_SHA256_MISMATCH = '004'
-  # 005: 未知字段
   UNKNOWN_FIELD = '005'
-  # 006: 缩进错误
   INDENT_ERROR = '006'
-  # 099: 其他未知错误
   UNKNOWN_ERROR = '099'
 end
 
 # ============================================================
-# 字段映射（简称 -> 全称，同时支持全称）
+# 字段映射（简称 -> 全称）
 # ============================================================
 
 FIELD_MAP = {
-  # 简称
   'des' => 'description',
   'hom' => 'homepage',
   'lic' => 'license',
   'aut' => 'author',
   'ver' => 'version',
   'sha256' => 'sha256',
-  'bin_name' => 'binary_name',
-  # 全称（兼容）
-  'description' => 'description',
-  'homepage' => 'homepage',
-  'license' => 'license',
-  'author' => 'author',
-  'version' => 'version',
-  'binary_name' => 'binary_name'
+  'bin_name' => 'binary_name'
 }.freeze
 
 # ============================================================
@@ -87,7 +60,6 @@ class RepoParser
     @current_fields = {}
     @current_versions = []
     @current_sha256s = []
-    @current_ver_sha_pairs = []
     @current_list_key = nil
     @current_list_values = []
     @state = :initial
@@ -163,7 +135,6 @@ class RepoParser
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @current_ver_sha_pairs = []
         @current_list_key = nil
         @current_list_values = []
         i += 1
@@ -176,7 +147,6 @@ class RepoParser
         @current_fields = {}
         @current_versions = []
         @current_sha256s = []
-        @current_ver_sha_pairs = []
         @current_list_key = nil
         @current_list_values = []
         i += 1
