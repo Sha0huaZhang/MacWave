@@ -4,24 +4,33 @@ require 'json'
 
 class MacWaveParser
   def self.parse(content)
-    
+    # 去掉所有注释
     clean = content.gsub(/<!--.*?-->/m, '')
 
     # 1. 提取 URL 模板
     url_templates = {}
+    special_packages = [] # 记录哪些包使用了 [SPECIAL]
+
     clean.scan(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/) do |pkg, url|
       url_templates[pkg] = url
     end
 
-    # 2. 逐行状态机解析包（输出字典格式）
+    # 检测 [SPECIAL] 标记
+    clean.scan(/let\s+"([^"]+)"\s*=\s*\[SPECIAL\]/) do |pkg,|
+      special_packages << pkg
+    end
+
+    # 2. 逐行状态机解析包
     packages = {}
     current_package = nil
     current_fields = {}
     current_versions = []
     current_sha256s = []
+    current_urls = []
     in_start_block = false
     in_ver_list = false
     in_sha256_list = false
+    in_url_list = false
 
     clean.each_line do |line|
       stripped = line.strip
@@ -36,13 +45,16 @@ class MacWaveParser
               releases << {
                 'version' => v,
                 'sha256' => current_sha256s[idx] || '',
+                'url' => current_urls[idx] || '',
                 'arch' => 'any'
               }
             end
           else
             releases << {
               'version' => '0.0.0',
-              'sha256' => current_sha256s.first || ''
+              'sha256' => current_sha256s.first || '',
+              'url' => current_urls.first || '',
+              'arch' => 'any'
             }
           end
 
@@ -60,8 +72,11 @@ class MacWaveParser
         current_fields = {}
         current_versions = []
         current_sha256s = []
+        current_urls = []
+        in_start_block = false
         in_ver_list = false
         in_sha256_list = false
+        in_url_list = false
         next
       end
 
@@ -71,8 +86,10 @@ class MacWaveParser
         current_fields = {}
         current_versions = []
         current_sha256s = []
+        current_urls = []
         in_ver_list = false
         in_sha256_list = false
+        in_url_list = false
         next
       end
 
@@ -99,6 +116,13 @@ class MacWaveParser
         next
       end
 
+      # 处理多行 URL 列表（仅针对 [SPECIAL] 包）
+      if in_url_list && stripped.start_with?('"') && stripped.end_with?('"')
+        value = stripped.gsub(/\A"|"\z/, '')
+        current_urls << value
+        next
+      end
+
       # 解析 key: value
       if stripped.include?(':')
         key, value = stripped.split(':', 2)
@@ -118,10 +142,17 @@ class MacWaveParser
           current_versions = [value]
           in_ver_list = true
           in_sha256_list = false
+          in_url_list = false
         when 'sha256'
           current_sha256s = [value]
           in_sha256_list = true
           in_ver_list = false
+          in_url_list = false
+        when 'url'
+          current_urls = [value]
+          in_url_list = true
+          in_ver_list = false
+          in_sha256_list = false
         when 'bin_name'
           current_fields['binary_name'] = value
         end
@@ -136,13 +167,16 @@ class MacWaveParser
           releases << {
             'version' => v,
             'sha256' => current_sha256s[idx] || '',
+            'url' => current_urls[idx] || '',
             'arch' => 'any'
           }
         end
       else
         releases << {
           'version' => '0.0.0',
-          'sha256' => current_sha256s.first || ''
+          'sha256' => current_sha256s.first || '',
+          'url' => current_urls.first || '',
+          'arch' => 'any'
         }
       end
 
@@ -156,10 +190,12 @@ class MacWaveParser
       }
     end
 
-    # 3. 把 URL 模板塞进包信息
+    # 3. 把 URL 模板塞进包信息（如果该包不是 SPECIAL）
     packages.each do |name, info|
-      if url_templates[name]
-        info['binary_url'] = url_templates[name]
+      unless special_packages.include?(name)
+        if url_templates[name]
+          info['binary_url'] = url_templates[name]
+        end
       end
     end
 
