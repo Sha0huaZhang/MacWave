@@ -56,7 +56,10 @@ def load_config():
                     return Path(base_dir)
         except Exception:
             pass
-    return Path.home() / ".local" / "macwave"
+    # 如果配置文件缺失或损坏，直接报错退出，绝不写死 ~/.local
+    print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
+    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall MacWave.{RESET}")
+    sys.exit(1)
 
 BASE_DIR = load_config()
 INSTALL_DIR = BASE_DIR / "bin"
@@ -139,8 +142,7 @@ class PackageInstaller:
             return False
 
     def _confirm_missing_sha256(self) -> bool:
-        console = Console()
-        console.print(f"{RED_BOLD}🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}", style="bold red")
+        print(f"{RED_BOLD}🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}")
         response = input(f"🌊 Are you sure to continue? [Y/n] ").strip()
         return response == 'Y' or response == 'y'
 
@@ -182,7 +184,17 @@ class PackageInstaller:
             print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
             sys.exit(1)
 
-        # 2. Get package from URL (预处理)
+        # 2. 预先判断 SHA256 缺失（下载前询问，避免下载完才发现）
+        if release and not release.get("sha256"):
+            if not self._confirm_missing_sha256():
+                print(f"{RED_BOLD}🌊 Installation cancelled by user.{RESET}")
+                sys.exit(1)
+            sha256_skip = True
+            print(f"{RED_BOLD}🌊 SHA256 verification will be skipped.{RESET}")
+        else:
+            sha256_skip = False
+
+        # 3. 预处理（开始下载）
         self.log_verbose(f"Download URL: {url}")
         print(f"🌊 Downloading {package_name}...")
 
@@ -208,8 +220,7 @@ class PackageInstaller:
             request_kwargs['verify'] = False
             urllib3.disable_warnings(InsecureRequestWarning)
 
-        # 3. URL is valid? / Download smoothly? / Success?
-        # 下载失败重试逻辑（最多尝试2次，失败时让用户决定是否继续）
+        # 4. 下载并重试
         download_success = False
         attempt = 0
         while not download_success:
@@ -217,7 +228,6 @@ class PackageInstaller:
             try:
                 response = requests.get(url, **request_kwargs)
 
-                # 判断服务器返回的状态码
                 if response.status_code == 404:
                     print(f"{RED_BOLD}🌊 Error: ErrorCode 404 - The URL or file does not exist.{RESET}")
                     print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
@@ -227,7 +237,6 @@ class PackageInstaller:
                     print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
                     sys.exit(response.status_code)
 
-                # 下载过程处理
                 total_size = int(response.headers.get('content-length', 0))
                 limit_bps = None
                 if args.get('limit_rate'):
@@ -235,7 +244,6 @@ class PackageInstaller:
                     if limit_bps is not None:
                         limit_bps = int(limit_bps * 0.8)
 
-                # 写入临时文件
                 if RICH_AVAILABLE:
                     from rich.console import Console
                     progress_columns = [
@@ -305,7 +313,6 @@ class PackageInstaller:
                         progress.update(task_id, speed="0 B/s")
 
                 else:
-                    # 无 rich 环境下的简单下载
                     sha256_hash = hashlib.sha256()
                     with open(temp_path, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=8192):
@@ -321,7 +328,6 @@ class PackageInstaller:
                 break
 
             except (ConnectionError, Timeout) as e:
-                # Download smoothly? -> No
                 if attempt < 2:
                     print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
                     print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
@@ -346,8 +352,8 @@ class PackageInstaller:
                 print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
                 sys.exit(1)
 
-        # 4. 计算 SHA256 并比对 (Calculate SHA256 Value + Compare)
-        if release and release.get("sha256"):
+        # 5. 校验 SHA256（仅在存在且未跳过时执行）
+        if release and release.get("sha256") and not sha256_skip:
             expected_sha256 = release.get("sha256")
             print("🌊 Verifying SHA256...")
             actual_sha256 = sha256_hash.hexdigest()
@@ -355,15 +361,12 @@ class PackageInstaller:
                 print(f"{RED_BOLD}🌊 Error: SHA256 verification failed (Error code 007).{RESET}")
                 print(f"{RED_BOLD}🌊 Actual:   {actual_sha256}{RESET}")
                 print(f"🌊 Expected: {GREEN}{expected_sha256}{RESET}")
-                
-                # ========== 安全删除损坏文件（支持系统级目录） ==========
+                # 删除损坏文件
                 if temp_path.exists():
                     try:
-                        # 普通权限删除
                         temp_path.unlink()
                         print(f"{RED_BOLD}🌊 The corrupted file has been deleted (rm -rf).{RESET}")
                     except PermissionError:
-                        # 权限不足时，尝试使用 sudo 删除
                         print(f"{RED_BOLD}🌊 Permission denied. Attempting to delete with sudo...{RESET}")
                         import subprocess as sp
                         try:
@@ -375,11 +378,8 @@ class PackageInstaller:
                         except Exception:
                             print(f"{RED_BOLD}🌊 WARNING: Unable to delete {temp_path}. Please delete it manually.{RESET}")
                 sys.exit(7)
-        else:
-            if not self._confirm_missing_sha256():
-                raise Exception("Installation cancelled by user")
 
-        # 5. 移动到 /bin (move it to /bin with mv)
+        # 6. 移动到 /bin
         install_dir.mkdir(parents=True, exist_ok=True)
 
         if final_path.exists():
@@ -391,7 +391,7 @@ class PackageInstaller:
 
         shutil.move(str(temp_path), str(final_path))
 
-        # 6. 权限检查 (Permission check)
+        # 7. 权限检查
         try:
             os.chmod(final_path, 0o755)
         except PermissionError:
@@ -401,7 +401,7 @@ class PackageInstaller:
         self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
         print("🌊 Download complete!")
 
-        # 7. 输出成功
+        # 8. 输出成功
         return final_path
 
     def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
@@ -464,7 +464,6 @@ class PackageInstaller:
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         install_dir = INSTALL_DIR
 
-        # ========== 解析卸载目标 ==========
         if package_spec.endswith('@*'):
             base_name = safe_name.rstrip('@*')
             to_remove = []
