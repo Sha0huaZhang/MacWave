@@ -48,15 +48,15 @@ try:
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print(f"{RED_BOLD}🌊 Error: 'requests' library is not installed.{RESET}")
-    print(f"{RED_BOLD}🌊 Please install it using: pip3 install requests{RESET}")
+    print(f"{RED_BOLD}Error: 'requests' library is not installed.{RESET}")
+    print(f"{RED_BOLD}Please install it using: pip3 install requests{RESET}")
     sys.exit(1)
 
 try:
     from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
-    print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
-    print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
+    print(f"{RED_BOLD}Error: 'packaging' library is not installed.{RESET}")
+    print(f"{RED_BOLD}Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
 try:
@@ -138,7 +138,7 @@ class MacWaveCLI:
         )
 
         parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
-        parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version} 🌊')
+        parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version}')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         parser.add_argument('-B', '--beta-version', action='store_true', help='Install the latest beta version')
         parser.add_argument('--proxy', type=str, metavar='string', help='Specify an HTTP/HTTPS proxy')
