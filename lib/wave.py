@@ -450,7 +450,7 @@ class MacWaveCLI:
         if existing_versions:
             if version in existing_versions:
                 print(f"🌊 {RED_BOLD}Version {version} of '{safe_name}' is already installed.{RESET}")
-                print(f"🌊 {RED_BOLD}Do you want to reinstall it?{RESET} [Y/n]:")
+                print(f"{RED_BOLD}Do you want to reinstall it? [Y/n]: {RESET}")
                 if not self._confirm_action(""):
                     print(f"🌊 Installation cancelled. Existing '{safe_name}@{version}' preserved.")
                     return
