@@ -19,7 +19,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
-# 绝对路径，无死循环：配置永远固定在这个位置（允许普通用户修改）
+# 绝对路径
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
@@ -48,15 +48,15 @@ try:
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print(f"{RED_BOLD}Error: 'requests' library is not installed.{RESET}")
-    print(f"{RED_BOLD}Please install it using: pip3 install requests{RESET}")
+    print(f"{RED_BOLD}🌊 Error: 'requests' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install requests{RESET}")
     sys.exit(1)
 
 try:
     from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
-    print(f"{RED_BOLD}Error: 'packaging' library is not installed.{RESET}")
-    print(f"{RED_BOLD}Please install it using: pip3 install packaging{RESET}")
+    print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
 try:
@@ -138,7 +138,7 @@ class MacWaveCLI:
         )
 
         parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
-        parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version}')
+        parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version} 🌊')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         parser.add_argument('-B', '--beta-version', action='store_true', help='Install the latest beta version')
         parser.add_argument('--proxy', type=str, metavar='string', help='Specify an HTTP/HTTPS proxy')
@@ -386,20 +386,12 @@ class MacWaveCLI:
         if skip_db_update:
             cmd.append('--skip-db-update')
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # 核心修复：不捕获子进程输出，让进度条实时流向终端！
+        result = subprocess.run(cmd)
 
-        # 核心修复：先检查退出码，然后优先打印 stdout 里的错误码信息
+        # 如果返回码非零，则返回错误码
         if result.returncode != 0:
-            # 如果 stdout 有内容（比如 "Error code 404..."），先打印出来！
-            if result.stdout:
-                print(result.stdout.strip())
-            # 如果 stdout 为空，再打印 stderr
-            if result.stderr:
-                print(result.stderr.strip())
-            # 明确退出，并传回错误码！
             sys.exit(result.returncode)
-        if result.stdout:
-            print(result.stdout.strip())
 
     def handle_install(self, args):
         if args.json:
