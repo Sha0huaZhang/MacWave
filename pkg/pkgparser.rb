@@ -9,13 +9,12 @@ class MacWaveParser
 
     # 1. 提取 URL 模板
     url_templates = {}
-    special_packages = [] # 记录哪些包使用了 [SPECIAL]
+    special_packages = []
 
     clean.scan(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/) do |pkg, url|
       url_templates[pkg] = url
     end
 
-    # 检测 [SPECIAL] 标记
     clean.scan(/let\s+"([^"]+)"\s*=\s*\[SPECIAL\]/) do |pkg,|
       special_packages << pkg
     end
@@ -35,9 +34,7 @@ class MacWaveParser
     clean.each_line do |line|
       stripped = line.strip
 
-      # 遇到新的包名
       if stripped.match?(/^"[^"]+":\s*$/)
-        # 结算上一个包
         if current_package
           releases = []
           if current_versions.any?
@@ -80,7 +77,6 @@ class MacWaveParser
         next
       end
 
-      # 解析 %START%
       if stripped == '%START%'
         in_start_block = true
         current_fields = {}
@@ -93,37 +89,31 @@ class MacWaveParser
         next
       end
 
-      # 解析 %END%
       if stripped == '%END%'
         in_start_block = false
         next
       end
 
-      # 必须在 %START% 和 %END% 之间
       next unless in_start_block
 
-      # 处理多行版本列表
       if in_ver_list && stripped.start_with?('"') && stripped.end_with?('"')
         value = stripped.gsub(/\A"|"\z/, '')
         current_versions << value
         next
       end
 
-      # 处理多行 SHA256 列表
       if in_sha256_list && stripped.start_with?('"') && stripped.end_with?('"')
         value = stripped.gsub(/\A"|"\z/, '')
         current_sha256s << value
         next
       end
 
-      # 处理多行 URL 列表（仅针对 [SPECIAL] 包）
       if in_url_list && stripped.start_with?('"') && stripped.end_with?('"')
         value = stripped.gsub(/\A"|"\z/, '')
         current_urls << value
         next
       end
 
-      # 解析 key: value
       if stripped.include?(':')
         key, value = stripped.split(':', 2)
         key = key.strip
@@ -202,10 +192,6 @@ class MacWaveParser
     { 'packages' => packages }
   end
 end
-
-# ============================================================
-# 主程序
-# ============================================================
 
 def main
   file_path = ARGV[0] || 'pkginfo_arm64.txt'
