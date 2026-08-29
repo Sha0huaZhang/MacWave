@@ -733,7 +733,7 @@ class MacWaveCLI:
             print("🌊 Please install the missing software packages manually.")
             sys.exit(1)
         else:
-            print("🌊 🌊 All required dependencies are present.")
+            print("🌊 All required dependencies are present.")
             print("🌊 System is healthy.")
 
     def handle_clean(self, args):
@@ -771,20 +771,20 @@ class MacWaveCLI:
 
                 binary_path = INSTALL_DIR / safe_name
                 if binary_path.exists():
-                    print(f"🌊 🌊 Warning: Package '{safe_name}' is already installed.")
-                    print(f"🌊 🌊 Do you want to overwrite it?")
+                    print(f"🌊 Warning: Package '{safe_name}' is already installed.")
+                    print(f"🌊 Do you want to overwrite it?")
                     if self._confirm_action(""):
                         try:
                             backup_path = binary_path.with_suffix(binary_path.suffix + ".bak")
                             if backup_path.exists():
                                 backup_path.unlink()
                             binary_path.rename(backup_path)
-                            print(f"🌊 🌊 Removed old version of {safe_name}")
+                            print(f"🌊 Removed old version of {safe_name}")
                         except Exception as e:
                             print(f"{RED_BOLD}🌊 Error: Failed to remove old version: {e}{RESET}")
                             sys.exit(1)
                     else:
-                        print(f"🌊 🌊 Installation cancelled. Existing '{safe_name}' preserved.")
+                        print(f"🌊 Installation cancelled. Existing '{safe_name}' preserved.")
                         sys.exit(0)
 
             DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
