@@ -29,9 +29,9 @@ $ PackagesURL $
     let "ldid" = [SPECIAL]
     let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_arm64"
     let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-arm64"
-    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
-    let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
-    let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
+    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/1.0.0/test_001.txt"
+    let "test_no_sha256" = %f% "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
+    let "test_wrong_sha256" = %f% "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
     let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_arm64.zip"
     let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/{parse_download_version}/ChOma_arm64"
 }
@@ -41,15 +41,6 @@ $ PackagesDetails $
 <!-- ==================== Package Details ==================== -->
 [package_info:
 
-
-<!-- description = des,
-     homepage = hom,
-     license = lic
-     author = aut
-     version = ver
-     sha256 = sha256
-     binary_name = bin_name -->
-    
 <!-- ldid -->
 "ldid":
 
@@ -144,7 +135,7 @@ $ PackagesDetails $
         aut: "Sha0huaZhang (MacWave Team)"
         ver: "1.0.0"
         <!-- keep here (sha256) empty -->
-        binary_name: "test_no_sha256"
+        bin_name: "test_no_sha256"
     %END%
 
 <!-- test_wrong_sha256 -->
