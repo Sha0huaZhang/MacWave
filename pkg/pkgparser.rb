@@ -4,22 +4,26 @@ require 'json'
 
 class MacWaveParser
   def self.parse(content)
-    # 去掉所有注释
     clean = content.gsub(/<!--.*?-->/m, '')
 
-    # 1. 提取 URL 模板
     url_templates = {}
     special_packages = []
 
+    # 识别动态模板（含 %f%）
     clean.scan(/let\s+"([^"]+)"\s*=\s*%f%\s+"([^"]+)"/) do |pkg, url|
       url_templates[pkg] = url
     end
 
+    # 识别静态 URL（不含 %f%，如 test_001）
+    clean.scan(/let\s+"([^"]+)"\s*=\s*"([^"]+)"/) do |pkg, url|
+      url_templates[pkg] = url unless url_templates.key?(pkg)
+    end
+
+    # 识别 [SPECIAL]
     clean.scan(/let\s+"([^"]+)"\s*=\s*\[SPECIAL\]/) do |pkg,|
       special_packages << pkg
     end
 
-    # 2. 逐行状态机解析包
     packages = {}
     current_package = nil
     current_fields = {}
@@ -149,7 +153,6 @@ class MacWaveParser
       end
     end
 
-    # 结算最后一个包
     if current_package
       releases = []
       if current_versions.any?
@@ -180,7 +183,6 @@ class MacWaveParser
       }
     end
 
-    # 3. 把 URL 模板塞进包信息（如果该包不是 SPECIAL）
     packages.each do |name, info|
       unless special_packages.include?(name)
         if url_templates[name]
