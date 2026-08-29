@@ -386,7 +386,7 @@ class MacWaveCLI:
         if skip_db_update:
             cmd.append('--skip-db-update')
 
-        # 核心修复：不捕获子进程输出，让进度条实时流向终端！
+        # 核心修复：不捕获子进程输出，让进度条和颜色实时流向终端！
         result = subprocess.run(cmd)
 
         # 如果返回码非零，则返回错误码
