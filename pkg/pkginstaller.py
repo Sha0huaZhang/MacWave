@@ -12,14 +12,9 @@ import hashlib
 import shutil
 import fcntl
 import time
-import platform
-import traceback
 import logging
 import argparse
 from pathlib import Path
-from typing import Optional
-
-VERSION = "2.0.0-beta2(240E1644)"
 
 # ==========================================
 # 颜色定义
@@ -31,7 +26,7 @@ YELLOW = '\033[33m'
 RESET = '\033[0m'
 
 # ==========================================
-# 配置加载（固定读取 /opt/macwave_config）
+# 配置加载（无死循环：固定读取 /opt/macwave_config）
 # ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
@@ -75,20 +70,19 @@ PROTECTED_PACKAGES = ["wave"]
 
 try:
     import requests
-    from requests.adapters import HTTPAdapter
-    from urllib3.util.retry import Retry
+    from requests.exceptions import RequestException, HTTPError, ConnectionError, Timeout
     from urllib3.exceptions import InsecureRequestWarning
     import urllib3
 except ImportError:
-    print(f"{RED_BOLD}Error: 'requests' library is not installed.{RESET}")
-    print(f"{RED_BOLD}Please install it using: pip3 install requests{RESET}")
+    print(f"{RED_BOLD}🌊 Error: 'requests' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install requests{RESET}")
     sys.exit(1)
 
 try:
     from packaging.version import parse as parse_version, InvalidVersion
 except ImportError:
-    print(f"{RED_BOLD}Error: 'packaging' library is not installed.{RESET}")
-    print(f"{RED_BOLD}Please install it using: pip3 install packaging{RESET}")
+    print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
+    print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
 try:
@@ -119,7 +113,7 @@ class PackageInstaller:
     def _log(self, message: str, level: str = "info", force: bool = False):
         if self.verbose or force or level == "error":
             log_level = getattr(logging, level.upper(), logging.INFO)
-            self._logger.log(log_level, f"{message}")
+            self._logger.log(log_level, f"🌊 {message}")
 
     def log(self, message, force=False):
         self._log(message, "info", force)
@@ -133,7 +127,7 @@ class PackageInstaller:
 
     def _safe_delete_binary(self, binary_path: Path) -> bool:
         if self._is_protected(binary_path.name):
-            print(f"{RED_BOLD}ERROR: Cannot delete '{binary_path.name}' - it's protected!{RESET}")
+            print(f"{RED_BOLD}🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!{RESET}")
             return False
         try:
             if binary_path.exists():
@@ -141,13 +135,13 @@ class PackageInstaller:
                 return True
             return False
         except Exception as e:
-            print(f"{RED_BOLD}Error deleting {binary_path}: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 Error deleting {binary_path}: {e}{RESET}")
             return False
 
     def _confirm_missing_sha256(self) -> bool:
         console = Console()
-        console.print(f"{RED_BOLD}Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}", style="bold red")
-        response = input(f"Are you sure to continue? [Y/n] ").strip()
+        console.print(f"{RED_BOLD}🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}", style="bold red")
+        response = input(f"🌊 Are you sure to continue? [Y/n] ").strip()
         return response == 'Y' or response == 'y'
 
     def _calculate_sha256(self, filepath: Path) -> str:
@@ -168,22 +162,39 @@ class PackageInstaller:
             self.log(f"Invalid rate limit format '{rate_str}', ignoring limit.", force=True)
             return None
 
+    def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
+        total, used, free = shutil.disk_usage(path)
+        if free < required_bytes:
+            print(f"{RED_BOLD}🌊 Error: Insufficient disk space in {path}.{RESET}")
+            sys.exit(1)
+        return True
+
     def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
         if final_path is None:
             final_path = install_dir / package_name
 
+        # ========== B方案流程图逻辑开始 ==========
+
+        # 1. URL exists?
+        if not url:
+            print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
+            sys.exit(1)
+
+        # 2. Get package from URL (预处理)
         self.log_verbose(f"Download URL: {url}")
-        print(f"Downloading {package_name}...")
+        print(f"🌊 Downloading {package_name}...")
 
+        # 磁盘空间检查 (Disk space full?)
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
-        temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
+        self._check_disk_space(DOWNLOAD_TMP)
 
+        # 下载前准备
+        temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
         if temp_path.exists():
             temp_path.unlink()
 
-        # 修复：连接超时30秒（国内弱网），读取超时30秒
         request_kwargs = {'stream': True, 'timeout': (30, 30)}
 
         if args.get('proxy'):
@@ -192,72 +203,39 @@ class PackageInstaller:
             self.log_verbose(f"Using proxy: {safe_proxy}")
             request_kwargs['proxies'] = {'http': args['proxy'], 'https': args['proxy']}
 
-        # 修复：严格处理 SSL 验证关闭（1.x 同款警告确认）
         if args.get('skip_ssl'):
-            print(f"{RED_BOLD}WARNING: SSL verification is DISABLED. This may expose you to man-in-the-middle attacks.{RESET}")
-            print(f"{RED_BOLD}If you did not intentionally pass --skip-ssl, please stop and investigate.{RESET}")
-            response = input(f"{RED_BOLD}Do you still want to continue without SSL verification? [y/N] {RESET}").strip()
-            if response.lower() != 'y':
-                print(f"{RED_BOLD}Download stopped by user due to SSL warning.{RESET}")
-                sys.exit(1)
+            print(f"{RED_BOLD}🌊 WARNING: SSL verification is DISABLED. This may expose you to man-in-the-middle attacks.{RESET}")
             request_kwargs['verify'] = False
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            urllib3.disable_warnings(InsecureRequestWarning)
 
-        headers = {}
-        resume_pos = 0
-        should_resume = args.get('resume', False) and temp_path.exists()
-
-        if should_resume:
+        # 3. URL is valid? / Download smoothly? / Success?
+        # 下载失败重试逻辑（最多尝试2次，失败时让用户决定是否继续）
+        download_success = False
+        attempt = 0
+        while not download_success:
+            attempt += 1
             try:
-                resume_pos = temp_path.stat().st_size
-                if resume_pos > 0:
-                    headers['Range'] = f"bytes={resume_pos}-"
-                    print(f"Resuming from {resume_pos} bytes")
-                else:
-                    temp_path.unlink()
-                    should_resume = False
-            except (FileNotFoundError, OSError):
-                should_resume = False
+                response = requests.get(url, **request_kwargs)
 
-        if headers:
-            request_kwargs['headers'] = headers
+                # 判断服务器返回的状态码
+                if response.status_code == 404:
+                    print(f"{RED_BOLD}🌊 Error: ErrorCode 404 - The URL or file does not exist.{RESET}")
+                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
+                    sys.exit(404)
+                elif response.status_code != 200:
+                    print(f"{RED_BOLD}🌊 Error: ErrorCode {response.status_code}{RESET}")
+                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
+                    sys.exit(response.status_code)
 
-        try:
-            response = requests.get(url, **request_kwargs)
+                # 下载过程处理
+                total_size = int(response.headers.get('content-length', 0))
+                limit_bps = None
+                if args.get('limit_rate'):
+                    limit_bps = self._parse_rate_limit(args['limit_rate'])
+                    if limit_bps is not None:
+                        limit_bps = int(limit_bps * 0.8)
 
-            # 关键修改：处理 HTTP 404
-            if response.status_code == 404:
-                print(f"{RED_BOLD}Error: Download failed with error code 404 (Not Found).{RESET}")
-                print(f"{RED_BOLD}URL: {url}{RESET}")
-                print(f"{RED_BOLD}The package version or file may not exist, or the URL template is incorrect.{RESET}")
-                sys.exit(404)
-
-            response.raise_for_status()
-
-            is_resume = False
-            if should_resume and headers:
-                if response.status_code == 206:
-                    is_resume = True
-                elif response.status_code == 200:
-                    if temp_path.exists():
-                        temp_path.unlink()
-                    print("Warning: The server does not support resuming downloads.")
-                    print("Restarting download completely from the beginning.")
-                    resume_pos = 0
-                    is_resume = False
-
-            total_size = int(response.headers.get('content-length', 0)) + resume_pos
-            if total_size == 0:
-                total_size = None
-
-            limit_bps = None
-            if args.get('limit_rate'):
-                limit_bps = self._parse_rate_limit(args['limit_rate'])
-                if limit_bps is not None:
-                    limit_bps = int(limit_bps * 0.8)
-                    self.log_verbose(f"Download rate limit set to {limit_bps} bytes/sec (80% of user requested)")
-
-            try:
+                # 写入临时文件
                 if RICH_AVAILABLE:
                     from rich.console import Console
                     progress_columns = [
@@ -272,24 +250,15 @@ class PackageInstaller:
                     ]
                     console = Console()
                     with Progress(*progress_columns, console=console) as progress:
-                        task_id = progress.add_task(
-                            description=f"{package_name}",
-                            total=total_size if total_size else None,
-                            completed=resume_pos,
-                            speed="0 B/s"
-                        )
-                        if not total_size:
-                            progress.update(task_id, description=f"{package_name} (unknown size)")
+                        task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size or None, speed="0 B/s")
 
-                        mode = 'ab' if is_resume else 'wb'
                         sha256_hash = hashlib.sha256()
-
                         token_bucket = 0.0
                         last_time = time.monotonic()
                         speed_last_time = time.monotonic()
-                        speed_last_bytes = resume_pos
+                        speed_last_bytes = 0
 
-                        with open(temp_path, mode) as f:
+                        with open(temp_path, 'wb') as f:
                             for chunk in response.iter_content(chunk_size=8192):
                                 if chunk:
                                     if limit_bps:
@@ -308,25 +277,16 @@ class PackageInstaller:
                                         token_bucket -= len(chunk)
 
                                     f.write(chunk)
-                                    chunk_size_bytes = len(chunk)
                                     sha256_hash.update(chunk)
 
-                                    current_bytes = progress.tasks[task_id].completed + chunk_size_bytes
+                                    current_bytes = progress.tasks[task_id].completed + len(chunk)
                                     now = time.monotonic()
 
                                     if now - speed_last_time >= 0.5:
                                         real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
                                         speed_last_bytes = current_bytes
                                         speed_last_time = now
-
-                                        if limit_bps:
-                                            if real_speed > limit_bps:
-                                                display_speed = limit_bps
-                                            else:
-                                                display_speed = real_speed
-                                        else:
-                                            display_speed = real_speed
-
+                                        display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
                                         if display_speed >= 1024 * 1024:
                                             speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
                                         elif display_speed >= 1024:
@@ -336,7 +296,7 @@ class PackageInstaller:
 
                                         progress.update(task_id, speed=speed_str)
 
-                                    progress.update(task_id, advance=chunk_size_bytes)
+                                    progress.update(task_id, advance=len(chunk))
 
                         if total_size:
                             current_completed = progress.tasks[task_id].completed
@@ -345,30 +305,11 @@ class PackageInstaller:
                         progress.update(task_id, speed="0 B/s")
 
                 else:
-                    mode = 'ab' if is_resume else 'wb'
+                    # 无 rich 环境下的简单下载
                     sha256_hash = hashlib.sha256()
-
-                    token_bucket = 0.0
-                    last_time = time.monotonic()
-
-                    with open(temp_path, mode) as f:
+                    with open(temp_path, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
-                                if limit_bps:
-                                    now = time.monotonic()
-                                    delta = now - last_time
-                                    token_bucket += delta * limit_bps
-                                    last_time = now
-                                    if token_bucket > 8192:
-                                        token_bucket = 8192
-                                    if token_bucket < len(chunk):
-                                        time.sleep((len(chunk) - token_bucket) / limit_bps)
-                                        now = time.monotonic()
-                                        delta = now - last_time
-                                        token_bucket += delta * limit_bps
-                                        last_time = now
-                                    token_bucket -= len(chunk)
-
                                 f.write(chunk)
                                 sha256_hash.update(chunk)
                                 if self.verbose:
@@ -376,73 +317,92 @@ class PackageInstaller:
                     if self.verbose:
                         print(" ")
 
-                if release and release.get("sha256"):
-                    expected_sha256 = release.get("sha256")
-                    print("Verifying SHA256...")
-                    actual_sha256 = sha256_hash.hexdigest()
-                    if actual_sha256 != expected_sha256:
-                        print(f"{RED_BOLD}SHA256 verification failed!{RESET}")
-                        print(f"Expected: {expected_sha256}")
-                        print(f"{RED_BOLD}Actual:   {actual_sha256}{RESET}")
-                        raise Exception("SHA256 verification failed")
+                download_success = True
+                break
+
+            except (ConnectionError, Timeout) as e:
+                # Download smoothly? -> No
+                if attempt < 2:
+                    print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
+                    print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
+                    retry = input().strip().lower()
+                    if retry == 'y':
+                        continue
+                    else:
+                        print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
+                        sys.exit(1)
                 else:
-                    if not self._confirm_missing_sha256():
-                        raise Exception("Installation cancelled by user")
+                    print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
+                    sys.exit(1)
 
-                install_dir.mkdir(parents=True, exist_ok=True)
-
-                if final_path.exists():
-                    if self._is_protected(final_path.name):
-                        print(f"{RED_BOLD}ERROR: Cannot overwrite protected package: {final_path.name}{RESET}")
-                        raise Exception("Protected package overwrite attempt")
-
-                    backup_path = final_path.with_suffix(final_path.suffix + ".bak")
-                    final_path.rename(backup_path)
-
-                shutil.move(str(temp_path), str(final_path))
-                os.chmod(final_path, 0o755)
-                self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
-                print("Download complete!")
+            except HTTPError as e:
+                status_code = e.response.status_code if e.response is not None else 1
+                print(f"{RED_BOLD}🌊 Error: ErrorCode {status_code}{RESET}")
+                sys.exit(status_code)
 
             except Exception as e:
-                if not final_path.exists() and temp_path.exists():
-                    temp_path.unlink()
-                raise e
+                if self.verbose:
+                    traceback.print_exc()
+                print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+                sys.exit(1)
 
-        except KeyboardInterrupt:
-            print("\nDownload interrupted by user.")
-            if temp_path.exists() and temp_path.stat().st_size > 0:
-                print(f"Partial file saved at: {temp_path}")
-                print(f"Use 'wave install {package_name} -C' to resume later")
-            else:
-                temp_path.unlink()
-            sys.exit(130)
+        # 4. 计算 SHA256 并比对 (Calculate SHA256 Value + Compare)
+        if release and release.get("sha256"):
+            expected_sha256 = release.get("sha256")
+            print("🌊 Verifying SHA256...")
+            actual_sha256 = sha256_hash.hexdigest()
+            if actual_sha256 != expected_sha256:
+                print(f"{RED_BOLD}🌊 Error: SHA256 verification failed (Error code 007).{RESET}")
+                print(f"{RED_BOLD}🌊 Actual:   {actual_sha256}{RESET}")
+                print(f"🌊 Expected: {GREEN}{expected_sha256}{RESET}")
+                
+                # ========== 安全删除损坏文件（支持系统级目录） ==========
+                if temp_path.exists():
+                    try:
+                        # 普通权限删除
+                        temp_path.unlink()
+                        print(f"{RED_BOLD}🌊 The corrupted file has been deleted (rm -rf).{RESET}")
+                    except PermissionError:
+                        # 权限不足时，尝试使用 sudo 删除
+                        print(f"{RED_BOLD}🌊 Permission denied. Attempting to delete with sudo...{RESET}")
+                        import subprocess as sp
+                        try:
+                            result = sp.run(['sudo', 'rm', '-rf', str(temp_path)], capture_output=True, text=True)
+                            if result.returncode == 0:
+                                print(f"{RED_BOLD}🌊 The corrupted file has been deleted (sudo rm -rf).{RESET}")
+                            else:
+                                print(f"{RED_BOLD}🌊 WARNING: Unable to delete {temp_path}. Please delete it manually.{RESET}")
+                        except Exception:
+                            print(f"{RED_BOLD}🌊 WARNING: Unable to delete {temp_path}. Please delete it manually.{RESET}")
+                sys.exit(7)
+        else:
+            if not self._confirm_missing_sha256():
+                raise Exception("Installation cancelled by user")
 
-        except requests.exceptions.RequestException as e:
-            if self.verbose:
-                traceback.print_exc()
+        # 5. 移动到 /bin (move it to /bin with mv)
+        install_dir.mkdir(parents=True, exist_ok=True)
 
-            status_code = e.response.status_code if hasattr(e, 'response') and e.response is not None else 1
+        if final_path.exists():
+            if self._is_protected(final_path.name):
+                print(f"{RED_BOLD}🌊 ERROR: Cannot overwrite protected package: {final_path.name}{RESET}")
+                raise Exception("Protected package overwrite attempt")
+            backup_path = final_path.with_suffix(final_path.suffix + ".bak")
+            final_path.rename(backup_path)
 
-            if status_code == 404:
-                print(f"{RED_BOLD}Error code 404: The URL or file does not exist.{RESET}")
-                print(f"{RED_BOLD}URL: {url}{RESET}")
-            elif status_code == 403:
-                print(f"{RED_BOLD}Error code 403: Access denied. Check permissions or rate limits.{RESET}")
-            elif status_code == 500:
-                print(f"{RED_BOLD}Error code 500: Server error. Try again later.{RESET}")
-            else:
-                print(f"{RED_BOLD}Error: Failed to download binary: {e}{RESET}")
+        shutil.move(str(temp_path), str(final_path))
 
-            sys.exit(status_code)
-
-        except Exception as e:
-            if self.verbose:
-                traceback.print_exc()
-            print(f"{RED_BOLD}Error: {e}{RESET}")
-            if temp_path.exists() and temp_path.stat().st_size > 0:
-                print(f"Partial file saved at: {temp_path}")
+        # 6. 权限检查 (Permission check)
+        try:
+            os.chmod(final_path, 0o755)
+        except PermissionError:
+            print(f"{RED_BOLD}🌊 Error: Permission wrong{RESET}")
             sys.exit(1)
+
+        self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
+        print("🌊 Download complete!")
+
+        # 7. 输出成功
+        return final_path
 
     def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
         if install_dir is None:
@@ -451,25 +411,24 @@ class PackageInstaller:
             final_path = install_dir / package_name
 
         if not final_path.exists():
-            print(f"{RED_BOLD}Error: Binary file not found after download.{RESET}")
+            print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
             sys.exit(1)
 
         try:
-            print(f"Successfully installed {package_name} to {final_path}")
+            # 将绝对路径转换为 ~ 形式
+            home = Path.home()
+            display_path = final_path
+            if str(final_path).startswith(str(home)):
+                display_path = Path("~") / final_path.relative_to(home)
+
+            print(f"🌊 Successfully installed {package_name} to {display_path}")
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
                 self.log_verbose("Skipping DB update (--skip-db-update specified)")
 
-            path_dirs = os.environ.get("PATH", "").split(":")
-            if str(install_dir) not in path_dirs:
-                print(f"Tip: Add {install_dir} to your PATH to use '{package_name}' directly:")
-                print(f"   export PATH=\"{install_dir}:$PATH\"")
-            else:
-                print(f"Ready to ride! You can now run: {package_name}")
-
         except OSError as e:
-            print(f"{RED_BOLD}Error: Failed to install package: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
             sys.exit(1)
 
     def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
@@ -499,7 +458,7 @@ class PackageInstaller:
         safe_name = package_spec.lower()
 
         if self._is_protected(safe_name):
-            print(f"{RED_BOLD}ERROR: Cannot uninstall protected package: {safe_name}{RESET}")
+            print(f"{RED_BOLD}🌊 ERROR: Cannot uninstall protected package: {safe_name}{RESET}")
             return
 
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -515,13 +474,13 @@ class PackageInstaller:
                 ver = f.name.split('@', 1)[1]
                 to_remove.append((f, ver))
             if not to_remove:
-                print(f"No versions of '{base_name}' found to uninstall.")
+                print(f"🌊 No versions of '{base_name}' found to uninstall.")
                 return
-            print(f"Found {len(to_remove)} version(s) of '{base_name}':")
+            print(f"🌊 Found {len(to_remove)} version(s) of '{base_name}':")
             for _, ver in to_remove:
-                print(f"  - {base_name}@{ver}")
+                print(f"🌊   - {base_name}@{ver}")
             if not self._confirm_action(f"Uninstall all versions of '{base_name}'?"):
-                print("Uninstall cancelled.")
+                print("🌊 Uninstall cancelled.")
                 return
         elif '@' in package_spec:
             parts = package_spec.split('@')
@@ -533,27 +492,27 @@ class PackageInstaller:
                 if target.exists() and not target.name.endswith('.bak'):
                     to_remove.append((target, ver))
                 else:
-                    print(f"Warning: {base_name}@{ver} not found, skipping.")
+                    print(f"🌊 Warning: {base_name}@{ver} not found, skipping.")
             if not to_remove:
-                print(f"No specified versions of '{base_name}' found to uninstall.")
+                print(f"🌊 No specified versions of '{base_name}' found to uninstall.")
                 return
-            print(f"Found {len(to_remove)} specified version(s) of '{base_name}':")
+            print(f"🌊 Found {len(to_remove)} specified version(s) of '{base_name}':")
             for _, ver in to_remove:
-                print(f"  - {base_name}@{ver}")
+                print(f"🌊   - {base_name}@{ver}")
             if not self._confirm_action(f"Uninstall these versions of '{base_name}'?"):
-                print("Uninstall cancelled.")
+                print("🌊 Uninstall cancelled.")
                 return
         else:
             base_name = safe_name
             if not INSTALLED_DB.exists():
-                print("No packages installed. Nothing to uninstall.")
+                print("🌊 No packages installed. Nothing to uninstall.")
                 return
             try:
                 with open(INSTALLED_DB, 'r') as f:
                     fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                     installed = json.load(f)
                 if base_name not in installed:
-                    print(f"{RED_BOLD}Error: Package '{base_name}' is not installed.{RESET}")
+                    print(f"{RED_BOLD}🌊 Error: Package '{base_name}' is not installed.{RESET}")
                     return
                 binary_path = Path(installed[base_name].get('binary_path', str(install_dir / base_name)))
                 if not self._safe_delete_binary(binary_path):
@@ -562,19 +521,19 @@ class PackageInstaller:
                 if bak_path.exists():
                     try:
                         bak_path.unlink()
-                        print(f"Removed backup {base_name}.bak")
+                        print(f"🌊 Removed backup {base_name}.bak")
                     except Exception as e:
-                        print(f"{RED_BOLD}Warning: Could not remove backup {base_name}.bak: {e}{RESET}")
+                        print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}.bak: {e}{RESET}")
                 with open(INSTALLED_DB, 'w') as f:
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                     del installed[base_name]
                     f.seek(0)
                     f.truncate()
                     json.dump(installed, f, indent=2)
-                print(f"Successfully uninstalled '{base_name}'.")
+                print(f"🌊 Successfully uninstalled '{base_name}'.")
                 return
             except Exception as e:
-                print(f"{RED_BOLD}Error: Failed to uninstall package: {e}{RESET}")
+                print(f"{RED_BOLD}🌊 Error: Failed to uninstall package: {e}{RESET}")
                 return
 
         deleted_count = 0
@@ -582,18 +541,18 @@ class PackageInstaller:
             try:
                 if self._safe_delete_binary(file_path):
                     deleted_count += 1
-                    print(f"Removed {base_name}@{ver}")
+                    print(f"🌊 Removed {base_name}@{ver}")
                     bak_path = file_path.with_suffix(file_path.suffix + ".bak")
                     if bak_path.exists():
                         try:
                             bak_path.unlink()
-                            print(f"Removed backup {base_name}@{ver}.bak")
+                            print(f"🌊 Removed backup {base_name}@{ver}.bak")
                         except Exception as e:
-                            print(f"{RED_BOLD}Warning: Could not remove backup {base_name}@{ver}.bak: {e}{RESET}")
+                            print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}@{ver}.bak: {e}{RESET}")
                 else:
-                    print(f"{RED_BOLD}Failed to remove {base_name}@{ver}{RESET}")
+                    print(f"{RED_BOLD}🌊 Failed to remove {base_name}@{ver}{RESET}")
             except Exception as e:
-                print(f"{RED_BOLD}Error removing {base_name}@{ver}: {e}{RESET}")
+                print(f"{RED_BOLD}🌊 Error removing {base_name}@{ver}: {e}{RESET}")
 
         try:
             if INSTALLED_DB.exists():
@@ -605,17 +564,17 @@ class PackageInstaller:
                         f.seek(0)
                         f.truncate()
                         json.dump(installed, f, indent=2)
-                        print(f"Removed '{base_name}' from installation database.")
+                        print(f"🌊 Removed '{base_name}' from installation database.")
         except Exception as e:
-            print(f"{RED_BOLD}Warning: Could not update installation database: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 Warning: Could not update installation database: {e}{RESET}")
 
         if deleted_count > 0:
-            print(f"Successfully uninstalled {deleted_count} version(s) of '{base_name}'.")
+            print(f"🌊 Successfully uninstalled {deleted_count} version(s) of '{base_name}'.")
         else:
-            print(f"No versions of '{base_name}' were uninstalled.")
+            print(f"🌊 No versions of '{base_name}' were uninstalled.")
 
     def _confirm_action(self, message: str) -> bool:
-        response = input(f"{message} [Y/n] ").strip()
+        response = input(f"🌊 {message} [Y/n] ").strip()
         return response == 'Y' or response == 'y'
 
     def _confirm_skip_ssl(self, args) -> bool:
@@ -624,12 +583,12 @@ class PackageInstaller:
             return True
 
         console = Console()
-        console.print(f"{RED_BOLD}--skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}", style="bold red")
+        console.print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}", style="bold red")
         if self._confirm_action(""):
-            console.print(f"{GREEN}Install continue{RESET}", style="bold green")
+            console.print(f"{GREEN}🌊 Install continue{RESET}", style="bold green")
             return True
         else:
-            console.print(f"{RED_BOLD}Install stopped{RESET}", style="bold red")
+            console.print(f"{RED_BOLD}🌊 Install stopped{RESET}", style="bold red")
             return False
 
 
