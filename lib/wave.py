@@ -288,27 +288,9 @@ class MacWaveCLI:
                     all_releases.append({
                         "version": release.get("version"),
                         "sha256": release.get("sha256", ""),
-                        "binary_url": pkg.get("binary_url", ""),
+                        # ⬇️ 核心：优先使用 release 自带的 url，如果没有则用包级 binary_url
+                        "binary_url": release.get("url", "") or pkg.get("binary_url", ""),
                         "arch": release.get("arch", "any"),
-                        "description": pkg.get("description", ""),
-                        "homepage": pkg.get("homepage", ""),
-                        "license": pkg.get("license", ""),
-                        "author": pkg.get("author", ""),
-                        "binary_name": pkg.get("binary_name", package_name)
-                    })
-
-            if not all_releases:
-                print(f"{RED_BOLD}🌊 Error: Package '{package_name}' not found in repository{RESET}")
-                sys.exit(1)
-        else:
-            # 如果之前有列表，就遍历列表
-            for pkg in packages:
-                if pkg.get("name") == package_name:
-                    all_releases.append({
-                        "version": pkg.get("version"),
-                        "sha256": pkg.get("sha256", ""),
-                        "binary_url": pkg.get("binary_url", ""),
-                        "arch": pkg.get("arch", "any"),
                         "description": pkg.get("description", ""),
                         "homepage": pkg.get("homepage", ""),
                         "license": pkg.get("license", ""),
@@ -367,8 +349,10 @@ class MacWaveCLI:
             print(f"{RED_BOLD}🌊 Error: pkginstaller.py not found at {installer_path}{RESET}")
             sys.exit(1)
 
+        # ⬇️ 核心：使用 release 里自带的 URL（此时已经是完整 URL，不需要替换占位符）
         binary_url = release.get('binary_url', '') if release else ''
-        if binary_url and version:
+        if binary_url:
+            # 仅当 URL 里还残留占位符时才替换，正常情况下它已经是完整的
             binary_url = self._replace_version_placeholder(binary_url, version)
 
         cmd = [
