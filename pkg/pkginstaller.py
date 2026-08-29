@@ -31,7 +31,7 @@ YELLOW = '\033[33m'
 RESET = '\033[0m'
 
 # ==========================================
-# 配置加载（无死循环：固定读取 /opt/macwave_config）
+# 配置加载（固定读取 /opt/macwave_config）
 # ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
@@ -183,7 +183,8 @@ class PackageInstaller:
         if temp_path.exists():
             temp_path.unlink()
 
-        request_kwargs = {'stream': True, 'timeout': 60}
+        # 修复：连接超时30秒（国内弱网），读取超时30秒
+        request_kwargs = {'stream': True, 'timeout': (30, 30)}
 
         if args.get('proxy'):
             proxy = args['proxy']
@@ -191,7 +192,14 @@ class PackageInstaller:
             self.log_verbose(f"Using proxy: {safe_proxy}")
             request_kwargs['proxies'] = {'http': args['proxy'], 'https': args['proxy']}
 
+        # 修复：严格处理 SSL 验证关闭（1.x 同款警告确认）
         if args.get('skip_ssl'):
+            print(f"{RED_BOLD}WARNING: SSL verification is DISABLED. This may expose you to man-in-the-middle attacks.{RESET}")
+            print(f"{RED_BOLD}If you did not intentionally pass --skip-ssl, please stop and investigate.{RESET}")
+            response = input(f"{RED_BOLD}Do you still want to continue without SSL verification? [y/N] {RESET}").strip()
+            if response.lower() != 'y':
+                print(f"{RED_BOLD}Download stopped by user due to SSL warning.{RESET}")
+                sys.exit(1)
             request_kwargs['verify'] = False
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
