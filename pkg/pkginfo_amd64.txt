@@ -28,12 +28,12 @@ $ PackagesURL $
 {repo_url:
     let "ldid" = [SPECIAL]
     let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_x86_64"
-    let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-x86_64"
-    let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
+    let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/v{parse_download_version}/palera1n-macos-x86_64"
+    let "test_001" = "https://github.com/Sha0huaZhang/test_001/releases/download/v1.0/test_001.txt"
     let "test_no_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_no_sha256"
     let "test_wrong_sha256" = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/test/test_wrong_sha256"
     let "trollrestore" = %f% "https://github.com/JJTech0130/TrollRestore/releases/download/{parse_download_version}/TrollRestore_macOS_amd64.zip"
-    let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/{parse_download_version}/ChOma_amd64"
+    let "choma" = %f% "https://github.com/Sha0huaZhang/ChOma-macwave/releases/download/v{parse_download_version}/ChOma_amd64"
 }
 $ \PackagesURL $
 
@@ -41,21 +41,12 @@ $ PackagesDetails $
 <!-- ==================== Package Details ==================== -->
 [package_info:
 
-
-<!-- description = des,
-     homepage = hom,
-     license = lic
-     author = aut
-     version = ver
-     sha256 = sha256
-     binary_name = bin_name -->
-    
 <!-- ldid -->
 "ldid":
 
     %START%
-        description: "Link Identity Editor. Put real or fake signatures in a Mach-O."
-        homepage: "https://github.com/ProcursusTeam/ldid"
+        des: "Link Identity Editor. Put real or fake signatures in a Mach-O."
+        hom: "https://github.com/ProcursusTeam/ldid"
         lic: "MIT"
         aut: "Jay Freeman (saurik) / Procursus Team"
         ver: "2.1.5-procursus7"
@@ -68,20 +59,20 @@ $ PackagesDetails $
              "2.1.5-procursus" 
         sha256: "9d46e0feedf96e399edfca09872802ba21e729f79c01927ad25ea2b0a35bca23"
                 "86f1ce8aef67fda767ca00fc553cdb9b1a8e8b82c5d648c6c533a7c98cabceb2"
-                "a947fe20f509b87a12ba47c37352c40b4046c0487809f58d61f981e7e8c130a2
+                "a947fe20f509b87a12ba47c37352c40b4046c0487809f58d61f981e7e8c130a2"
                 "d8f9c0d5e7c0bca6c95a6a4c859fc3809f4ac304a4f3c82c4c7ba36202703218"
                 "775a9541ab43aa7952cfc76fb75f8f697143bbac3903812208ac075d96ecc8c5"
                 "696dd7044a7894a166da07016729816603f9586de5918663fdf211588e60247d"
                 "2dfd6c7f7e180a74d3247d97d6498f8f2de9265d89cc518f7ed1222919331b19"
                 "6476c93629e775c7dda28946ae576e776c9952e4991e88256d6f7df7545e30c2"
-        url: "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus6/ldid_macosx_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macos_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macos_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macos_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macos_arm64"
-             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macos_arm64"
+        url: "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus6/ldid_macosx_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macos_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macos_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macos_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macos_x86_64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macos_x86_64"
         bin_name: "ldid"
     %END%
     
@@ -151,13 +142,13 @@ $ PackagesDetails $
 "test_wrong_sha256":
 
     %START%
-        description:  "MacWave test package."
-        homepage: "https://github.com/Sha0huaZhang/MacWave"
-        license: "MIT"
-        author: "Sha0huaZhang (MacWave Team)"
-        version: "1.0.0"
+        des:  "MacWave test package."
+        hom: "https://github.com/Sha0huaZhang/MacWave"
+        lic: "MIT"
+        aut: "Sha0huaZhang (MacWave Team)"
+        ver: "1.0.0"
         sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        binary_name: "test_wrong_sha256"
+        bin_name: "test_wrong_sha256"
     %END%
 
 <!-- trollrestore -->
@@ -171,6 +162,7 @@ $ PackagesDetails $
         ver: "1.0"
         sha256: "3855a23fed9b2ec4b84d85a69bce0b31429f6b7107d12d0a067b44ac13ef16fb"
         bin_name: "trollrestore"
+    %END%
 
 <!-- choma -->
 "choma":
