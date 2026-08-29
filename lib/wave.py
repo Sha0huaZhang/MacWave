@@ -81,8 +81,10 @@ def load_config():
                     return Path(base_dir)
         except Exception:
             pass
-    # 默认值（兜底，通常不会走到这里）
-    return Path.home() / ".local" / "macwave"
+    # 如果配置文件缺失或损坏，直接报错退出，绝不写死 ~/.local
+    print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
+    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall MacWave.{RESET}")
+    sys.exit(1)
 
 BASE_DIR = load_config()
 # 根据新目录结构定义路径
@@ -196,7 +198,7 @@ class MacWaveCLI:
         return package_name.lower() in PROTECTED_PACKAGES
 
     def _confirm_action(self, message: str) -> bool:
-        response = input(f"🌊 {message} [Y/n] ").strip()
+        response = input(f"{RED_BOLD}🌊 {message} [Y/n] {RESET}").strip()
         return response == 'Y' or response == 'y'
 
     def _confirm_skip_ssl(self, args) -> bool:
