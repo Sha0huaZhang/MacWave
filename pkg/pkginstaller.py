@@ -217,13 +217,12 @@ class PackageInstaller:
         try:
             response = requests.get(url, **request_kwargs)
 
-            # ========== 关键修改：处理 HTTP 404 ==========
+            # 关键修改：处理 HTTP 404
             if response.status_code == 404:
                 print(f"{RED_BOLD}Error: Download failed with error code 404 (Not Found).{RESET}")
                 print(f"{RED_BOLD}URL: {url}{RESET}")
                 print(f"{RED_BOLD}The package version or file may not exist, or the URL template is incorrect.{RESET}")
                 sys.exit(404)
-            # ================================================
 
             response.raise_for_status()
 
@@ -415,7 +414,6 @@ class PackageInstaller:
             if self.verbose:
                 traceback.print_exc()
 
-            # ========== 关键修改：获取具体 HTTP 状态码并输出错误码 ==========
             status_code = e.response.status_code if hasattr(e, 'response') and e.response is not None else 1
 
             if status_code == 404:
@@ -429,7 +427,6 @@ class PackageInstaller:
                 print(f"{RED_BOLD}Error: Failed to download binary: {e}{RESET}")
 
             sys.exit(status_code)
-        # ====================================================================
 
         except Exception as e:
             if self.verbose:
