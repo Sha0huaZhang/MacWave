@@ -288,7 +288,7 @@ class MacWaveCLI:
                     all_releases.append({
                         "version": release.get("version"),
                         "sha256": release.get("sha256", ""),
-                        # ⬇️ 核心：优先使用 release 自带的 url，如果没有则用包级 binary_url
+                        # 核心：优先使用 release 自带的 url，如果没有则用包级 binary_url
                         "binary_url": release.get("url", "") or pkg.get("binary_url", ""),
                         "arch": release.get("arch", "any"),
                         "description": pkg.get("description", ""),
@@ -349,7 +349,7 @@ class MacWaveCLI:
             print(f"{RED_BOLD}🌊 Error: pkginstaller.py not found at {installer_path}{RESET}")
             sys.exit(1)
 
-        # ⬇️ 核心：使用 release 里自带的 URL（此时已经是完整 URL，不需要替换占位符）
+        # 核心：使用 release 里自带的 URL（此时已经是完整 URL，不需要替换占位符）
         binary_url = release.get('binary_url', '') if release else ''
         if binary_url:
             # 仅当 URL 里还残留占位符时才替换，正常情况下它已经是完整的
@@ -387,9 +387,16 @@ class MacWaveCLI:
             cmd.append('--skip-db-update')
 
         result = subprocess.run(cmd, capture_output=True, text=True)
+
+        # 核心修复：先检查退出码，然后优先打印 stdout 里的错误码信息
         if result.returncode != 0:
+            # 如果 stdout 有内容（比如 "Error code 404..."），先打印出来！
+            if result.stdout:
+                print(result.stdout.strip())
+            # 如果 stdout 为空，再打印 stderr
             if result.stderr:
-                print(result.stderr)
+                print(result.stderr.strip())
+            # 明确退出，并传回错误码！
             sys.exit(result.returncode)
         if result.stdout:
             print(result.stdout.strip())
@@ -450,19 +457,19 @@ class MacWaveCLI:
 
         if existing_versions:
             if version in existing_versions:
-                print(f"🌊 \033[93mVersion {version} of '{safe_name}' is already installed.\033[0m")
-                print(f"🌊 \033[93mDo you want to reinstall it? [Y/n]:\033[0m")
+                print(f"🌊 🌊 Version {version} of '{safe_name}' is already installed.")
+                print(f"🌊 🌊 Do you want to reinstall it? [Y/n]:")
                 if not self._confirm_action(""):
-                    print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}@{version}' preserved.\033[0m")
+                    print(f"🌊 🌊 Installation cancelled. Existing '{safe_name}@{version}' preserved.")
                     return
             else:
-                print(f"🌊 \033[93mExisting version(s) of '{safe_name}' found:\033[0m")
+                print(f"🌊 🌊 Existing version(s) of '{safe_name}' found:")
                 for v in existing_versions:
-                    print(f"🌊 \033[93m  - {safe_name}@{v}\033[0m")
-                print(f"🌊 \033[93mDo you want to install the latest version ({version})?\033[0m")
-                print(f"🌊 \033[93mContinue installation will NOT delete existing versions [Y/n]:\033[0m")
+                    print(f"🌊 🌊   - {safe_name}@{v}")
+                print(f"🌊 🌊 Do you want to install the latest version ({version})?")
+                print(f"🌊 🌊 Continue installation will NOT delete existing versions [Y/n]:")
                 if not self._confirm_action(""):
-                    print(f"🌊 \033[32mInstallation cancelled.\033[0m")
+                    print(f"🌊 🌊 Installation cancelled.")
                     return
 
         self._call_installer(
@@ -734,7 +741,7 @@ class MacWaveCLI:
             print("🌊 Please install the missing software packages manually.")
             sys.exit(1)
         else:
-            print("🌊 \033[32mAll required dependencies are present.\033[0m")
+            print("🌊 🌊 All required dependencies are present.")
             print("🌊 System is healthy.")
 
     def handle_clean(self, args):
@@ -772,20 +779,20 @@ class MacWaveCLI:
 
                 binary_path = INSTALL_DIR / safe_name
                 if binary_path.exists():
-                    print(f"🌊 \033[93mWarning: Package '{safe_name}' is already installed.\033[0m")
-                    print(f"🌊 \033[93mDo you want to overwrite it?\033[0m")
+                    print(f"🌊 🌊 Warning: Package '{safe_name}' is already installed.")
+                    print(f"🌊 🌊 Do you want to overwrite it?")
                     if self._confirm_action(""):
                         try:
                             backup_path = binary_path.with_suffix(binary_path.suffix + ".bak")
                             if backup_path.exists():
                                 backup_path.unlink()
                             binary_path.rename(backup_path)
-                            print(f"🌊 \033[31mRemoved old version of {safe_name}\033[0m")
+                            print(f"🌊 🌊 Removed old version of {safe_name}")
                         except Exception as e:
                             print(f"{RED_BOLD}🌊 Error: Failed to remove old version: {e}{RESET}")
                             sys.exit(1)
                     else:
-                        print(f"🌊 \033[32mInstallation cancelled. Existing '{safe_name}' preserved.\033[0m")
+                        print(f"🌊 🌊 Installation cancelled. Existing '{safe_name}' preserved.")
                         sys.exit(0)
 
             DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
