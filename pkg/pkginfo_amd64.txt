@@ -26,7 +26,7 @@ $ \PackagesVersion $
 $ PackagesURL $
 <!-- ==================== URL Variable Definitions ==================== -->
 {repo_url:
-    let "ldid" = %f% "https://github.com/ProcursusTeam/ldid/releases/download/{parse_download_version}/ldid_macosx_x86_64"
+    let "ldid" = [SPECIAL]
     let "machox" = %f% "https://github.com/Sha0huaZhang/MachOX/releases/download/{parse_download_version}/MachOX_force_Homebrew_x86_64"
     let "palera1n" = %f% "https://github.com/palera1n/palera1n/releases/download/{parse_download_version}/palera1n-macos-x86_64"
     let "test_001" = %f% "https://github.com/Sha0huaZhang/test_001/releases/download/{parse_download_version}/test_001.txt"
@@ -74,6 +74,14 @@ $ PackagesDetails $
                 "696dd7044a7894a166da07016729816603f9586de5918663fdf211588e60247d"
                 "2dfd6c7f7e180a74d3247d97d6498f8f2de9265d89cc518f7ed1222919331b19"
                 "6476c93629e775c7dda28946ae576e776c9952e4991e88256d6f7df7545e30c2"
+        url: "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus6/ldid_macosx_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus5/ldid_macos_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus3/ldid_macos_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_macos_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus1/ldid_macos_arm64"
+             "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus/ldid_macos_arm64"
         bin_name: "ldid"
     %END%
     
