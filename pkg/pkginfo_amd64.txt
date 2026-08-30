@@ -178,3 +178,4 @@ $ PackagesDetails $
     %END%
 
 $ \PackagesDetails $
+]
