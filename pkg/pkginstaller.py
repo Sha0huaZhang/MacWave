@@ -172,6 +172,22 @@ class PackageInstaller:
             sys.exit(1)
         return True
 
+    def _delete_directory_with_sudo(self, target_path: Path) -> bool:
+        """尝试使用 sudo 删除目录/文件"""
+        try:
+            import subprocess as sp
+            print(f"{RED_BOLD}🌊 Permission denied. Attempting to delete with sudo...{RESET}")
+            result = sp.run(['sudo', 'rm', '-rf', str(target_path)], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"{RED_BOLD}🌊 Deleted with sudo (sudo rm -rf).{RESET}")
+                return True
+            else:
+                print(f"{RED_BOLD}🌊 WARNING: Unable to delete with sudo. Please delete manually.{RESET}")
+                return False
+        except Exception:
+            print(f"{RED_BOLD}🌊 WARNING: Unable to delete with sudo. Please delete manually.{RESET}")
+            return False
+
     def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
@@ -460,120 +476,120 @@ class PackageInstaller:
     def uninstall_package(self, package_spec):
         safe_name = package_spec.lower()
 
+        # 1. 检查是否受保护
         if self._is_protected(safe_name):
             print(f"{RED_BOLD}🌊 ERROR: Cannot uninstall protected package: {safe_name}{RESET}")
             return
 
+        # 2. 获取版本号
+        version = None
+        if '@' in package_spec:
+            parts = package_spec.split('@')
+            safe_name = parts[0].lower()
+            if len(parts) > 1:
+                version = parts[1]
+
+        # 如果未指定版本，询问用户
+        if not version:
+            print(f"{RED_BOLD}🌊 Please enter the version number for '{safe_name}':{RESET}")
+            version = input().strip()
+            if not version:
+                print(f"{RED_BOLD}🌊 ERROR: No version entered. Uninstall skipped.{RESET}")
+                return
+
+        # 3. 查询 installed.json 是否记录了该版本
         INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
         install_dir = INSTALL_DIR
 
-        if package_spec.endswith('@*'):
-            base_name = safe_name.rstrip('@*')
-            to_remove = []
-            for f in install_dir.glob(f"{base_name}@*"):
-                if f.name.endswith('.bak'):
-                    continue
-                ver = f.name.split('@', 1)[1]
-                to_remove.append((f, ver))
-            if not to_remove:
-                print(f"🌊 No versions of '{base_name}' found to uninstall.")
+        if not INSTALLED_DB.exists():
+            print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
+            return
+
+        try:
+            with open(INSTALLED_DB, 'r') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                installed = json.load(f)
+
+            if safe_name not in installed:
+                print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
                 return
-            print(f"🌊 Found {len(to_remove)} version(s) of '{base_name}':")
-            for _, ver in to_remove:
-                print(f"🌊   - {base_name}@{ver}")
-            if not self._confirm_action(f"Uninstall all versions of '{base_name}'?"):
-                print("🌊 Uninstall cancelled.")
+
+            current_version = installed[safe_name].get('version', '0.0.0')
+            if current_version != version:
+                print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
                 return
-        elif '@' in package_spec:
-            parts = package_spec.split('@')
-            base_name = parts[0].lower()
-            versions_to_remove = parts[1:]
-            to_remove = []
-            for ver in versions_to_remove:
-                target = install_dir / f"{base_name}@{ver}"
-                if target.exists() and not target.name.endswith('.bak'):
-                    to_remove.append((target, ver))
-                else:
-                    print(f"🌊 Warning: {base_name}@{ver} not found, skipping.")
-            if not to_remove:
-                print(f"🌊 No specified versions of '{base_name}' found to uninstall.")
-                return
-            print(f"🌊 Found {len(to_remove)} specified version(s) of '{base_name}':")
-            for _, ver in to_remove:
-                print(f"🌊   - {base_name}@{ver}")
-            if not self._confirm_action(f"Uninstall these versions of '{base_name}'?"):
-                print("🌊 Uninstall cancelled.")
-                return
-        else:
-            base_name = safe_name
-            if not INSTALLED_DB.exists():
-                print("🌊 No packages installed. Nothing to uninstall.")
-                return
+
+            binary_path = Path(installed[safe_name].get('binary_path', str(install_dir / f"{safe_name}@{version}")))
+
+        except Exception as e:
+            print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
+            return
+
+        # 4. 删除文件本身
+        print(f"🌊 Deleting {binary_path}...")
+        deleted = False
+        if binary_path.exists():
             try:
-                with open(INSTALLED_DB, 'r') as f:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                    installed = json.load(f)
-                if base_name not in installed:
-                    print(f"{RED_BOLD}🌊 Error: Package '{base_name}' is not installed.{RESET}")
-                    return
-                binary_path = Path(installed[base_name].get('binary_path', str(install_dir / base_name)))
-                if not self._safe_delete_binary(binary_path):
-                    return
-                bak_path = binary_path.with_suffix(binary_path.suffix + ".bak")
-                if bak_path.exists():
-                    try:
-                        bak_path.unlink()
-                        print(f"🌊 Removed backup {base_name}.bak")
-                    except Exception as e:
-                        print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}.bak: {e}{RESET}")
-                with open(INSTALLED_DB, 'w') as f:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                    del installed[base_name]
+                binary_path.unlink()
+                deleted = True
+            except PermissionError:
+                deleted = self._delete_directory_with_sudo(binary_path)
+
+        if not deleted:
+            print(f"{RED_BOLD}🌊 WARNING: Failed to delete {binary_path}. Please delete manually.{RESET}")
+            return
+
+        # 5. 删除对应的 .bak 文件
+        bak_path = binary_path.with_suffix(binary_path.suffix + ".bak")
+        if bak_path.exists():
+            print(f"🌊 Deleting backup file: {bak_path}...")
+            bak_deleted = False
+            try:
+                bak_path.unlink()
+                bak_deleted = True
+            except PermissionError:
+                bak_deleted = self._delete_directory_with_sudo(bak_path)
+
+            if not bak_deleted:
+                print(f"{RED_BOLD}🌊 WARNING: Failed to delete backup {bak_path}. Please delete manually.{RESET}")
+
+        # 6. 备份 installed.json
+        print("🌊 Backing up installed.json...")
+        backup_path = INSTALLED_DB.with_name(f"installed.bak_{int(time.time())}.json")
+        try:
+            shutil.copy2(INSTALLED_DB, backup_path)
+            print(f"🌊 Backup created: {backup_path}")
+        except Exception as e:
+            print(f"{RED_BOLD}🌊 WARNING: Backup failed. You may need to manually edit installed.json.{RESET}")
+
+        # 7. 从 installed.json 删除该记录
+        try:
+            with open(INSTALLED_DB, 'r+') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                installed = json.load(f)
+                if safe_name in installed:
+                    del installed[safe_name]
                     f.seek(0)
                     f.truncate()
                     json.dump(installed, f, indent=2)
-                print(f"🌊 Successfully uninstalled '{base_name}'.")
-                return
-            except Exception as e:
-                print(f"{RED_BOLD}🌊 Error: Failed to uninstall package: {e}{RESET}")
-                return
-
-        deleted_count = 0
-        for file_path, ver in to_remove:
-            try:
-                if self._safe_delete_binary(file_path):
-                    deleted_count += 1
-                    print(f"🌊 Removed {base_name}@{ver}")
-                    bak_path = file_path.with_suffix(file_path.suffix + ".bak")
-                    if bak_path.exists():
-                        try:
-                            bak_path.unlink()
-                            print(f"🌊 Removed backup {base_name}@{ver}.bak")
-                        except Exception as e:
-                            print(f"{RED_BOLD}🌊 Warning: Could not remove backup {base_name}@{ver}.bak: {e}{RESET}")
-                else:
-                    print(f"{RED_BOLD}🌊 Failed to remove {base_name}@{ver}{RESET}")
-            except Exception as e:
-                print(f"{RED_BOLD}🌊 Error removing {base_name}@{ver}: {e}{RESET}")
-
-        try:
-            if INSTALLED_DB.exists():
-                with open(INSTALLED_DB, 'r+') as f:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                    installed = json.load(f)
-                    if base_name in installed:
-                        del installed[base_name]
-                        f.seek(0)
-                        f.truncate()
-                        json.dump(installed, f, indent=2)
-                        print(f"🌊 Removed '{base_name}' from installation database.")
+                    print(f"🌊 Removed '{safe_name}' from installation database.")
         except Exception as e:
-            print(f"{RED_BOLD}🌊 Warning: Could not update installation database: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 WARNING: Failed to remove record from installed.json.{RESET}")
+            print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 Backup file available at: {backup_path}{RESET}")
+            return
 
-        if deleted_count > 0:
-            print(f"🌊 Successfully uninstalled {deleted_count} version(s) of '{base_name}'.")
-        else:
-            print(f"🌊 No versions of '{base_name}' were uninstalled.")
+        # 8. 删除备份文件
+        try:
+            if backup_path.exists():
+                backup_path.unlink()
+                print(f"🌊 Backup file deleted.")
+        except Exception:
+            # 这里不再报错，因为数据库已经更新成功，备份残留无害
+            pass
+
+        # 9. 成功
+        print(f"🌊 Successfully uninstalled {safe_name}@{version}.")
 
     def _confirm_action(self, message: str) -> bool:
         response = input(f"🌊 {message} [Y/n] ").strip()
