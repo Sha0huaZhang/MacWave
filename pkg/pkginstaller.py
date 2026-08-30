@@ -142,8 +142,9 @@ class PackageInstaller:
             return False
 
     def _confirm_missing_sha256(self) -> bool:
-        print(f"{RED_BOLD}🌊 Can't find SHA256 value, continuing installation will skip SHA256 verification. Are you sure to continue?{RESET}")
-        response = input(f"🌊 Are you sure to continue? [Y/n] ").strip()
+        print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
+        print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
+        response = input(f"{RED_BOLD}🌊 Are you sure to continue? [Y]: {RESET}").strip()
         return response == 'Y' or response == 'y'
 
     def _calculate_sha256(self, filepath: Path) -> str:
@@ -184,13 +185,15 @@ class PackageInstaller:
             print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
             sys.exit(1)
 
-        # 2. 预先判断 SHA256 缺失（下载前询问，避免下载完才发现）
+        # 2. 预先判断 SHA256 缺失（下载前强制询问，绝不默认跳过）
         if release and not release.get("sha256"):
+            print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
+            print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
             if not self._confirm_missing_sha256():
                 print(f"{RED_BOLD}🌊 Installation cancelled by user.{RESET}")
                 sys.exit(1)
             sha256_skip = True
-            print(f"{RED_BOLD}🌊 SHA256 verification will be skipped.{RESET}")
+            print(f"{RED_BOLD}🌊 SHA256 verification will be skipped (user confirmed).{RESET}")
         else:
             sha256_skip = False
 
@@ -360,7 +363,7 @@ class PackageInstaller:
             if actual_sha256 != expected_sha256:
                 print(f"{RED_BOLD}🌊 Error: SHA256 verification failed (Error code 007).{RESET}")
                 print(f"{RED_BOLD}🌊 Actual:   {actual_sha256}{RESET}")
-                print(f"🌊 Expected: {GREEN}{expected_sha256}{RESET}")
+                print(f"{GREEN}🌊 Expected: {expected_sha256}{RESET}")
                 # 删除损坏文件
                 if temp_path.exists():
                     try:
