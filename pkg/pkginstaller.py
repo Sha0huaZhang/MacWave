@@ -592,21 +592,20 @@ class PackageInstaller:
         print(f"🌊 Successfully uninstalled {safe_name}@{version}.")
 
     def _confirm_action(self, message: str) -> bool:
-        response = input(f"🌊 {message} [Y/n] ").strip()
+        response = input(f"{RED_BOLD}🌊 {message} [Y/n] {RESET}").strip()
         return response == 'Y' or response == 'y'
 
     def _confirm_skip_ssl(self, args) -> bool:
-        skip_ssl = args.get('skip_ssl', False)
+        skip_ssl = getattr(args, 'skip_ssl', False)
         if not skip_ssl:
             return True
 
-        console = Console()
-        console.print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}", style="bold red")
+        print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}")
         if self._confirm_action(""):
-            console.print(f"{GREEN}🌊 Install continue{RESET}", style="bold green")
+            print(f"{GREEN}🌊 Install continue{RESET}")
             return True
         else:
-            console.print(f"{RED_BOLD}🌊 Install stopped{RESET}", style="bold red")
+            print(f"{RED_BOLD}🌊 Install stopped{RESET}")
             return False
 
 
@@ -653,4 +652,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n🌊 Download interrupted by user.")
+        print("🌊 Operation cancelled by user.")
+        print("🌊 Tip: You can resume the download next time using: wave install <package_name> -C")
+        sys.exit(130)
