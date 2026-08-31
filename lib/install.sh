@@ -35,7 +35,7 @@ home_to_tilde() {
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.0.0-beta2(240E1644)!"
+echo "🌊 Welcome to MacWave 2.0RC(243A1039)!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -153,10 +153,10 @@ EOF
 
 sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  "version": "2.0.0-beta2(240E1644)",
+  "version": "2.0RC(243A1039)",
   "components": {
-    "installer": "2.0.0-beta2(240E1644)",
-    "parser": "2.0.0-beta2(240E1644)"
+    "installer": "2.0RC(243A1039)",
+    "parser": "2.0RC(243A1039)"
   }
 }
 EOF
