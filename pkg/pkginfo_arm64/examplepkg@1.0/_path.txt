@@ -1,1 +1,0 @@
-{config}/deps/exampledep@1.0/exampledep
