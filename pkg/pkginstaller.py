@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-MacWave Package Installer
-负责下载、校验、安装、卸载和 installed.json 管理。
-作为独立模块由 wave.py 调用。
+LinuxWave / MacWave Package Installer (2.1)
+负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压、生成 _path / _deps。
+依赖的复杂管理、路径重定向、备份由 depsmanager.sh 处理。
 """
 
 import os
 import sys
 import json
-import hashlib
 import shutil
 import fcntl
 import time
 import logging
 import argparse
+import subprocess
 from pathlib import Path
 
 # ==========================================
@@ -26,17 +26,27 @@ YELLOW = '\033[33m'
 RESET = '\033[0m'
 
 # ==========================================
-# 配置加载（无死循环：固定读取 /opt/macwave_config）
+# 配置加载（自动识别 MacWave / LinuxWave）
 # ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
+def get_config_path():
+    if CONFIG_FILE.exists():
+        return CONFIG_FILE
+    alt = Path("/opt/linuxwave_config/config.json")
+    if alt.exists():
+        return alt
+    print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
+    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall.{RESET}")
+    sys.exit(1)
+
 def get_version():
-    """从 /opt/macwave_config/VERSION.json 获取主程序版本号"""
-    if VERSION_FILE.exists():
+    config_path = get_config_path().parent / "VERSION.json"
+    if config_path.exists():
         try:
-            with open(VERSION_FILE, 'r') as f:
+            with open(config_path, 'r') as f:
                 data = json.load(f)
                 return data.get("version", "unknown")
         except Exception:
@@ -46,25 +56,25 @@ def get_version():
 VERSION = get_version()
 
 def load_config():
-    """强制加载 /opt/macwave_config/config.json"""
-    if CONFIG_FILE.exists():
+    config_path = get_config_path()
+    if config_path.exists():
         try:
-            with open(CONFIG_FILE, 'r') as f:
+            with open(config_path, 'r') as f:
                 config = json.load(f)
                 base_dir = config.get("base_dir")
                 if base_dir:
                     return Path(base_dir)
         except Exception:
             pass
-    # 如果配置文件缺失或损坏，直接报错退出，绝不写死 ~/.local
     print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
-    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall MacWave.{RESET}")
+    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall.{RESET}")
     sys.exit(1)
 
 BASE_DIR = load_config()
 INSTALL_DIR = BASE_DIR / "bin"
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
 INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
+DEPS_DIR = BASE_DIR / "deps"
 PROTECTED_PACKAGES = ["wave"]
 
 # ==========================================
@@ -87,17 +97,6 @@ except ImportError:
     print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
     print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
-
-try:
-    from rich.progress import (
-        Progress, BarColumn, DownloadColumn, TextColumn,
-        TransferSpeedColumn, TimeRemainingColumn,
-    )
-    from rich.console import Console
-    RICH_AVAILABLE = True
-except ImportError:
-    RICH_AVAILABLE = False
-
 
 # ==========================================
 # 核心安装器
@@ -128,42 +127,15 @@ class PackageInstaller:
     def _is_protected(self, package_name: str) -> bool:
         return package_name.lower() in PROTECTED_PACKAGES
 
-    def _safe_delete_binary(self, binary_path: Path) -> bool:
-        if self._is_protected(binary_path.name):
-            print(f"{RED_BOLD}🌊 ERROR: Cannot delete '{binary_path.name}' - it's protected!{RESET}")
-            return False
-        try:
-            if binary_path.exists():
-                binary_path.unlink()
-                return True
-            return False
-        except Exception as e:
-            print(f"{RED_BOLD}🌊 Error deleting {binary_path}: {e}{RESET}")
-            return False
-
     def _confirm_missing_sha256(self) -> bool:
         print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
         print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
         response = input(f"{RED_BOLD}🌊 Are you sure to continue? [Y]: {RESET}").strip()
         return response == 'Y' or response == 'y'
 
-    def _calculate_sha256(self, filepath: Path) -> str:
-        sha256_hash = hashlib.sha256()
-        with open(filepath, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
-
-    def _parse_rate_limit(self, rate_str):
-        rate_str = rate_str.upper().strip()
-        multipliers = {'K': 1024, 'M': 1024**2, 'G': 1024**3}
-        try:
-            if rate_str[-1] in multipliers:
-                return float(rate_str[:-1]) * multipliers[rate_str[-1]]
-            return float(rate_str)
-        except ValueError:
-            self.log(f"Invalid rate limit format '{rate_str}', ignoring limit.", force=True)
-            return None
+    def _confirm_action(self, message: str) -> bool:
+        response = input(f"{RED_BOLD}🌊 {message} [Y/n] {RESET}").strip()
+        return response == 'Y' or response == 'y'
 
     def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
         total, used, free = shutil.disk_usage(path)
@@ -172,21 +144,74 @@ class PackageInstaller:
             sys.exit(1)
         return True
 
-    def _delete_directory_with_sudo(self, target_path: Path) -> bool:
-        """尝试使用 sudo 删除目录/文件"""
-        try:
-            import subprocess as sp
-            print(f"{RED_BOLD}🌊 Permission denied. Attempting to delete with sudo...{RESET}")
-            result = sp.run(['sudo', 'rm', '-rf', str(target_path)], capture_output=True, text=True)
-            if result.returncode == 0:
-                print(f"{RED_BOLD}🌊 Deleted with sudo (sudo rm -rf).{RESET}")
-                return True
-            else:
-                print(f"{RED_BOLD}🌊 WARNING: Unable to delete with sudo. Please delete manually.{RESET}")
-                return False
-        except Exception:
-            print(f"{RED_BOLD}🌊 WARNING: Unable to delete with sudo. Please delete manually.{RESET}")
-            return False
+    def _verify_sha256(self, file_path: Path, expected_sha256: str):
+        import subprocess
+        shasum_path = Path(__file__).resolve().parent / "shasum256.sh"
+        result = subprocess.run(
+            ['bash', str(shasum_path), str(file_path), expected_sha256],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
+        archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
+        is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
+
+        if is_archive:
+            print(f"🌊 Extracting archive...")
+            extract_dir = DOWNLOAD_TMP / f"{package_name}_extract"
+            if extract_dir.exists():
+                shutil.rmtree(extract_dir, ignore_errors=True)
+            extract_dir.mkdir(parents=True, exist_ok=True)
+
+            import subprocess
+            pkgunzip_path = Path(__file__).resolve().parent / "pkgunzip.sh"
+            result = subprocess.run(
+                ['bash', str(pkgunzip_path), str(temp_path), str(extract_dir)],
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode != 0:
+                print(f"{RED_BOLD}🌊 Error: Failed to extract archive: {result.stderr}{RESET}")
+                if temp_path.exists():
+                    temp_path.unlink()
+                sys.exit(1)
+
+            main_binary = None
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    if file == package_name:
+                        main_binary = Path(root) / file
+                        break
+                if main_binary:
+                    break
+
+            if not main_binary:
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        if '.' not in file:
+                            main_binary = Path(root) / file
+                            break
+                    if main_binary:
+                        break
+
+            if not main_binary:
+                print(f"{RED_BOLD}🌊 Error: Could not find main binary in extracted archive.{RESET}")
+                sys.exit(1)
+
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(main_binary), str(final_path))
+            shutil.rmtree(extract_dir, ignore_errors=True)
+
+        else:
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(temp_path), str(final_path))
+
+        os.chmod(final_path, 0o755)
+        self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
 
     def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
         if install_dir is None:
@@ -194,14 +219,10 @@ class PackageInstaller:
         if final_path is None:
             final_path = install_dir / package_name
 
-        # ========== B方案流程图逻辑开始 ==========
-
-        # 1. URL exists?
         if not url:
             print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
             sys.exit(1)
 
-        # 2. 预先判断 SHA256 缺失（下载前强制询问，绝不默认跳过）
         if release and not release.get("sha256"):
             print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
             print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
@@ -213,15 +234,12 @@ class PackageInstaller:
         else:
             sha256_skip = False
 
-        # 3. 预处理（开始下载）
         self.log_verbose(f"Download URL: {url}")
         print(f"🌊 Downloading {package_name}...")
 
-        # 磁盘空间检查 (Disk space full?)
         DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
         self._check_disk_space(DOWNLOAD_TMP)
 
-        # 下载前准备
         temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
         if temp_path.exists():
             temp_path.unlink()
@@ -239,7 +257,6 @@ class PackageInstaller:
             request_kwargs['verify'] = False
             urllib3.disable_warnings(InsecureRequestWarning)
 
-        # 4. 下载并重试
         download_success = False
         attempt = 0
         while not download_success:
@@ -256,92 +273,10 @@ class PackageInstaller:
                     print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
                     sys.exit(response.status_code)
 
-                total_size = int(response.headers.get('content-length', 0))
-                limit_bps = None
-                if args.get('limit_rate'):
-                    limit_bps = self._parse_rate_limit(args['limit_rate'])
-                    if limit_bps is not None:
-                        limit_bps = int(limit_bps * 0.8)
-
-                if RICH_AVAILABLE:
-                    from rich.console import Console
-                    progress_columns = [
-                        TextColumn("[progress.description]{task.description}"),
-                        BarColumn(bar_width=None),
-                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                        DownloadColumn(),
-                        TextColumn("•"),
-                        TextColumn("{task.fields[speed]}"),
-                        TextColumn("•"),
-                        TimeRemainingColumn(),
-                    ]
-                    console = Console()
-                    with Progress(*progress_columns, console=console) as progress:
-                        task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size or None, speed="0 B/s")
-
-                        sha256_hash = hashlib.sha256()
-                        token_bucket = 0.0
-                        last_time = time.monotonic()
-                        speed_last_time = time.monotonic()
-                        speed_last_bytes = 0
-
-                        with open(temp_path, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                if chunk:
-                                    if limit_bps:
-                                        now = time.monotonic()
-                                        delta = now - last_time
-                                        token_bucket += delta * limit_bps
-                                        last_time = now
-                                        if token_bucket > 8192:
-                                            token_bucket = 8192
-                                        if token_bucket < len(chunk):
-                                            time.sleep((len(chunk) - token_bucket) / limit_bps)
-                                            now = time.monotonic()
-                                            delta = now - last_time
-                                            token_bucket += delta * limit_bps
-                                            last_time = now
-                                        token_bucket -= len(chunk)
-
-                                    f.write(chunk)
-                                    sha256_hash.update(chunk)
-
-                                    current_bytes = progress.tasks[task_id].completed + len(chunk)
-                                    now = time.monotonic()
-
-                                    if now - speed_last_time >= 0.5:
-                                        real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
-                                        speed_last_bytes = current_bytes
-                                        speed_last_time = now
-                                        display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
-                                        if display_speed >= 1024 * 1024:
-                                            speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
-                                        elif display_speed >= 1024:
-                                            speed_str = f"{display_speed / 1024:.1f} kB/s"
-                                        else:
-                                            speed_str = f"{display_speed:.0f} B/s"
-
-                                        progress.update(task_id, speed=speed_str)
-
-                                    progress.update(task_id, advance=len(chunk))
-
-                        if total_size:
-                            current_completed = progress.tasks[task_id].completed
-                            if current_completed < total_size:
-                                progress.update(task_id, advance=total_size - current_completed)
-                        progress.update(task_id, speed="0 B/s")
-
-                else:
-                    sha256_hash = hashlib.sha256()
-                    with open(temp_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-                                sha256_hash.update(chunk)
-                                if self.verbose:
-                                    print(".", end="", flush=True)
-                    if self.verbose:
-                        print(" ")
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
 
                 download_success = True
                 break
@@ -371,56 +306,11 @@ class PackageInstaller:
                 print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
                 sys.exit(1)
 
-        # 5. 校验 SHA256（仅在存在且未跳过时执行）
-        if release and release.get("sha256") and not sha256_skip:
-            expected_sha256 = release.get("sha256")
-            print("🌊 Verifying SHA256...")
-            actual_sha256 = sha256_hash.hexdigest()
-            if actual_sha256 != expected_sha256:
-                print(f"{RED_BOLD}🌊 Error: SHA256 verification failed (Error code 007).{RESET}")
-                print(f"{RED_BOLD}🌊 Actual:   {actual_sha256}{RESET}")
-                print(f"{GREEN}🌊 Expected: {expected_sha256}{RESET}")
-                # 删除损坏文件
-                if temp_path.exists():
-                    try:
-                        temp_path.unlink()
-                        print(f"{RED_BOLD}🌊 The corrupted file has been deleted (rm -rf).{RESET}")
-                    except PermissionError:
-                        print(f"{RED_BOLD}🌊 Permission denied. Attempting to delete with sudo...{RESET}")
-                        import subprocess as sp
-                        try:
-                            result = sp.run(['sudo', 'rm', '-rf', str(temp_path)], capture_output=True, text=True)
-                            if result.returncode == 0:
-                                print(f"{RED_BOLD}🌊 The corrupted file has been deleted (sudo rm -rf).{RESET}")
-                            else:
-                                print(f"{RED_BOLD}🌊 WARNING: Unable to delete {temp_path}. Please delete it manually.{RESET}")
-                        except Exception:
-                            print(f"{RED_BOLD}🌊 WARNING: Unable to delete {temp_path}. Please delete it manually.{RESET}")
-                sys.exit(7)
-
-        # 6. 移动到 /bin
-        install_dir.mkdir(parents=True, exist_ok=True)
-
-        if final_path.exists():
-            if self._is_protected(final_path.name):
-                print(f"{RED_BOLD}🌊 ERROR: Cannot overwrite protected package: {final_path.name}{RESET}")
-                raise Exception("Protected package overwrite attempt")
-            backup_path = final_path.with_suffix(final_path.suffix + ".bak")
-            final_path.rename(backup_path)
-
-        shutil.move(str(temp_path), str(final_path))
-
-        # 7. 权限检查
-        try:
-            os.chmod(final_path, 0o755)
-        except PermissionError:
-            print(f"{RED_BOLD}🌊 Error: Permission wrong{RESET}")
-            sys.exit(1)
-
-        self.log_verbose(f"Moved to {final_path} ({final_path.stat().st_size} bytes)")
+        print("🌊 Verifying SHA256...")
+        self._verify_sha256(temp_path, release.get("sha256"))
+        self._process_downloaded_file(temp_path, package_name, final_path)
         print("🌊 Download complete!")
 
-        # 8. 输出成功
         return final_path
 
     def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
@@ -434,18 +324,11 @@ class PackageInstaller:
             sys.exit(1)
 
         try:
-            # 将绝对路径转换为 ~ 形式
-            home = Path.home()
-            display_path = final_path
-            if str(final_path).startswith(str(home)):
-                display_path = Path("~") / final_path.relative_to(home)
-
-            print(f"🌊 Successfully installed {package_name} to {display_path}")
+            print(f"🌊 Successfully installed {package_name} to {final_path}")
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
                 self.log_verbose("Skipping DB update (--skip-db-update specified)")
-
         except OSError as e:
             print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
             sys.exit(1)
@@ -473,145 +356,10 @@ class PackageInstaller:
         except Exception as e:
             self.log(f"Warning: Could not record installation: {e}", force=True)
 
-    def uninstall_package(self, package_spec):
-        safe_name = package_spec.lower()
-
-        # 1. 检查是否受保护
-        if self._is_protected(safe_name):
-            print(f"{RED_BOLD}🌊 ERROR: Cannot uninstall protected package: {safe_name}{RESET}")
-            return
-
-        # 2. 获取版本号
-        version = None
-        if '@' in package_spec:
-            parts = package_spec.split('@')
-            safe_name = parts[0].lower()
-            if len(parts) > 1:
-                version = parts[1]
-
-        # 如果未指定版本，询问用户
-        if not version:
-            print(f"{RED_BOLD}🌊 Please enter the version number for '{safe_name}':{RESET}")
-            version = input().strip()
-            if not version:
-                print(f"{RED_BOLD}🌊 ERROR: No version entered. Uninstall skipped.{RESET}")
-                return
-
-        # 3. 查询 installed.json 是否记录了该版本
-        INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-        install_dir = INSTALL_DIR
-
-        if not INSTALLED_DB.exists():
-            print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
-            return
-
-        try:
-            with open(INSTALLED_DB, 'r') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                installed = json.load(f)
-
-            if safe_name not in installed:
-                print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
-                return
-
-            current_version = installed[safe_name].get('version', '0.0.0')
-            if current_version != version:
-                print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
-                return
-
-            binary_path = Path(installed[safe_name].get('binary_path', str(install_dir / f"{safe_name}@{version}")))
-
-        except Exception as e:
-            print(f"{RED_BOLD}🌊 ERROR: No download, uninstall skipped.{RESET}")
-            return
-
-        # 4. 删除文件本身
-        print(f"🌊 Deleting {binary_path}...")
-        deleted = False
-        if binary_path.exists():
-            try:
-                binary_path.unlink()
-                deleted = True
-            except PermissionError:
-                deleted = self._delete_directory_with_sudo(binary_path)
-
-        if not deleted:
-            print(f"{RED_BOLD}🌊 WARNING: Failed to delete {binary_path}. Please delete manually.{RESET}")
-            return
-
-        # 5. 删除对应的 .bak 文件
-        bak_path = binary_path.with_suffix(binary_path.suffix + ".bak")
-        if bak_path.exists():
-            print(f"🌊 Deleting backup file: {bak_path}...")
-            bak_deleted = False
-            try:
-                bak_path.unlink()
-                bak_deleted = True
-            except PermissionError:
-                bak_deleted = self._delete_directory_with_sudo(bak_path)
-
-            if not bak_deleted:
-                print(f"{RED_BOLD}🌊 WARNING: Failed to delete backup {bak_path}. Please delete manually.{RESET}")
-
-        # 6. 备份 installed.json
-        print("🌊 Backing up installed.json...")
-        backup_path = INSTALLED_DB.with_name(f"installed.bak_{int(time.time())}.json")
-        try:
-            shutil.copy2(INSTALLED_DB, backup_path)
-            print(f"🌊 Backup created: {backup_path}")
-        except Exception as e:
-            print(f"{RED_BOLD}🌊 WARNING: Backup failed. You may need to manually edit installed.json.{RESET}")
-
-        # 7. 从 installed.json 删除该记录
-        try:
-            with open(INSTALLED_DB, 'r+') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                installed = json.load(f)
-                if safe_name in installed:
-                    del installed[safe_name]
-                    f.seek(0)
-                    f.truncate()
-                    json.dump(installed, f, indent=2)
-                    print(f"🌊 Removed '{safe_name}' from installation database.")
-        except Exception as e:
-            print(f"{RED_BOLD}🌊 WARNING: Failed to remove record from installed.json.{RESET}")
-            print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
-            print(f"{RED_BOLD}🌊 Backup file available at: {backup_path}{RESET}")
-            return
-
-        # 8. 删除备份文件
-        try:
-            if backup_path.exists():
-                backup_path.unlink()
-                print(f"🌊 Backup file deleted.")
-        except Exception:
-            # 这里不再报错，因为数据库已经更新成功，备份残留无害
-            pass
-
-        # 9. 成功
-        print(f"🌊 Successfully uninstalled {safe_name}@{version}.")
-
-    def _confirm_action(self, message: str) -> bool:
-        response = input(f"{RED_BOLD}🌊 {message} [Y/n] {RESET}").strip()
-        return response == 'Y' or response == 'y'
-
-    def _confirm_skip_ssl(self, args) -> bool:
-        skip_ssl = getattr(args, 'skip_ssl', False)
-        if not skip_ssl:
-            return True
-
-        print(f"{RED_BOLD}🌊 --skip-ssl parameter will skip SSL certificate verification, it is insecure. Are you sure to continue?{RESET}")
-        if self._confirm_action(""):
-            print(f"{GREEN}🌊 Install continue{RESET}")
-            return True
-        else:
-            print(f"{RED_BOLD}🌊 Install stopped{RESET}")
-            return False
-
 
 def main():
-    parser = argparse.ArgumentParser(description="MacWave Package Installer")
-    parser.add_argument('--version', action='version', version=f'MacWave Package Installer {VERSION}')
+    parser = argparse.ArgumentParser(description="MacWave / LinuxWave Package Installer")
+    parser.add_argument('--version', action='version', version=f'Package Installer {VERSION}')
     parser.add_argument('--command', required=True, choices=['install', 'uninstall'], help='Command to execute')
     parser.add_argument('--package', required=True, help='Package name')
     parser.add_argument('--ver', help='Package version')
@@ -648,7 +396,8 @@ def main():
             skip_db_update=args.skip_db_update
         )
     elif args.command == 'uninstall':
-        installer.uninstall_package(args.package)
+        print(f"{RED_BOLD}🌊 Error: Uninstall command is handled by depsmanager.sh{RESET}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
