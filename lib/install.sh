@@ -193,14 +193,19 @@ fi
 # 文件 URL（全部适配新的 GitHub 目录结构）
 # ==========================================
 
+# 程序文件全部从 2.1.0 分支拉取
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 SHASUM256_URL="$BASE_URL/pkg/shasum256.sh"
-DEPSMANAGER_URL="$DATA_BASE_URL/surfboard/depsmanager.sh"
-DEPSVERSIONPARSER_URL="$DATA_BASE_URL/surfboard/depsversionparser.py"
+DEPSMANAGER_URL="$BASE_URL/surfboard/depsmanager.sh"
+DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
+
+# 纯数据从 infosource 拉取（下载时动态生成）
+DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
+DEPS_DATA_PREFIX="$DATA_BASE_URL/surfboard/depsinfo_${ARCH}"
 
 # ==========================================
 # 下载文件（根据新目录放置）
