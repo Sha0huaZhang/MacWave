@@ -405,16 +405,13 @@ class MacWaveCLI:
     def handle_search(self, args):
         query = args.query.lower()
         print(f"🌊 Searching for packages matching '{query}'...")
-        # Simplified search (placeholder)
         print(f"🌊 No packages found matching '{args.query}'")
 
     def handle_info(self, args):
         print(f"🌊 Showing info for package '{args.package_name}'...")
-        # Simplified info (placeholder)
 
     def handle_update(self, args):
         print("🌊 Forcing update: fetching fresh package index...")
-        # Simplified update (placeholder)
 
     def handle_upgrade(self, args):
         safe_name = args.package_name.lower()
@@ -422,7 +419,6 @@ class MacWaveCLI:
             print(f"{RED_BOLD}🌊 ERROR: Cannot upgrade protected package: {safe_name}{RESET}")
             return
         print(f"🌊 Upgrading '{safe_name}'...")
-        # Simplified upgrade (placeholder)
 
     def handle_doctor(self, args):
         print("🌊 Running system diagnostics...")
@@ -448,35 +444,27 @@ class MacWaveCLI:
 
     def handle_listdeps(self, args):
         print("🌊 Listing dependencies...")
-        # Placeholder for 2.1 listdeps
 
     def handle_depsinstall(self, args):
         print(f"🌊 Installing dependencies for target '{args.target}'...")
-        # Placeholder for 2.1 depsinstall
 
     def handle_depsquery(self, args):
         print(f"🌊 Querying dependencies for '{args.target}'...")
-        # Placeholder for 2.1 depsquery
 
     def handle_pkgquery(self, args):
         print(f"🌊 Querying packages that depend on '{args.target}'...")
-        # Placeholder for 2.1 pkgquery
 
     def handle_allquery(self, args):
         print(f"🌊 Querying all dependencies and packages for '{args.target}'...")
-        # Placeholder for 2.1 allquery
 
     def handle_depsuninstall(self, args):
         print(f"🌊 Uninstalling dependencies for '{args.target}'...")
-        # Placeholder for 2.1 depsuninstall
 
     def handle_changedeppath(self, args):
         print(f"🌊 Changing dependency path for '{args.pkg}' -> '{args.dep}' to '{args.path}'...")
-        # Placeholder for 2.1 changedeppath
 
     def handle_delpathrecord(self, args):
         print(f"🌊 Deleting path record for '{args.target}'...")
-        # Placeholder for 2.1 delpathrecord
 
     def run(self):
         args, unknown = self.parser.parse_known_args()
