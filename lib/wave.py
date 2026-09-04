@@ -316,19 +316,19 @@ class MacWaveCLI:
         if final_path:
             cmd.extend(['--final-path', str(final_path)])
 
-        if args.get('verbose'):
+        if hasattr(args, 'verbose') and args.verbose:
             cmd.append('--verbose')
-        if args.get('proxy'):
-            cmd.extend(['--proxy', args.get('proxy')])
-        if args.get('skip_ssl'):
+        if hasattr(args, 'proxy') and args.proxy:
+            cmd.extend(['--proxy', args.proxy])
+        if hasattr(args, 'skip_ssl') and args.skip_ssl:
             cmd.append('--skip-ssl')
-        if args.get('limit_rate'):
-            cmd.extend(['--limit-rate', args.get('limit_rate')])
-        if args.get('resume'):
+        if hasattr(args, 'limit_rate') and args.limit_rate:
+            cmd.extend(['--limit-rate', args.limit_rate])
+        if hasattr(args, 'resume') and args.resume:
             cmd.append('--resume')
-        if args.get('dry_run'):
+        if hasattr(args, 'dry_run') and args.dry_run:
             cmd.append('--dry-run')
-        if args.get('skip_db_update'):
+        if hasattr(args, 'skip_db_update') and args.skip_db_update:
             cmd.append('--skip-db-update')
 
         result = subprocess.run(cmd)
@@ -352,7 +352,19 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
-        data_text = self._get_pkg_data(safe_name, args.ver)
+        # 如果没有指定版本，尝试获取所有版本并选最新
+        data_text = None
+        if args.ver:
+            data_text = self._get_pkg_data(safe_name, args.ver)
+        else:
+            all_versions = self._get_all_pkg_versions(safe_name)
+            if all_versions:
+                from pkgversionparser import sort_pkg_versions
+                sorted_versions = sort_pkg_versions(all_versions)
+                latest_version = sorted_versions[0]
+                args.ver = latest_version
+                data_text = self._get_pkg_data(safe_name, args.ver)
+
         if data_text is None:
             print(f"{RED_BOLD}🌊 Error: Package '{safe_name}' not found in repository{RESET}")
             sys.exit(1)
@@ -374,11 +386,30 @@ class MacWaveCLI:
                     release["deps"].append(dep)
 
         version = args.ver
-        if not version:
-            version = "1.0.0"  # Fallback
-
         final_path = install_dir / f"{safe_name}@{version}"
         self._call_installer(safe_name, args, release, version, install_dir, final_path)
+
+    def _get_all_pkg_versions(self, pkg_name):
+        """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
+        import requests
+        arch = self._get_arch()
+        url = f"{self._get_data_base_url()}/pkg/pkginfo_{arch}/{pkg_name}/"
+        try:
+            # GitHub API 获取目录下所有文件
+            api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
+            r = requests.get(api_url, timeout=30)
+            if r.status_code == 200:
+                files = r.json()
+                versions = []
+                for f in files:
+                    name = f['name']
+                    if name.startswith(f"_{pkg_name}@") and "@common" not in name:
+                        ver = name.split("@", 1)[1]
+                        versions.append(ver)
+                return versions
+            return None
+        except Exception:
+            return None
 
     def handle_uninstall(self, args):
         print(f"{RED_BOLD}🌊 Uninstall command is handled by depsmanager.sh{RESET}")
