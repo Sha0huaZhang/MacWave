@@ -1,7 +1,0 @@
-<!-- 软件包的基本信息
-     程序把这些内容和其他内容拼接 -->
-
-des: "Link Identity Editor. Put real or fake signatures in a Mach-O."
-hom: "https://github.com/ProcursusTeam/ldid"
-lic: "MIT"
-aut: "Jay Freeman (saurik) / Procursus Team"
