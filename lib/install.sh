@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# MacWave 🌊 Official Installer
+# MacWave 🌊 Official Installer (2.1.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.0.0-dev/lib/install.sh)"
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
 
 set -e
 
-BRANCH="2.0.0-dev"
+BRANCH="2.1.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
+DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
 # ==========================================
 # 颜色定义
@@ -35,7 +36,7 @@ home_to_tilde() {
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.0RC(243A1039)!"
+echo "🌊 Welcome to MacWave 2.1.0!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -47,7 +48,7 @@ ARCH=$(uname -m)
 echo "🌊 Detected architecture: $ARCH"
 
 # ==========================================
-# 交互式目录选择（根据架构显示不同选项）
+# 交互式目录选择
 # ==========================================
 
 if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
@@ -130,6 +131,7 @@ INSTALL_DIR="$BASE_DIR/bin"
 REPO_DIR="$BASE_DIR/pkg"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
+DEPS_DIR="$BASE_DIR/deps"
 CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
@@ -138,6 +140,7 @@ sudo mkdir -p "$INSTALL_DIR"
 sudo mkdir -p "$REPO_DIR"
 sudo mkdir -p "$LIB_DIR"
 sudo mkdir -p "$DOWNLOAD_DIR"
+sudo mkdir -p "$DEPS_DIR"
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
@@ -153,10 +156,10 @@ EOF
 
 sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  "version": "2.0RC(243A1039)",
+  "version": "2.1.0",
   "components": {
-    "installer": "2.0RC(243A1039)",
-    "parser": "2.0RC(243A1039)"
+    "installer": "2.1.0",
+    "parser": "2.1.0"
   }
 }
 EOF
@@ -193,27 +196,11 @@ fi
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
-VERSION_PARSER_URL="$BASE_URL/pkg/versionparser.py"
-PARSER_URL="$BASE_URL/pkg/pkgparser.rb"
-PKGINFO_URL="$BASE_URL/pkg/pkginfo_${ARCH}.txt"
-
-# ==========================================
-# 检查 Ruby 版本（要求 >= 2.6.10）
-# ==========================================
-
-echo "🌊 Checking Ruby version..."
-if ! command -v ruby &> /dev/null; then
-    echo -e "${RED_BOLD}🌊 Error: Ruby is not installed. Please install Ruby 2.6.10 or higher.${RESET}"
-    exit 1
-fi
-
-RUBY_VERSION=$(ruby -e 'puts RUBY_VERSION')
-
-if ! ruby -e "exit Gem::Version.new('$RUBY_VERSION') >= Gem::Version.new('2.6.10')" 2>/dev/null; then
-    echo -e "${RED_BOLD}🌊 Error: Ruby version $RUBY_VERSION is too old. Please upgrade to 2.6.10 or higher.${RESET}"
-    exit 1
-fi
-echo "🌊 Ruby version $RUBY_VERSION is OK."
+PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
+PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
+SHASUM256_URL="$BASE_URL/pkg/shasum256.sh"
+DEPSMANAGER_URL="$DATA_BASE_URL/surfboard/depsmanager.sh"
+DEPSVERSIONPARSER_URL="$DATA_BASE_URL/surfboard/depsversionparser.py"
 
 # ==========================================
 # 下载文件（根据新目录放置）
@@ -229,15 +216,23 @@ sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
 echo "🌊 Downloading pkginstaller.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
-echo "🌊 Downloading versionparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/versionparser.py" "$VERSION_PARSER_URL"
+echo "🌊 Downloading pkgversionparser.py..."
+sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
 
-echo "🌊 Downloading pkgparser.rb..."
-sudo curl -fsSL -o "$REPO_DIR/pkgparser.rb" "$PARSER_URL"
-sudo chmod +x "$REPO_DIR/pkgparser.rb"
+echo "🌊 Downloading pkgunzip.sh..."
+sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
+sudo chmod +x "$REPO_DIR/pkgunzip.sh"
 
-echo "🌊 Downloading pkginfo_${ARCH}.txt..."
-sudo curl -fsSL -o "$REPO_DIR/pkginfo_${ARCH}.txt" "$PKGINFO_URL"
+echo "🌊 Downloading shasum256.sh..."
+sudo curl -fsSL -o "$REPO_DIR/shasum256.sh" "$SHASUM256_URL"
+sudo chmod +x "$REPO_DIR/shasum256.sh"
+
+echo "🌊 Downloading depsmanager.sh..."
+sudo curl -fsSL -o "$DEPS_DIR/depsmanager.sh" "$DEPSMANAGER_URL"
+sudo chmod +x "$DEPS_DIR/depsmanager.sh"
+
+echo "🌊 Downloading depsversionparser.py..."
+sudo curl -fsSL -o "$DEPS_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
 
 # ==========================================
 # 安装 Python 依赖
@@ -320,5 +315,9 @@ if [[ $agreement =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}You have agreed to the agreement. Installation continues.${RESET}"
 else
     echo -e "${RED_BOLD}You do not agree to the agreement. Installation stopped.${RESET}"
+    echo -e "${RED_BOLD}🌊 Cleaning up downloaded files...${RESET}"
+    sudo rm -rf "$BASE_DIR"
+    sudo rm -rf "$CONFIG_DIR"
+    echo -e "${RED_BOLD}🌊 All files have been deleted.${RESET}"
     exit 1
 fi
