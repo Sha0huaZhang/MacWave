@@ -1,8 +1,2 @@
-<!-- 程序读取时，忽略开头的_
-     读取@前的内容为软件包名
-     读取@后、.前的内容为软件包版本号 -->
-
-<!-- 其他信息在 _ldid@common.txt -->
-
 sha256: "add4817f00fa49f02798cfbfd4fd493d975b640c12534a148d1392c50698fe0e"            
 url: "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus4/ldid_macos_arm64"
