@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-LinuxWave / MacWave Package Installer (2.1)
+MacWave Package Installer (2.1)
 负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压、生成 _path / _deps。
-依赖的复杂管理、路径重定向、备份由 depsmanager.sh 处理。
 """
 
 import os
@@ -26,7 +25,7 @@ YELLOW = '\033[33m'
 RESET = '\033[0m'
 
 # ==========================================
-# 配置加载（自动识别 MacWave / LinuxWave）
+# 配置加载
 # ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
@@ -35,9 +34,6 @@ VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 def get_config_path():
     if CONFIG_FILE.exists():
         return CONFIG_FILE
-    alt = Path("/opt/linuxwave_config/config.json")
-    if alt.exists():
-        return alt
     print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
     print(f"{RED_BOLD}🌊 Please run the install script again to reinstall.{RESET}")
     sys.exit(1)
@@ -98,6 +94,26 @@ except ImportError:
     print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
 
+try:
+    from rich.progress import (
+        Progress, BarColumn, DownloadColumn, TextColumn,
+        TransferSpeedColumn, TimeRemainingColumn,
+    )
+    from rich.console import Console
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
+# ==========================================
+# 将绝对路径转换为 ~ 形式
+# ==========================================
+
+def to_tilde(path: Path) -> str:
+    home = Path.home()
+    if str(path).startswith(str(home)):
+        return "~" + str(path)[len(str(home)):]
+    return str(path)
+
 # ==========================================
 # 核心安装器
 # ==========================================
@@ -126,23 +142,6 @@ class PackageInstaller:
 
     def _is_protected(self, package_name: str) -> bool:
         return package_name.lower() in PROTECTED_PACKAGES
-
-    def _confirm_missing_sha256(self) -> bool:
-        print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
-        print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
-        response = input(f"{RED_BOLD}🌊 Are you sure to continue? [Y]: {RESET}").strip()
-        return response == 'Y' or response == 'y'
-
-    def _confirm_action(self, message: str) -> bool:
-        response = input(f"{RED_BOLD}🌊 {message} [Y/n] {RESET}").strip()
-        return response == 'Y' or response == 'y'
-
-    def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
-        total, used, free = shutil.disk_usage(path)
-        if free < required_bytes:
-            print(f"{RED_BOLD}🌊 Error: Insufficient disk space in {path}.{RESET}")
-            sys.exit(1)
-        return True
 
     def _verify_sha256(self, file_path: Path, expected_sha256: str):
         import subprocess
@@ -273,10 +272,92 @@ class PackageInstaller:
                     print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
                     sys.exit(response.status_code)
 
-                with open(temp_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+                total_size = int(response.headers.get('content-length', 0))
+                limit_bps = None
+                if args.get('limit_rate'):
+                    limit_bps = self._parse_rate_limit(args['limit_rate'])
+                    if limit_bps is not None:
+                        limit_bps = int(limit_bps * 0.8)
+
+                if RICH_AVAILABLE:
+                    from rich.console import Console
+                    progress_columns = [
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(bar_width=None),
+                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                        DownloadColumn(),
+                        TextColumn("•"),
+                        TextColumn("{task.fields[speed]}"),
+                        TextColumn("•"),
+                        TimeRemainingColumn(),
+                    ]
+                    console = Console()
+                    with Progress(*progress_columns, console=console) as progress:
+                        task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size or None, speed="0 B/s")
+
+                        sha256_hash = hashlib.sha256()
+                        token_bucket = 0.0
+                        last_time = time.monotonic()
+                        speed_last_time = time.monotonic()
+                        speed_last_bytes = 0
+
+                        with open(temp_path, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    if limit_bps:
+                                        now = time.monotonic()
+                                        delta = now - last_time
+                                        token_bucket += delta * limit_bps
+                                        last_time = now
+                                        if token_bucket > 8192:
+                                            token_bucket = 8192
+                                        if token_bucket < len(chunk):
+                                            time.sleep((len(chunk) - token_bucket) / limit_bps)
+                                            now = time.monotonic()
+                                            delta = now - last_time
+                                            token_bucket += delta * limit_bps
+                                            last_time = now
+                                        token_bucket -= len(chunk)
+
+                                    f.write(chunk)
+                                    sha256_hash.update(chunk)
+
+                                    current_bytes = progress.tasks[task_id].completed + len(chunk)
+                                    now = time.monotonic()
+
+                                    if now - speed_last_time >= 0.5:
+                                        real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
+                                        speed_last_bytes = current_bytes
+                                        speed_last_time = now
+                                        display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
+                                        if display_speed >= 1024 * 1024:
+                                            speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
+                                        elif display_speed >= 1024:
+                                            speed_str = f"{display_speed / 1024:.1f} kB/s"
+                                        else:
+                                            speed_str = f"{display_speed:.0f} B/s"
+
+                                        progress.update(task_id, speed=speed_str)
+
+                                    progress.update(task_id, advance=len(chunk))
+
+                        if total_size:
+                            current_completed = progress.tasks[task_id].completed
+                            if current_completed < total_size:
+                                progress.update(task_id, advance=total_size - current_completed)
+                        progress.update(task_id, speed="0 B/s")
+
+                else:
+                    sha256_hash = hashlib.sha256()
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                sha256_hash.update(chunk)
+                                if self.verbose:
+                                    print(".", end="", flush=True)
+                    if self.verbose:
+                        print(" ")
 
                 download_success = True
                 break
@@ -324,7 +405,8 @@ class PackageInstaller:
             sys.exit(1)
 
         try:
-            print(f"🌊 Successfully installed {package_name} to {final_path}")
+            display_path = to_tilde(final_path)
+            print(f"🌊 Successfully installed {package_name} to {display_path}")
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
@@ -358,7 +440,7 @@ class PackageInstaller:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MacWave / LinuxWave Package Installer")
+    parser = argparse.ArgumentParser(description="MacWave Package Installer")
     parser.add_argument('--version', action='version', version=f'Package Installer {VERSION}')
     parser.add_argument('--command', required=True, choices=['install', 'uninstall'], help='Command to execute')
     parser.add_argument('--package', required=True, help='Package name')
