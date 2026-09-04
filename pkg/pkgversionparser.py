@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MacWave / LinuxWave pkgversionparser.py
+MacWave pkgversionparser.py
 负责所有软件包（Software Package）版本号的解析、比较和排序逻辑。
 """
 
