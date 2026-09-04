@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "surfboard"))
 try:
     from pkgversionparser import safe_parse_pkg_version
     from depsversionparser import safe_parse_deps_version
+    from help import print_custom_help, print_detailed_help
 except ImportError:
     pass
 
@@ -143,6 +144,7 @@ class MacWaveCLI:
         )
 
         parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
+        parser.add_argument('-hd', '--help-detailed', action='store_true', help='show detailed help message and exit')
         parser.add_argument('-V', '--version', action='version', version=f'MacWave {self.version} 🌊')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         parser.add_argument('-B', '--beta-version', action='store_true', help='Install the latest beta version')
@@ -479,6 +481,9 @@ class MacWaveCLI:
     def run(self):
         args, unknown = self.parser.parse_known_args()
 
+        if args.help and getattr(args, 'detailed', False):
+            print_detailed_help()
+            return
         if args.help:
             print_custom_help()
             return
