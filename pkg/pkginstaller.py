@@ -214,8 +214,12 @@ class PackageInstaller:
             shutil.rmtree(extract_dir, ignore_errors=True)
 
         else:
-            final_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(temp_path), str(final_path))
+            # 强制创建目录结构：/bin/<包名>@<版本>/<包名>
+            package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
+            package_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(temp_path), str(package_dir / package_name))
+            final_path = package_dir / package_name
+            os.chmod(final_path, 0o755)
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
