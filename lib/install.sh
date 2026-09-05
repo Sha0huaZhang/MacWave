@@ -202,6 +202,8 @@ PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 SHASUM256_URL="$BASE_URL/pkg/shasum256.sh"
 DEPSMANAGER_URL="$BASE_URL/surfboard/depsmanager.sh"
 DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
+QUERIER_URL="$BASE_URL/surfboard/querier.py"
+TAGGER_URL="$BASE_URL/surfboard/tagger.sh"
 
 # 纯数据从 infosource 拉取（下载时动态生成）
 DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
@@ -238,6 +240,13 @@ sudo chmod +x "$DEPS_DIR/depsmanager.sh"
 
 echo "🌊 Downloading depsversionparser.py..."
 sudo curl -fsSL -o "$DEPS_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
+
+echo "🌊 Downloading querier.py..."
+sudo curl -fsSL -o "$DEPS_DIR/querier.py" "$QUERIER_URL"
+
+echo "🌊 Downloading tagger.sh..."
+sudo curl -fsSL -o "$DEPS_DIR/tagger.sh" "$TAGGER_URL"
+sudo chmod +x "$DEPS_DIR/tagger.sh"
 
 # ==========================================
 # 安装 Python 依赖
