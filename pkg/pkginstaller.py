@@ -143,6 +143,14 @@ class PackageInstaller:
     def _is_protected(self, package_name: str) -> bool:
         return package_name.lower() in PROTECTED_PACKAGES
 
+
+    def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
+        total, used, free = shutil.disk_usage(path)
+        if free < required_bytes:
+            print(f"{RED_BOLD}🌊 Error: Insufficient disk space in {path}.{RESET}")
+            sys.exit(1)
+        return True
+
     def _verify_sha256(self, file_path: Path, expected_sha256: str):
         import subprocess
         shasum_path = Path(__file__).resolve().parent / "shasum256.sh"
