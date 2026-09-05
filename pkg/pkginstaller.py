@@ -427,6 +427,28 @@ class PackageInstaller:
 
         return final_path
 
+
+    def _generate_deps_file(self, package_name, final_path, deps_list):
+        """生成 _deps 文件，记录该软件包需要哪些依赖"""
+        package_dir = final_path.parent
+        with open(package_dir / "_deps", 'w') as f:
+            for dep in deps_list:
+                f.write(dep + "\n")
+        print(f"🌊 Generated _deps for {package_name}")
+
+    def _generate_dep_references(self, package_name, final_path, deps_list):
+        """为每个依赖生成 .dep_<包名>@<版本> 标记文件"""
+        for dep in deps_list:
+            if '@' in dep:
+                dep_name, dep_version = dep.split('@', 1)
+                dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
+                if not dep_dir.exists():
+                    print(f"{RED_BOLD}🌊 Error: Dependency directory {dep_dir} not found.{RESET}")
+                    continue
+                marker = dep_dir / f".dep_{package_name}@{package_dir.name.split('@')[-1]}"
+                if not marker.exists():
+                    marker.touch()
+                    print(f"🌊 Generated reference marker: {marker}")
     def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
         if install_dir is None:
             install_dir = INSTALL_DIR
