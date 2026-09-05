@@ -163,7 +163,7 @@ class PackageInstaller:
         if result.returncode != 0:
             sys.exit(result.returncode)
 
-    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
+    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path, install_dir: Path = None):
         archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
         is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
 
@@ -422,7 +422,7 @@ class PackageInstaller:
 
         print("🌊 Verifying SHA256...")
         self._verify_sha256(temp_path, release.get("sha256"))
-        self._process_downloaded_file(temp_path, package_name, final_path)
+        self._process_downloaded_file(temp_path, package_name, final_path, install_dir)
         print("🌊 Download complete!")
 
         return final_path
