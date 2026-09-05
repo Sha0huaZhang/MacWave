@@ -215,12 +215,31 @@ class PackageInstaller:
             shutil.rmtree(extract_dir, ignore_errors=True)
 
         else:
-            final_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(temp_path), str(final_path))
+            # 强制创建目录结构：/bin/<包名>@<版本>/<包名>
+            package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
+            package_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(temp_path), str(package_dir / package_name))
+            final_path = package_dir / package_name
+            os.chmod(final_path, 0o755)
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
 
+
+    def _generate_dep_references(self, package_name, package_dir, deps_list):
+        """为每个依赖目录生成 .dep_<包名>@<版本> 标记文件"""
+        import time
+        for dep_str in deps_list:
+            if '@' in dep_str:
+                dep_name, dep_version = dep_str.split('@', 1)
+                dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
+                if not dep_dir.exists():
+                    print(f"{RED_BOLD}🌊 Error: Dependency directory {dep_dir} not found.{RESET}")
+                    continue
+                marker = dep_dir / f".dep_{package_name}@{package_dir.name.split('@')[-1]}"
+                if not marker.exists():
+                    marker.touch()
+                    print(f"🌊 Generated reference marker: {marker}")
     def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
