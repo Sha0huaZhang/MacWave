@@ -7,8 +7,8 @@ MacWave Package Installer (2.1)
 import os
 import sys
 import json
-import shutil
 import hashlib
+import shutil
 import fcntl
 import time
 import logging
@@ -144,7 +144,6 @@ class PackageInstaller:
     def _is_protected(self, package_name: str) -> bool:
         return package_name.lower() in PROTECTED_PACKAGES
 
-
     def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
         total, used, free = shutil.disk_usage(path)
         if free < required_bytes:
@@ -163,7 +162,7 @@ class PackageInstaller:
         if result.returncode != 0:
             sys.exit(result.returncode)
 
-    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path, install_dir: Path = None):
+    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
         archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
         is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
 
@@ -215,35 +214,194 @@ class PackageInstaller:
             shutil.rmtree(extract_dir, ignore_errors=True)
 
         else:
-            # 如果是依赖安装（传入的自定义 dir），直接放在指定目录下
-            if install_dir and install_dir != INSTALL_DIR:
-                final_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(temp_path), str(final_path))
-            else:
-                # 如果是软件包安装，强制创建目录结构：/bin/<包名>@<版本>/<包名>
-                package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
-                package_dir.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(temp_path), str(package_dir / package_name))
-                final_path = package_dir / package_name
-            os.chmod(final_path, 0o755)
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(temp_path), str(final_path))
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
 
+    def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
+        if install_dir is None:
+            install_dir = INSTALL_DIR
+        if final_path is None:
+            final_path = install_dir / package_name
 
-    def _generate_dep_references(self, package_name, final_path, deps_list):
-        """为每个依赖生成 .dep_<包名>@<版本> 标记文件"""
-        for dep in deps_list:
-            if '@' in dep:
-                dep_name, dep_version = dep.split('@', 1)
-                dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
-                if not dep_dir.exists():
-                    print(f"{RED_BOLD}🌊 Error: Dependency directory {dep_dir} not found.{RESET}")
-                    continue
-                marker = dep_dir / f".dep_{package_name}@{package_dir.name.split('@')[-1]}"
-                if not marker.exists():
-                    marker.touch()
-                    print(f"🌊 Generated reference marker: {marker}")
+        if not url:
+            print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
+            sys.exit(1)
+
+        if release and not release.get("sha256"):
+            print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
+            print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
+            if not self._confirm_missing_sha256():
+                print(f"{RED_BOLD}🌊 Installation cancelled by user.{RESET}")
+                sys.exit(1)
+            sha256_skip = True
+            print(f"{RED_BOLD}🌊 SHA256 verification will be skipped (user confirmed).{RESET}")
+        else:
+            sha256_skip = False
+
+        self.log_verbose(f"Download URL: {url}")
+        print(f"🌊 Downloading {package_name}...")
+
+        DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
+        self._check_disk_space(DOWNLOAD_TMP)
+
+        temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
+        if temp_path.exists():
+            temp_path.unlink()
+
+        request_kwargs = {'stream': True, 'timeout': (30, 30)}
+
+        if args.get('proxy'):
+            proxy = args['proxy']
+            safe_proxy = proxy.replace(proxy.split('@')[-1], '******') if '@' in proxy else proxy
+            self.log_verbose(f"Using proxy: {safe_proxy}")
+            request_kwargs['proxies'] = {'http': args['proxy'], 'https': args['proxy']}
+
+        if args.get('skip_ssl'):
+            print(f"{RED_BOLD}🌊 WARNING: SSL verification is DISABLED. This may expose you to man-in-the-middle attacks.{RESET}")
+            request_kwargs['verify'] = False
+            urllib3.disable_warnings(InsecureRequestWarning)
+
+        download_success = False
+        attempt = 0
+        while not download_success:
+            attempt += 1
+            try:
+                response = requests.get(url, **request_kwargs)
+
+                if response.status_code == 404:
+                    print(f"{RED_BOLD}🌊 Error: ErrorCode 404 - The URL or file does not exist.{RESET}")
+                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
+                    sys.exit(404)
+                elif response.status_code != 200:
+                    print(f"{RED_BOLD}🌊 Error: ErrorCode {response.status_code}{RESET}")
+                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
+                    sys.exit(response.status_code)
+
+                total_size = int(response.headers.get('content-length', 0))
+                limit_bps = None
+                if args.get('limit_rate'):
+                    limit_bps = self._parse_rate_limit(args['limit_rate'])
+                    if limit_bps is not None:
+                        limit_bps = int(limit_bps * 0.8)
+
+                if RICH_AVAILABLE:
+                    from rich.console import Console
+                    progress_columns = [
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(bar_width=None),
+                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                        DownloadColumn(),
+                        TextColumn("•"),
+                        TextColumn("{task.fields[speed]}"),
+                        TextColumn("•"),
+                        TimeRemainingColumn(),
+                    ]
+                    console = Console()
+                    with Progress(*progress_columns, console=console) as progress:
+                        task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size or None, speed="0 B/s")
+
+                        sha256_hash = hashlib.sha256()
+                        token_bucket = 0.0
+                        last_time = time.monotonic()
+                        speed_last_time = time.monotonic()
+                        speed_last_bytes = 0
+
+                        with open(temp_path, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    if limit_bps:
+                                        now = time.monotonic()
+                                        delta = now - last_time
+                                        token_bucket += delta * limit_bps
+                                        last_time = now
+                                        if token_bucket > 8192:
+                                            token_bucket = 8192
+                                        if token_bucket < len(chunk):
+                                            time.sleep((len(chunk) - token_bucket) / limit_bps)
+                                            now = time.monotonic()
+                                            delta = now - last_time
+                                            token_bucket += delta * limit_bps
+                                            last_time = now
+                                        token_bucket -= len(chunk)
+
+                                    f.write(chunk)
+                                    sha256_hash.update(chunk)
+
+                                    current_bytes = progress.tasks[task_id].completed + len(chunk)
+                                    now = time.monotonic()
+
+                                    if now - speed_last_time >= 0.5:
+                                        real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
+                                        speed_last_bytes = current_bytes
+                                        speed_last_time = now
+                                        display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
+                                        if display_speed >= 1024 * 1024:
+                                            speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
+                                        elif display_speed >= 1024:
+                                            speed_str = f"{display_speed / 1024:.1f} kB/s"
+                                        else:
+                                            speed_str = f"{display_speed:.0f} B/s"
+
+                                        progress.update(task_id, speed=speed_str)
+
+                                    progress.update(task_id, advance=len(chunk))
+
+                        if total_size:
+                            current_completed = progress.tasks[task_id].completed
+                            if current_completed < total_size:
+                                progress.update(task_id, advance=total_size - current_completed)
+                        progress.update(task_id, speed="0 B/s")
+
+                else:
+                    sha256_hash = hashlib.sha256()
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                sha256_hash.update(chunk)
+                                if self.verbose:
+                                    print(".", end="", flush=True)
+                    if self.verbose:
+                        print(" ")
+
+                download_success = True
+                break
+
+            except (ConnectionError, Timeout) as e:
+                if attempt < 2:
+                    print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
+                    print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
+                    retry = input().strip().lower()
+                    if retry == 'y':
+                        continue
+                    else:
+                        print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
+                        sys.exit(1)
+                else:
+                    print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
+                    sys.exit(1)
+
+            except HTTPError as e:
+                status_code = e.response.status_code if e.response is not None else 1
+                print(f"{RED_BOLD}🌊 Error: ErrorCode {status_code}{RESET}")
+                sys.exit(status_code)
+
+            except Exception as e:
+                if self.verbose:
+                    traceback.print_exc()
+                print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+                sys.exit(1)
+
+        print("🌊 Verifying SHA256...")
+        self._verify_sha256(temp_path, release.get("sha256"))
+        self._process_downloaded_file(temp_path, package_name, final_path)
+        print("🌊 Download complete!")
+
+        return final_path
+
     def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
         if install_dir is None:
             install_dir = INSTALL_DIR
@@ -257,6 +415,9 @@ class PackageInstaller:
         try:
             display_path = to_tilde(final_path)
             print(f"🌊 Successfully installed {package_name} to {display_path}")
+            if release and release.get('deps'):
+                self._generate_deps_file(package_name, final_path, release.get('deps', []))
+                self._generate_dep_references(package_name, final_path, release.get('deps', []))
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
@@ -264,6 +425,29 @@ class PackageInstaller:
         except OSError as e:
             print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
             sys.exit(1)
+
+    def _generate_deps_file(self, package_name, final_path, deps_list):
+        """生成 _deps 文件，记录该软件包需要哪些依赖"""
+        package_dir = final_path.parent
+        with open(package_dir / "_deps", 'w') as f:
+            for dep in deps_list:
+                f.write(dep + "\n")
+        print(f"🌊 Generated _deps for {package_name}")
+
+    def _generate_dep_references(self, package_name, final_path, deps_list):
+        """为每个依赖生成 .dep_<包名>@<版本> 标记文件"""
+        package_dir = final_path.parent
+        for dep in deps_list:
+            if '@' in dep:
+                dep_name, dep_version = dep.split('@', 1)
+                dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
+                if not dep_dir.exists():
+                    print(f"{RED_BOLD}🌊 Error: Dependency directory {dep_dir} not found.{RESET}")
+                    continue
+                marker = dep_dir / f".dep_{package_name}@{package_dir.name.split('@')[-1]}"
+                if not marker.exists():
+                    marker.touch()
+                    print(f"🌊 Generated reference marker: {marker}")
 
     def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
         if install_dir is None:
