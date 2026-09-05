@@ -413,9 +413,14 @@ class PackageInstaller:
         if final_path is None:
             final_path = install_dir / package_name
 
+        # 检查文件是否存在于 final_path 或者 install_dir 下
         if not final_path.exists():
-            print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
-            sys.exit(1)
+            # 如果 final_path 不存在，尝试在 install_dir 下找同名文件
+            if install_dir and (install_dir / package_name).exists():
+                final_path = install_dir / package_name
+            else:
+                print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
+                sys.exit(1)
 
         try:
             display_path = to_tilde(final_path)
