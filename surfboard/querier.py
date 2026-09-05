@@ -149,7 +149,7 @@ def _generate_deps_and_path(package, version, deps_list):
         with open(pkg_dir / "_deps", 'w') as f:
             for dep in deps_list:
                 f.write(dep + "\n")
-        print(f"{GREEN}🌊 Generated _deps for {package}@{version}{RESET}")
+        print(f"🌊 Generated _deps for {package}@{version}")
 
     # 2. 生成 _path 文件（指向依赖的实际位置）
     if deps_list:
@@ -163,7 +163,7 @@ def _generate_deps_and_path(package, version, deps_list):
         if paths:
             with open(pkg_dir / "_path", 'w') as f:
                 f.write("\n".join(paths))
-            print(f"{GREEN}🌊 Generated _path for {package}@{version}{RESET}")
+            print(f"🌊 Generated _path for {package}@{version}")
 
 
 def _generate_dep_references(package, version, deps_list):
@@ -179,7 +179,7 @@ def _generate_dep_references(package, version, deps_list):
             marker = dep_dir / f".dep_{package}@{pkg_version}"
             if not marker.exists():
                 marker.touch()
-                print(f"{GREEN}🌊 Generated reference marker: {to_tilde(marker)}{RESET}")
+                print(f"🌊 Generated reference marker: {to_tilde(marker)}")
 
 
 def auto_install_deps(package, version, deps_list):
@@ -195,7 +195,7 @@ def auto_install_deps(package, version, deps_list):
             dep_name, dep_ver = dep.split('@', 1)
             existing_dep = DEPS_DIR / f"{dep_name}@{dep_ver}"
             if existing_dep.exists() and (existing_dep / dep_name).exists():
-                print(f"{GREEN}🌊 Dependency {dep_name}@{dep_ver} already exists. Skipping download.{RESET}")
+                print(f"🌊 Dependency {dep_name}@{dep_ver} already exists. Skipping download.")
             else:
                 # 如果还有下一层依赖，自动递归
                 _download_and_install_dep(dep_name, dep_ver)
@@ -206,7 +206,7 @@ def auto_install_deps(package, version, deps_list):
     # 3. 生成 .dep 引用标记
     _generate_dep_references(package, version, deps_list)
 
-    print(f"{GREEN}🌊 All dependencies for {package}@{version} are ready!{RESET}")
+    print(f"🌊 All dependencies for {package}@{version} are ready!")
 
 
 def list_deps(detailed=False):
