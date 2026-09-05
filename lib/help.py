@@ -224,7 +224,7 @@ def print_detailed_help():
 
 
 def main():
-    """直接运行 python help.py 时，预览帮助信息"""
+    """直接运行 python3 help.py 时，预览帮助信息"""
     print_custom_help()
 
 
