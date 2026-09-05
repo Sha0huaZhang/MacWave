@@ -336,6 +336,24 @@ class MacWaveCLI:
         if result.returncode != 0:
             sys.exit(result.returncode)
 
+
+    def _call_dep_installer(self, dep_name, dep_release, dep_version, dep_final_path):
+        """调用 pkginstaller.py 安装依赖到 deps/ 目录"""
+        import subprocess
+        installer_path = Path(__file__).resolve().parent.parent / 'pkg' / 'pkginstaller.py'
+        cmd = [
+            'python3', str(installer_path),
+            '--command', 'install',
+            '--package', dep_name,
+            '--ver', dep_version,
+            '--url', dep_release.get('url', ''),
+            '--sha256', dep_release.get('sha256', ''),
+            '--dir', str(DEPS_DIR),
+            '--final-path', str(dep_final_path)
+        ]
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            sys.exit(result.returncode)
     def handle_install(self, args):
         if args.json:
             print(json.dumps({"command": "install", "package": args.package_name}))
@@ -388,6 +406,28 @@ class MacWaveCLI:
         version = args.ver
         final_path = install_dir / f"{safe_name}@{version}"
         self._call_installer(safe_name, args, release, version, install_dir, final_path)
+
+        # 自动下载并安装所有缺失的依赖
+        if release.get('deps'):
+            for dep_str in release.get('deps', []):
+                if '@' in dep_str:
+                    dep_name, dep_version = dep_str.split('@', 1)
+                    print(f"🌊 Installing dependency: {dep_name}@{dep_version}...")
+                    dep_data = self._get_dep_data(dep_name, dep_version)
+                    if dep_data is None:
+                        print(f"{RED_BOLD}🌊 Error: Dependency '{dep_name}@{dep_version}' not found in repository{RESET}")
+                        sys.exit(1)
+
+                    dep_release = {"url": None, "sha256": None, "deps": []}
+                    for dep_line in dep_data.strip().splitlines():
+                        dep_line = dep_line.strip()
+                        if dep_line.startswith("url:"):
+                            dep_release["url"] = dep_line.split(":", 1)[1].strip().strip('"')
+                        elif dep_line.startswith("sha256:"):
+                            dep_release["sha256"] = dep_line.split(":", 1)[1].strip().strip('"')
+
+                    dep_final_path = DEPS_DIR / f"{dep_name}@{dep_version}" / dep_name
+                    self._call_dep_installer(dep_name, dep_release, dep_version, dep_final_path)
 
     def _get_all_pkg_versions(self, pkg_name):
         """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
