@@ -1,33 +1,25 @@
 #!/usr/bin/env python3
 """
 MacWave Package Installer (2.1)
-负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压、生成 _path / _deps。
+负责下载、校验、解压、移动文件、生成 _deps 和 .dep 标记。
 """
 
 import os
 import sys
 import json
-import hashlib
 import shutil
 import fcntl
 import time
 import logging
 import argparse
 import subprocess
+import hashlib
 from pathlib import Path
-
-# ==========================================
-# 颜色定义
-# ==========================================
 
 RED_BOLD = '\033[1;31m'
 GREEN = '\033[32m'
 YELLOW = '\033[33m'
 RESET = '\033[0m'
-
-# ==========================================
-# 配置加载
-# ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
@@ -74,9 +66,11 @@ INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
 DEPS_DIR = BASE_DIR / "deps"
 PROTECTED_PACKAGES = ["wave"]
 
-# ==========================================
-# 依赖库检查
-# ==========================================
+def to_tilde(path: Path) -> str:
+    home = Path.home()
+    if str(path).startswith(str(home)):
+        return "~" + str(path)[len(str(home)):]
+    return str(path)
 
 try:
     import requests
@@ -104,20 +98,6 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-
-# ==========================================
-# 将绝对路径转换为 ~ 形式
-# ==========================================
-
-def to_tilde(path: Path) -> str:
-    home = Path.home()
-    if str(path).startswith(str(home)):
-        return "~" + str(path)[len(str(home)):]
-    return str(path)
-
-# ==========================================
-# 核心安装器
-# ==========================================
 
 class PackageInstaller:
     def __init__(self, verbose=False):
@@ -162,64 +142,18 @@ class PackageInstaller:
         if result.returncode != 0:
             sys.exit(result.returncode)
 
-    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
-        archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
-        is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
+    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path, install_dir: Path = None):
+        if install_dir is None:
+            install_dir = INSTALL_DIR
+        is_dep = install_dir == DEPS_DIR
 
-        if is_archive:
-            print(f"🌊 Extracting archive...")
-            extract_dir = DOWNLOAD_TMP / f"{package_name}_extract"
-            if extract_dir.exists():
-                shutil.rmtree(extract_dir, ignore_errors=True)
-            extract_dir.mkdir(parents=True, exist_ok=True)
-
-            import subprocess
-            pkgunzip_path = Path(__file__).resolve().parent / "pkgunzip.sh"
-            result = subprocess.run(
-                ['bash', str(pkgunzip_path), str(temp_path), str(extract_dir)],
-                capture_output=True,
-                text=True
-            )
-
-            if result.returncode != 0:
-                print(f"{RED_BOLD}🌊 Error: Failed to extract archive: {result.stderr}{RESET}")
-                if temp_path.exists():
-                    temp_path.unlink()
-                sys.exit(1)
-
-            main_binary = None
-            for root, dirs, files in os.walk(extract_dir):
-                for file in files:
-                    if file == package_name:
-                        main_binary = Path(root) / file
-                        break
-                if main_binary:
-                    break
-
-            if not main_binary:
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        if '.' not in file:
-                            main_binary = Path(root) / file
-                            break
-                    if main_binary:
-                        break
-
-            if not main_binary:
-                print(f"{RED_BOLD}🌊 Error: Could not find main binary in extracted archive.{RESET}")
-                sys.exit(1)
-
+        if is_dep:
             final_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(main_binary), str(final_path))
-            shutil.rmtree(extract_dir, ignore_errors=True)
-
+            shutil.move(str(temp_path), str(final_path))
         else:
-            # 强制创建目录结构：/bin/<包名>@<版本>/<包名>
             package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
             package_dir.mkdir(parents=True, exist_ok=True)
             shutil.move(str(temp_path), str(package_dir / package_name))
-            final_path = package_dir / package_name
-            os.chmod(final_path, 0o755)
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
@@ -401,7 +335,7 @@ class PackageInstaller:
 
         print("🌊 Verifying SHA256...")
         self._verify_sha256(temp_path, release.get("sha256"))
-        self._process_downloaded_file(temp_path, package_name, final_path)
+        self._process_downloaded_file(temp_path, package_name, final_path, install_dir)
         print("🌊 Download complete!")
 
         return final_path
@@ -431,7 +365,6 @@ class PackageInstaller:
             sys.exit(1)
 
     def _generate_deps_file(self, package_name, final_path, deps_list):
-        """生成 _deps 文件，记录该软件包需要哪些依赖"""
         package_dir = final_path.parent
         with open(package_dir / "_deps", 'w') as f:
             for dep in deps_list:
@@ -439,7 +372,6 @@ class PackageInstaller:
         print(f"🌊 Generated _deps for {package_name}")
 
     def _generate_dep_references(self, package_name, final_path, deps_list):
-        """为每个依赖生成 .dep_<包名>@<版本> 标记文件"""
         package_dir = final_path.parent
         for dep in deps_list:
             if '@' in dep:
