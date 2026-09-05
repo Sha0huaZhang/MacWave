@@ -1,0 +1,4 @@
+des: "Command-line JSON processor"
+hom: "https://jqlang.org"
+lic: "jq is released under the MIT License. jq's documentation is licensed under the Creative Commons CC BY 3.0. jq uses parts of the open source C library 'decNumber', which is distributed under ICU License"
+aut: "Stephen Dolan (@stedolan), Nicolas Williams & William Langford, Owen Ou (@owenthereal), @itchyny, Mattias Wadman (@wader), Emanuele Torre (@emanuele6), Asaf Meizner, avid Korczynski, et al."
