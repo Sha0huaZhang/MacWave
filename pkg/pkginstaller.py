@@ -215,11 +215,16 @@ class PackageInstaller:
             shutil.rmtree(extract_dir, ignore_errors=True)
 
         else:
-            # 强制创建目录结构：/bin/<包名>@<版本>/<包名>
-            package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
-            package_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(temp_path), str(package_dir / package_name))
-            final_path = package_dir / package_name
+            # 如果是依赖安装（传入的自定义 dir），直接放在指定目录下
+            if install_dir and install_dir != INSTALL_DIR:
+                final_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(temp_path), str(final_path))
+            else:
+                # 如果是软件包安装，强制创建目录结构：/bin/<包名>@<版本>/<包名>
+                package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
+                package_dir.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(temp_path), str(package_dir / package_name))
+                final_path = package_dir / package_name
             os.chmod(final_path, 0o755)
 
         os.chmod(final_path, 0o755)
