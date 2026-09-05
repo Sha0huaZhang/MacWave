@@ -23,6 +23,7 @@ VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "surfboard"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "deps"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "deps"))
 try:
     from pkgversionparser import safe_parse_pkg_version
     from depsversionparser import safe_parse_deps_version
