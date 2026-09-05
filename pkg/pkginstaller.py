@@ -402,7 +402,7 @@ class PackageInstaller:
 
         return final_path
 
-    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
+    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False, release=None):
         if install_dir is None:
             install_dir = INSTALL_DIR
         if final_path is None:
@@ -509,7 +509,8 @@ def main():
             version=args.ver,
             install_dir=Path(args.dir) if args.dir else None,
             final_path=Path(args.final_path) if args.final_path else None,
-            skip_db_update=args.skip_db_update
+            skip_db_update=args.skip_db_update,
+            release={'sha256': args.sha256} if args.sha256 else None
         )
     elif args.command == 'uninstall':
         print(f"{RED_BOLD}🌊 Error: Uninstall command is handled by depsmanager.sh{RESET}")
