@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MacWave 2.1.0 Main CLI
-调度中心：只负责解析命令，调用 querier.py 处理高级功能，调用 pkginstaller.py 处理下载。
+负责解析所有 2.1 命令，调用 pkginstaller.py, depsmanager.sh, pkgunzip.sh 等。
 """
 
 import argparse
@@ -9,18 +9,23 @@ import json
 import os
 import sys
 import platform
+import time
+import fcntl
 import logging
 import traceback
+import shutil
 import subprocess
 from pathlib import Path
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "surfboard"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "deps"))
 try:
-    import querier
     from pkgversionparser import safe_parse_pkg_version
+    from depsversionparser import safe_parse_deps_version
     from help import print_custom_help, print_detailed_help
 except ImportError:
     pass
@@ -69,7 +74,10 @@ BASE_DIR = load_config()
 INSTALL_DIR = BASE_DIR / "bin"
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
 REPO_DIR = BASE_DIR / "pkg"
+REPO_CACHE = BASE_DIR / "pkg" / "repo_cache.json"
 INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
+LIB_DIR = BASE_DIR / "lib"
+DEPS_DIR = BASE_DIR / "deps"
 PROTECTED_PACKAGES = ["wave"]
 
 try:
@@ -86,6 +94,12 @@ except ImportError:
     print(f"{RED_BOLD}🌊 Error: 'packaging' library is not installed.{RESET}")
     print(f"{RED_BOLD}🌊 Please install it using: pip3 install packaging{RESET}")
     sys.exit(1)
+
+try:
+    from rich.console import Console
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
 
 class MacWaveCLI:
     def __init__(self):
@@ -114,43 +128,43 @@ class MacWaveCLI:
         parser.add_argument('--json', action='store_true', help='Output in JSON format')
 
         subparsers = parser.add_subparsers(dest="command")
-        
+
         install_parser = subparsers.add_parser("install", help="Install a package")
         install_parser.add_argument("package_name", help="Name of the package to install")
         self._add_install_flags(install_parser)
-        
+
         subparsers.add_parser("uninstall", help="Uninstall a package")
         subparsers.add_parser("list", help="List installed packages")
-        
+
         search_parser = subparsers.add_parser("search", help="Search for a package")
         search_parser.add_argument("query", help="Search query")
         search_parser.add_argument('-f', '--fuzzy', action='store_true', help='Enable fuzzy search')
-        
+
         subparsers.add_parser("info", help="Display detailed information")
-        
+
         listdeps_parser = subparsers.add_parser("listdeps", help="List dependencies")
         listdeps_parser.add_argument("-d", "--detailed", action="store_true", help="Show detailed dependency info")
-        
+
         depsquery_parser = subparsers.add_parser("depsquery", help="Query dependencies")
         depsquery_parser.add_argument("target", help="Target package")
         depsquery_parser.add_argument("-d", "--detailed", action="store_true", help="Show detailed dependency info")
-        
+
         pkgquery_parser = subparsers.add_parser("pkgquery", help="Query packages that depend on a target")
         pkgquery_parser.add_argument("target", help="Target dependency")
-        
+
         changedeppath_parser = subparsers.add_parser("changedeppath", help="Change dependency path")
         changedeppath_parser.add_argument("pkg", help="Package")
         changedeppath_parser.add_argument("dep", help="Dependency")
         changedeppath_parser.add_argument("path", nargs="?", default=None, help="New path (or 'default')")
-        
+
         delpathrecord_parser = subparsers.add_parser("delpathrecord", help="Delete path record")
         delpathrecord_parser.add_argument("target", help="Target package")
         delpathrecord_parser.add_argument("--force", action="store_true", help="Force delete default path")
-        
+
         depsuninstall_parser = subparsers.add_parser("depsuninstall", help="Uninstall dependencies")
         depsuninstall_parser.add_argument("target", help="Target dependency or package (or 'all')")
         depsuninstall_parser.add_argument("-u", "--unnecessary", action="store_true", help="Remove unnecessary dependencies")
-        
+
         depsinstall_parser = subparsers.add_parser("depsinstall", help="Install dependencies")
         depsinstall_parser.add_argument("target", help="Target dependency or package")
         depsinstall_parser.add_argument("-m", "--missing", action="store_true", help="Install missing dependencies")
@@ -207,8 +221,10 @@ class MacWaveCLI:
         if not installer_path.exists():
             print(f"{RED_BOLD}🌊 Error: pkginstaller.py not found at {installer_path}{RESET}")
             sys.exit(1)
+
         binary_url = release.get('url', '') if release else ''
         sha256 = release.get('sha256', '') if release else ''
+
         cmd = [
             'python3', str(installer_path),
             '--command', 'install',
@@ -234,14 +250,29 @@ class MacWaveCLI:
             pkg_name, ver = package_name.split('@', 1)
             args.package_name = pkg_name
             args.ver = ver
+
         safe_name = args.package_name.lower()
         install_dir = INSTALL_DIR
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
-        data_text = self._get_pkg_data(safe_name, args.ver)
+
+        # 如果没有指定版本，尝试获取所有版本并选最新
+        data_text = None
+        if args.ver:
+            data_text = self._get_pkg_data(safe_name, args.ver)
+        else:
+            all_versions = self._get_all_pkg_versions(safe_name)
+            if all_versions:
+                from pkgversionparser import sort_pkg_versions
+                sorted_versions = sort_pkg_versions(all_versions)
+                latest_version = sorted_versions[0]
+                args.ver = latest_version
+                data_text = self._get_pkg_data(safe_name, args.ver)
+
         if data_text is None:
             print(f"{RED_BOLD}🌊 Error: Package '{safe_name}' not found in repository{RESET}")
             sys.exit(1)
+
         release = {"url": None, "sha256": None, "deps": []}
         for line in data_text.strip().splitlines():
             line = line.strip()
@@ -257,9 +288,57 @@ class MacWaveCLI:
                 dep = line.strip().strip('"')
                 if dep:
                     release["deps"].append(dep)
+
         version = args.ver
         final_path = install_dir / f"{safe_name}@{version}"
         self._call_installer(safe_name, args, release, version, install_dir, final_path)
+
+        # 自动下载全部缺失依赖，并生成 _deps、_path 和 .dep 标记
+        if release.get('deps'):
+            import querier
+            querier.auto_install_deps(safe_name, version, release.get('deps', []))
+
+    def _get_all_pkg_versions(self, pkg_name):
+        """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
+        import requests
+        arch = self._get_arch()
+        api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
+        try:
+            r = requests.get(api_url, timeout=30)
+            if r.status_code == 200:
+                files = r.json()
+                versions = []
+                for f in files:
+                    name = f['name']
+                    if name.startswith(f"_{pkg_name}@") and "@common" not in name:
+                        ver = name.split("@", 1)[1]
+                        versions.append(ver)
+                return versions
+            return None
+        except Exception:
+            return None
+
+    def handle_uninstall(self, args):
+        print(f"{RED_BOLD}🌊 Uninstall command is handled by depsmanager.sh{RESET}")
+        sys.exit(1)
+
+    def handle_list(self, args):
+        if not INSTALLED_DB.exists():
+            print("🌊 No packages installed yet.")
+            return
+        try:
+            with open(INSTALLED_DB, 'r') as f:
+                installed = json.load(f)
+            if not installed:
+                print("🌊 No packages installed yet.")
+                return
+            print("🌊 Installed packages:")
+            for pkg_name, info in installed.items():
+                version = info.get('version', 'unknown')
+                binary_path = info.get('binary_path', 'unknown')
+                print(f"🌊   - {pkg_name} (v{version}) -> {binary_path}")
+        except Exception as e:
+            print(f"{RED_BOLD}🌊 Error: Could not read installed packages: {e}{RESET}")
 
     def handle_listdeps(self, args):
         if args.detailed:
@@ -275,7 +354,6 @@ class MacWaveCLI:
 
     def handle_changedeppath(self, args):
         if args.pkg == "all":
-            # 处理全局
             print(f"{YELLOW}🌊 Global path change not fully implemented yet.{RESET}")
         else:
             if '@' in args.pkg:
