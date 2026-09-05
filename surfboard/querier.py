@@ -410,8 +410,12 @@ def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
     if dep_version:
         dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
         if dep_dir.exists():
-            shutil.rmtree(dep_dir)
-            print(f"{GREEN}🌊 Dependency {dep_name}@{dep_version} uninstalled.{RESET}")
+            response = input(f"🌊 Are you sure you want to uninstall {dep_name}@{dep_version}? [Y/n]: ").strip()
+            if response.lower() == 'y':
+                shutil.rmtree(dep_dir)
+                print(f"{GREEN}🌊 Dependency {dep_name}@{dep_version} uninstalled.{RESET}")
+            else:
+                print("🌊 Operation cancelled.")
         else:
             print(f"{RED}🌊 Dependency {dep_name}@{dep_version} not found.{RESET}")
     else:
@@ -422,7 +426,7 @@ def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
         print("🌊 Found the following versions:")
         for d in dep_dirs:
             print(f"  - {d.name}")
-        response = input(f"🌊 Delete all versions of '{dep_name}'? [Y/n]: ").strip()
+        response = input(f"🌊 Are you sure you want to delete all versions of '{dep_name}'? [Y/n]: ").strip()
         if response.lower() == 'y':
             for d in dep_dirs:
                 shutil.rmtree(d)
