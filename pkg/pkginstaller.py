@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 """
 MacWave Package Installer (2.1)
-负责下载、校验、解压、移动文件、生成 _deps 和 .dep 标记。
+负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压。
+依赖标记由 surfboard/querier.py 调用。
 """
 
 import os
 import sys
 import json
+import hashlib
 import shutil
 import fcntl
 import time
 import logging
 import argparse
 import subprocess
-import hashlib
 from pathlib import Path
+
+# ==========================================
+# 颜色定义
+# ==========================================
 
 RED_BOLD = '\033[1;31m'
 GREEN = '\033[32m'
 YELLOW = '\033[33m'
 RESET = '\033[0m'
+
+# ==========================================
+# 配置加载
+# ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
@@ -66,11 +75,19 @@ INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
 DEPS_DIR = BASE_DIR / "deps"
 PROTECTED_PACKAGES = ["wave"]
 
+# ==========================================
+# 将绝对路径转换为 ~ 形式
+# ==========================================
+
 def to_tilde(path: Path) -> str:
     home = Path.home()
     if str(path).startswith(str(home)):
         return "~" + str(path)[len(str(home)):]
     return str(path)
+
+# ==========================================
+# 依赖库检查
+# ==========================================
 
 try:
     import requests
@@ -98,6 +115,10 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
+# ==========================================
+# 核心安装器
+# ==========================================
 
 class PackageInstaller:
     def __init__(self, verbose=False):
@@ -142,18 +163,60 @@ class PackageInstaller:
         if result.returncode != 0:
             sys.exit(result.returncode)
 
-    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path, install_dir: Path = None):
-        if install_dir is None:
-            install_dir = INSTALL_DIR
-        is_dep = install_dir == DEPS_DIR
+    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
+        archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
+        is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
 
-        if is_dep:
+        if is_archive:
+            print(f"🌊 Extracting archive...")
+            extract_dir = DOWNLOAD_TMP / f"{package_name}_extract"
+            if extract_dir.exists():
+                shutil.rmtree(extract_dir, ignore_errors=True)
+            extract_dir.mkdir(parents=True, exist_ok=True)
+
+            import subprocess
+            pkgunzip_path = Path(__file__).resolve().parent / "pkgunzip.sh"
+            result = subprocess.run(
+                ['bash', str(pkgunzip_path), str(temp_path), str(extract_dir)],
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode != 0:
+                print(f"{RED_BOLD}🌊 Error: Failed to extract archive: {result.stderr}{RESET}")
+                if temp_path.exists():
+                    temp_path.unlink()
+                sys.exit(1)
+
+            main_binary = None
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    if file == package_name:
+                        main_binary = Path(root) / file
+                        break
+                if main_binary:
+                    break
+
+            if not main_binary:
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        if '.' not in file:
+                            main_binary = Path(root) / file
+                            break
+                    if main_binary:
+                        break
+
+            if not main_binary:
+                print(f"{RED_BOLD}🌊 Error: Could not find main binary in extracted archive.{RESET}")
+                sys.exit(1)
+
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(main_binary), str(final_path))
+            shutil.rmtree(extract_dir, ignore_errors=True)
+
+        else:
             final_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(temp_path), str(final_path))
-        else:
-            package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
-            package_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(temp_path), str(package_dir / package_name))
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
@@ -335,12 +398,12 @@ class PackageInstaller:
 
         print("🌊 Verifying SHA256...")
         self._verify_sha256(temp_path, release.get("sha256"))
-        self._process_downloaded_file(temp_path, package_name, final_path, install_dir)
+        self._process_downloaded_file(temp_path, package_name, final_path)
         print("🌊 Download complete!")
 
         return final_path
 
-    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False, release=None):
+    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
         if install_dir is None:
             install_dir = INSTALL_DIR
         if final_path is None:
@@ -353,9 +416,6 @@ class PackageInstaller:
         try:
             display_path = to_tilde(final_path)
             print(f"🌊 Successfully installed {package_name} to {display_path}")
-            if release and release.get('deps'):
-                self._generate_deps_file(package_name, final_path, release.get('deps', []))
-                self._generate_dep_references(package_name, final_path, release.get('deps', []))
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
@@ -363,27 +423,6 @@ class PackageInstaller:
         except OSError as e:
             print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
             sys.exit(1)
-
-    def _generate_deps_file(self, package_name, final_path, deps_list):
-        package_dir = final_path.parent
-        with open(package_dir / "_deps", 'w') as f:
-            for dep in deps_list:
-                f.write(dep + "\n")
-        print(f"🌊 Generated _deps for {package_name}")
-
-    def _generate_dep_references(self, package_name, final_path, deps_list):
-        package_dir = final_path.parent
-        for dep in deps_list:
-            if '@' in dep:
-                dep_name, dep_version = dep.split('@', 1)
-                dep_dir = DEPS_DIR / f"{dep_name}@{dep_version}"
-                if not dep_dir.exists():
-                    print(f"{RED_BOLD}🌊 Error: Dependency directory {dep_dir} not found.{RESET}")
-                    continue
-                marker = dep_dir / f".dep_{package_name}@{package_dir.name.split('@')[-1]}"
-                if not marker.exists():
-                    marker.touch()
-                    print(f"🌊 Generated reference marker: {marker}")
 
     def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
         if install_dir is None:
@@ -445,8 +484,7 @@ def main():
             version=args.ver,
             install_dir=Path(args.dir) if args.dir else None,
             final_path=Path(args.final_path) if args.final_path else None,
-            skip_db_update=args.skip_db_update,
-            release={'sha256': args.sha256} if args.sha256 else None
+            skip_db_update=args.skip_db_update
         )
     elif args.command == 'uninstall':
         print(f"{RED_BOLD}🌊 Error: Uninstall command is handled by depsmanager.sh{RESET}")
