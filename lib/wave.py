@@ -389,6 +389,13 @@ class MacWaveCLI:
         final_path = install_dir / f"{safe_name}@{version}"
         self._call_installer(safe_name, args, release, version, install_dir, final_path)
 
+        # 下载并安装所有缺失的依赖
+        for dep_str in release.get("deps", []):
+            if '@' in dep_str:
+                dep_name, dep_version = dep_str.split('@', 1)
+                print(f"🌊 Installing dependency: {dep_name}@{dep_version}...")
+                self._call_depsmanager_install(dep_name, dep_version)
+
     def _get_all_pkg_versions(self, pkg_name):
         """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
         import requests
@@ -496,6 +503,56 @@ class MacWaveCLI:
 
     def handle_delpathrecord(self, args):
         print(f"🌊 Deleting path record for '{args.target}'...")
+
+
+    def _call_depsmanager_install(self, dep_name, dep_version):
+        """调用 depsmanager.sh 下载并安装依赖"""
+        depsmanager_path = Path(__file__).resolve().parent.parent / 'deps' / 'depsmanager.sh'
+        if not depsmanager_path.exists():
+            print(f"{RED_BOLD}🌊 Error: depsmanager.sh not found at {depsmanager_path}{RESET}")
+            sys.exit(1)
+
+        # 从 infosource 拉取依赖数据
+        dep_data = self._get_dep_data(dep_name, dep_version)
+        if dep_data is None:
+            print(f"{RED_BOLD}🌊 Error: Dependency '{dep_name}@{dep_version}' not found in repository{RESET}")
+            sys.exit(1)
+
+        dep_release = {"url": None, "sha256": None, "deps": []}
+        for line in dep_data.strip().splitlines():
+            line = line.strip()
+            if line.startswith("url:"):
+                dep_release["url"] = line.split(":", 1)[1].strip().strip('"')
+            elif line.startswith("sha256:"):
+                dep_release["sha256"] = line.split(":", 1)[1].strip().strip('"')
+            elif line.startswith("deps:"):
+                deps_str = line.split(":", 1)[1].strip().strip('"')
+                if deps_str:
+                    dep_release["deps"].append(deps_str)
+            elif line.startswith('"') and dep_release["deps"]:
+                dep = line.strip().strip('"')
+                if dep:
+                    dep_release["deps"].append(dep)
+
+        # 调用 pkginstaller.py 下载依赖到 deps/ 目录
+        import subprocess
+        installer_path = Path(__file__).resolve().parent.parent / 'pkg' / 'pkginstaller.py'
+        cmd = [
+            'python3', str(installer_path),
+            '--command', 'install',
+            '--package', dep_name,
+            '--ver', dep_version,
+            '--url', dep_release.get('url', ''),
+            '--sha256', dep_release.get('sha256', ''),
+            '--dir', str(BASE_DIR / 'deps'),
+            '--final-path', str(BASE_DIR / 'deps' / f"{dep_name}@{dep_version}" / dep_name)
+        ]
+
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+        print(f"🌊 Dependency {dep_name}@{dep_version} installed successfully!")
 
     def run(self):
         args, unknown = self.parser.parse_known_args()
