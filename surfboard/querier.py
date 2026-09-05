@@ -23,6 +23,14 @@ RESET = '\033[0m'
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 
+def to_tilde(path):
+    """将绝对路径转换为 ~ 形式"""
+    import os
+    home = os.path.expanduser("~")
+    if str(path).startswith(home):
+        return "~" + str(path)[len(home):]
+    return str(path)
+
 def load_base_dir():
     if CONFIG_FILE.exists():
         try:
@@ -171,7 +179,7 @@ def _generate_dep_references(package, version, deps_list):
             marker = dep_dir / f".dep_{package}@{pkg_version}"
             if not marker.exists():
                 marker.touch()
-                print(f"{GREEN}🌊 Generated reference marker: {marker}{RESET}")
+                print(f"{GREEN}🌊 Generated reference marker: {to_tilde(marker)}{RESET}")
 
 
 def auto_install_deps(package, version, deps_list):
