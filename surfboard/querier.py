@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 MacWave Querier Module (2.1 重构版)
-所有功能完全基于 _deps、_path、.dep 标记文件。
-所有查询、卸载、自动安装依赖均以本地文件为准，不依赖 installed.json。
+负责依赖查询、路径管理、卸载判断、自动安装依赖等高级功能。
+支持 _deps、_path、.dep 标记文件的完整读写。
 """
 
 import os
 import json
 import shutil
-import time
 import subprocess
 import sys
 import re
@@ -21,6 +20,7 @@ GREEN = '\033[32m'
 YELLOW = '\033[33m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
+
 
 # ==========================================
 # 配置与路径
@@ -37,6 +37,7 @@ def load_base_dir():
         except Exception:
             pass
     return Path.home() / ".local" / "macwave"
+
 
 BASE_DIR = load_base_dir()
 INSTALL_DIR = BASE_DIR / "bin"
@@ -77,7 +78,6 @@ def to_tilde(path):
 # ==========================================
 
 def _read_deps(pkg_dir):
-    """读取包目录下的 _deps 文件（依赖清单）"""
     deps_file = pkg_dir / "_deps"
     if not deps_file.exists():
         return []
@@ -86,7 +86,6 @@ def _read_deps(pkg_dir):
 
 
 def _read_path(pkg_dir):
-    """读取包目录下的 _path 文件（依赖路径清单）"""
     path_file = pkg_dir / "_path"
     if not path_file.exists():
         return []
@@ -95,13 +94,11 @@ def _read_path(pkg_dir):
 
 
 def _has_marker(dep_dir, pkg_name, pkg_version):
-    """检查依赖目录下是否有 .dep_包名@版本 标记"""
     marker = dep_dir / f".dep_{pkg_name}@{pkg_version}"
     return marker.exists()
 
 
 def _find_pkg_dir(package, version=None):
-    """通过本地包目录查找包，不依赖 installed.json"""
     if version:
         pkg_dir = INSTALL_DIR / f"{package}@{version}"
         if pkg_dir.exists():
@@ -115,18 +112,16 @@ def _find_pkg_dir(package, version=None):
 
 
 # ==========================================
-# 列表展示（完全基于 _deps、_path、.dep）
+# 列表展示
 # ==========================================
 
 def list_deps(detailed=False):
-    """列出所有已安装的依赖（基于 deps/ 目录下的 .dep 标记）"""
     if not DEPS_DIR.exists():
         print("🌊 No dependencies installed yet.")
         return
     deps = {}
     for dep_dir in DEPS_DIR.iterdir():
         if dep_dir.is_dir():
-            # 只有存在 .dep 标记的依赖才算“被引用”
             markers = list(dep_dir.glob(".dep_*"))
             if markers:
                 parts = dep_dir.name.split('@')
@@ -147,11 +142,9 @@ def list_deps(detailed=False):
 
 
 def list_packages():
-    """列出所有已安装的软件包（基于 bin/ 目录下的 _deps）"""
     if not INSTALL_DIR.exists():
         print("🌊 No packages installed yet.")
         return
-    # 遍历 bin 目录下所有含 _deps 文件的目录
     packages = []
     for pkg_dir in INSTALL_DIR.iterdir():
         if pkg_dir.is_dir() and (pkg_dir / "_deps").exists():
@@ -167,11 +160,10 @@ def list_packages():
 
 
 # ==========================================
-# 依赖查询（完全基于 _deps 和 _path）
+# 依赖查询
 # ==========================================
 
 def query_deps(package, version=None, detailed=False):
-    """查询某个包已安装的依赖（基于 _deps）"""
     pkg_dir = _find_pkg_dir(package, version)
     if not pkg_dir:
         print(f"🌊 Package '{package}' not found.")
@@ -194,7 +186,6 @@ def query_deps(package, version=None, detailed=False):
 
 
 def query_pkg_reverse(dep_name, dep_version=None):
-    """反向查询：哪个包依赖了某个库（基于 _deps 文件）"""
     pkg_dirs = list(INSTALL_DIR.glob("*@*"))
     if dep_version:
         dep_key = f"{dep_name}@{dep_version}"
@@ -217,11 +208,10 @@ def query_pkg_reverse(dep_name, dep_version=None):
 
 
 # ==========================================
-# 路径管理（完全基于 _path 及备份文件）
+# 路径管理
 # ==========================================
 
 def change_dep_path(package, version, dep, new_path):
-    """修改依赖路径（通过修改 _path 文件）"""
     if not new_path:
         print(f"{RED}🌊 Error: Missing new path.{RESET}")
         return
@@ -244,7 +234,6 @@ def change_dep_path(package, version, dep, new_path):
 
 
 def restore_default_path(package, version, dep):
-    """恢复默认路径（通过读取 _path.bak_default）"""
     pkg_dir = _find_pkg_dir(package, version)
     if not pkg_dir:
         print(f"{RED}🌊 Error: Package not found.{RESET}")
@@ -263,7 +252,6 @@ def restore_default_path(package, version, dep):
 
 
 def delete_path_record(package, version=None, force=False):
-    """删除路径备份记录（基于 _path.bak_* 文件）"""
     if '@' in package:
         pkg_name, ver = package.split('@', 1)
     else:
@@ -302,9 +290,7 @@ def delete_path_record(package, version=None, force=False):
 # ==========================================
 
 def _download_dep(name, version, url, sha256=None):
-    """下载依赖并安装到 deps 目录"""
     import requests
-    arch = _get_arch()
     dep_dir = DEPS_DIR / f"{name}@{version}"
     if dep_dir.exists():
         return
@@ -321,38 +307,10 @@ def _download_dep(name, version, url, sha256=None):
         if response.status_code != 200:
             print(f"{RED}🌊 Error: Failed to download {name}@{version}: {response.status_code}{RESET}")
             return
-        total_size = int(response.headers.get('content-length', 0))
         with open(tmp_path, 'wb') as f:
-            if RICH_AVAILABLE:
-                from rich.progress import (
-                    Progress, BarColumn, DownloadColumn, TextColumn,
-                    TransferSpeedColumn, TimeRemainingColumn,
-                )
-                from rich.console import Console
-                console = Console()
-                progress_columns = [
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(bar_width=None),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    DownloadColumn(),
-                    TextColumn("•"),
-                    TextColumn("{task.fields[speed]}"),
-                    TextColumn("•"),
-                    TimeRemainingColumn(),
-                ]
-                with Progress(*progress_columns, console=console) as progress:
-                    task_id = progress.add_task(description=f"🌊 {name}@{version}", total=total_size or None, speed="0 B/s")
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            progress.update(task_id, advance=len(chunk))
-                    progress.update(task_id, speed="0 B/s")
-            else:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        if self.verbose:
-                            print(".", end="", flush=True)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
     except Exception as e:
         print(f"{RED}🌊 Error: {e}{RESET}")
         return
@@ -374,12 +332,17 @@ def _download_dep(name, version, url, sha256=None):
         print(f"{RED}🌊 Error: Failed to extract dependency: {result.stderr}{RESET}")
         tmp_path.unlink()
         return
+
+    # 安装完依赖后，必须调用 tagger.sh 生成 .dep 标记
+    # 由于 _download_dep 并不知道是谁引用了这个依赖，我们暂时先不调用。
+    # 完整的 tagger.sh 调用应放在 install_deps 内部，由 install_deps 明确知道引用者是谁。
+    # 这里我们先保留 _download_dep 的纯净下载+解压功能。
+
     tmp_path.unlink()
     print(f"{GREEN}🌊 Dependency {name}@{version} installed.{RESET}")
 
 
 def _get_dep_data(dep_name, dep_version):
-    """从 infosource 获取依赖数据"""
     import requests
     arch = _get_arch()
     url = f"{_get_data_base_url()}/surfboard/depsinfo_{arch}/{dep_name}/_{dep_name}@{dep_version}"
@@ -395,7 +358,6 @@ def _get_dep_data(dep_name, dep_version):
 
 
 def _get_dep_url_and_sha(dep_name, dep_version):
-    """解析依赖数据，获取 URL 和 SHA256"""
     data_text = _get_dep_data(dep_name, dep_version)
     if not data_text:
         return None, None
@@ -411,15 +373,12 @@ def _get_dep_url_and_sha(dep_name, dep_version):
 
 
 def install_deps(target=None, missing=False, missing_all=False):
-    """安装依赖（基于 _deps 文件，真正下载并生成 .dep 标记）"""
     import requests
     import subprocess
     from pathlib import Path
 
-    # 情况1: 安装所有缺失的依赖
     if missing_all:
         print(f"{GREEN}🌊 Checking all packages for missing dependencies...{RESET}")
-        # 基于 _deps 文件遍历所有已安装包
         pkg_dirs = list(INSTALL_DIR.glob("*@*"))
         all_deps = []
         for pkg_dir in pkg_dirs:
@@ -438,7 +397,6 @@ def install_deps(target=None, missing=False, missing_all=False):
         print(f"{GREEN}🌊 Dependency check complete.{RESET}")
         return
 
-    # 情况2: 安装特定包缺失的依赖
     if missing:
         if not target:
             print(f"{RED}🌊 Error: Missing package name.{RESET}")
@@ -469,7 +427,6 @@ def install_deps(target=None, missing=False, missing_all=False):
         print(f"{GREEN}🌊 Dependency check complete.{RESET}")
         return
 
-    # 情况3: 安装特定依赖
     if target:
         if '@' in target:
             dep_name, dep_ver = target.split('@', 1)
@@ -486,11 +443,10 @@ def install_deps(target=None, missing=False, missing_all=False):
 
 
 # ==========================================
-# 卸载依赖（完全基于 .dep 标记判断引用计数）
+# 卸载依赖
 # ==========================================
 
 def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
-    """卸载依赖（基于 .dep 标记判断引用计数）"""
     if unnecessary:
         if not DEPS_DIR.exists():
             print("🌊 No dependencies installed.")
@@ -551,7 +507,7 @@ def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
 
 
 # ==========================================
-# 命令行入口（接受参数并执行）
+# 命令行入口
 # ==========================================
 
 def main():

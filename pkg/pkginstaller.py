@@ -460,6 +460,18 @@ class PackageInstaller:
                     querier.install_deps(package_name, missing=True)
                 except Exception as e:
                     print(f"{YELLOW}🌊 Warning: Failed to install dependencies: {e}{RESET}")
+                    print(f"{YELLOW}🌊 依赖安装失败，但主包已成功安装。请稍后手动处理依赖。{RESET}")
+
+                # 调用 tagger.sh 生成 .dep 标记
+                tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
+                for dep in deps:
+                    if '@' in dep:
+                        dep_name, dep_ver = dep.split('@', 1)
+                        subprocess.run(
+                            ['bash', str(tagger_path), dep_name, dep_ver, package_name, version],
+                            check=False
+                        )
+                        print(f"{GREEN}🌊 Generated reference marker via tagger.sh{RESET}")
 
                 # 调用 tagger.sh 生成 .dep 标记
                 tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
