@@ -1,0 +1,3 @@
+sha256: "cf81c39c66a0ad90e70caae80b014319efed269096ee908c74bdc4eacfabd33d"
+url: "http://repo.continuum.io/pkgs/main/osx-arm64/wget-1.25.0-h3e2b118_0.tar.bz2"
+deps: "gettext@0.21.0" "libiconv@1.16" "libidn2@2" "libunistring@1" "openssl@3.0.15" "pcre2@10.42" "zlib@1.2.13"
