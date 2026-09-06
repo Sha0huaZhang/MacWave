@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-MacWave 2.1.0 Main CLI
-负责解析所有 2.1 命令，调用 pkginstaller.py, depsmanager.sh, pkgunzip.sh 等。
+MacWave 2.1.0 Main CLI (重构版)
+负责解析所有 2.1 命令，调用 pkginstaller.py, querier.py 等。
+支持 wave list pkg 和 wave list deps。
+取消 upgrade 功能。
 """
 
 import argparse
@@ -22,8 +24,7 @@ VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "surfboard"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "deps"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "deps"))
+
 try:
     from pkgversionparser import safe_parse_pkg_version
     from depsversionparser import safe_parse_deps_version
@@ -135,7 +136,12 @@ class MacWaveCLI:
         self._add_install_flags(install_parser)
 
         subparsers.add_parser("uninstall", help="Uninstall a package")
-        subparsers.add_parser("list", help="List installed packages")
+
+        # 新增 list 子命令
+        list_parser = subparsers.add_parser("list", help="List packages or dependencies")
+        list_parser.add_argument("target", nargs="?", choices=["pkg", "deps"], default="pkg",
+                                 help="Specify 'pkg' for packages (default) or 'deps' for dependencies")
+        list_parser.add_argument("-d", "--detailed", action="store_true", help="Show detailed dependency info (for deps)")
 
         search_parser = subparsers.add_parser("search", help="Search for a package")
         search_parser.add_argument("query", help="Search query")
@@ -203,17 +209,23 @@ class MacWaveCLI:
         except Exception:
             return None
 
-    def _get_dep_data(self, dep_name, dep_version):
+    def _get_all_pkg_versions(self, pkg_name):
+        """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
         import requests
         arch = self._get_arch()
-        url = f"{self._get_data_base_url()}/surfboard/depsinfo_{arch}/{dep_name}/_{dep_name}@{dep_version}"
+        api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
         try:
-            r = requests.get(url, timeout=30)
-            if r.status_code == 404:
-                return None
-            if r.status_code != 200:
-                return None
-            return r.text
+            r = requests.get(api_url, timeout=30)
+            if r.status_code == 200:
+                files = r.json()
+                versions = []
+                for f in files:
+                    name = f['name']
+                    if name.startswith(f"_{pkg_name}@") and "@common" not in name:
+                        ver = name.split("@", 1)[1]
+                        versions.append(ver)
+                return versions
+            return None
         except Exception:
             return None
 
@@ -225,6 +237,7 @@ class MacWaveCLI:
 
         binary_url = release.get('url', '') if release else ''
         sha256 = release.get('sha256', '') if release else ''
+        deps = release.get('deps', []) if release else []
 
         cmd = [
             'python3', str(installer_path),
@@ -241,6 +254,9 @@ class MacWaveCLI:
             cmd.extend(['--dir', str(install_dir)])
         if final_path:
             cmd.extend(['--final-path', str(final_path)])
+        if deps:
+            cmd.extend(['--deps', json.dumps(deps)])
+
         result = subprocess.run(cmd)
         if result.returncode != 0:
             sys.exit(result.returncode)
@@ -257,7 +273,6 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
-        # 如果没有指定版本，尝试获取所有版本并选最新
         data_text = None
         if args.ver:
             data_text = self._get_pkg_data(safe_name, args.ver)
@@ -308,61 +323,34 @@ class MacWaveCLI:
             import querier
             querier.install_deps(safe_name, missing=True)
 
-    def _get_all_pkg_versions(self, pkg_name):
-        """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
-        import requests
-        arch = self._get_arch()
-        api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
-        try:
-            r = requests.get(api_url, timeout=30)
-            if r.status_code == 200:
-                files = r.json()
-                versions = []
-                for f in files:
-                    name = f['name']
-                    if name.startswith(f"_{pkg_name}@") and "@common" not in name:
-                        ver = name.split("@", 1)[1]
-                        versions.append(ver)
-                return versions
-            return None
-        except Exception:
-            return None
-
     def handle_uninstall(self, args):
         print(f"{RED_BOLD}🌊 Uninstall command is handled by depsmanager.sh{RESET}")
         sys.exit(1)
 
     def handle_list(self, args):
-        if not INSTALLED_DB.exists():
-            print("🌊 No packages installed yet.")
-            return
-        try:
-            with open(INSTALLED_DB, 'r') as f:
-                installed = json.load(f)
-            if not installed:
-                print("🌊 No packages installed yet.")
-                return
-            print("🌊 Installed packages:")
-            for pkg_name, info in installed.items():
-                version = info.get('version', 'unknown')
-                binary_path = info.get('binary_path', 'unknown')
-                print(f"🌊   - {pkg_name} (v{version}) -> {binary_path}")
-        except Exception as e:
-            print(f"{RED_BOLD}🌊 Error: Could not read installed packages: {e}{RESET}")
+        import querier
+        if args.target == "deps":
+            querier.list_deps(detailed=args.detailed)
+        else:
+            querier.list_packages()
 
     def handle_listdeps(self, args):
+        import querier
         if args.detailed:
             querier.list_deps(detailed=True)
         else:
             querier.list_deps()
 
     def handle_depsquery(self, args):
+        import querier
         querier.query_deps(args.target, detailed=args.detailed)
 
     def handle_pkgquery(self, args):
+        import querier
         querier.query_pkg_reverse(args.target)
 
     def handle_changedeppath(self, args):
+        import querier
         if args.pkg == "all":
             print(f"{YELLOW}🌊 Global path change not fully implemented yet.{RESET}")
         else:
@@ -374,6 +362,7 @@ class MacWaveCLI:
             querier.change_dep_path(pkg, ver, args.dep, args.path)
 
     def handle_delpathrecord(self, args):
+        import querier
         if '@' in args.target:
             pkg, ver = args.target.split('@', 1)
         else:
@@ -382,6 +371,7 @@ class MacWaveCLI:
         querier.delete_path_record(pkg, ver, args.force)
 
     def handle_depsuninstall(self, args):
+        import querier
         if args.target == "all":
             if args.unnecessary:
                 querier.uninstall_deps(unnecessary=True)
@@ -391,6 +381,7 @@ class MacWaveCLI:
             querier.uninstall_deps(args.target, unnecessary=args.unnecessary)
 
     def handle_depsinstall(self, args):
+        import querier
         querier.install_deps(args.target, args.missing, args.missing_all)
 
     def run(self):
@@ -410,6 +401,7 @@ class MacWaveCLI:
                 return
             command_handlers = {
                 "install": self.handle_install,
+                "list": self.handle_list,
                 "listdeps": self.handle_listdeps,
                 "depsquery": self.handle_depsquery,
                 "pkgquery": self.handle_pkgquery,

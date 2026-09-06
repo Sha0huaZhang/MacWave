@@ -198,6 +198,7 @@ WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
+SPECIALVERSIONPARSER_URL="$BASE_URL/pkg/specialversionparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 SHASUM256_URL="$BASE_URL/pkg/shasum256.sh"
 DEPSMANAGER_URL="$BASE_URL/surfboard/depsmanager.sh"
@@ -225,6 +226,9 @@ sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
 echo "🌊 Downloading pkgversionparser.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
+
+echo "🌊 Downloading specialversionparser.py..."
+sudo curl -fsSL -o "$REPO_DIR/specialversionparser.py" "$SPECIALVERSIONPARSER_URL"
 
 echo "🌊 Downloading pkgunzip.sh..."
 sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"

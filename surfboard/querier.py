@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-MacWave Querier Module
-负责依赖查询、路径管理、卸载判断等高级功能。
-检索和下载阶段不使用 _deps, _path, .dep，仅查询和运行阶段使用。
+MacWave Querier Module (2.1 重构版)
+所有功能完全基于 _deps、_path、.dep 标记文件。
+所有查询、卸载、自动安装依赖均以本地文件为准，不依赖 installed.json。
 """
 
 import os
@@ -11,6 +11,7 @@ import shutil
 import time
 import subprocess
 import sys
+import re
 from pathlib import Path
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
@@ -20,6 +21,10 @@ GREEN = '\033[32m'
 YELLOW = '\033[33m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
+
+# ==========================================
+# 配置与路径
+# ==========================================
 
 def load_base_dir():
     if CONFIG_FILE.exists():
@@ -61,15 +66,18 @@ def _get_data_base_url():
 
 
 def to_tilde(path):
-    """将绝对路径转换为 ~ 形式"""
     home = os.path.expanduser("~")
     if str(path).startswith(home):
         return "~" + str(path)[len(home):]
     return str(path)
 
 
+# ==========================================
+# 文件读取辅助（基于标记文件）
+# ==========================================
+
 def _read_deps(pkg_dir):
-    """读取包目录下的 _deps 文件"""
+    """读取包目录下的 _deps 文件（依赖清单）"""
     deps_file = pkg_dir / "_deps"
     if not deps_file.exists():
         return []
@@ -78,7 +86,7 @@ def _read_deps(pkg_dir):
 
 
 def _read_path(pkg_dir):
-    """读取包目录下的 _path 文件"""
+    """读取包目录下的 _path 文件（依赖路径清单）"""
     path_file = pkg_dir / "_path"
     if not path_file.exists():
         return []
@@ -87,27 +95,46 @@ def _read_path(pkg_dir):
 
 
 def _has_marker(dep_dir, pkg_name, pkg_version):
-    """检查依赖目录下是否有 .dep_包@版本 标记"""
+    """检查依赖目录下是否有 .dep_包名@版本 标记"""
     marker = dep_dir / f".dep_{pkg_name}@{pkg_version}"
     return marker.exists()
 
 
+def _find_pkg_dir(package, version=None):
+    """通过本地包目录查找包，不依赖 installed.json"""
+    if version:
+        pkg_dir = INSTALL_DIR / f"{package}@{version}"
+        if pkg_dir.exists():
+            return pkg_dir
+        return None
+    else:
+        pkg_dirs = list(INSTALL_DIR.glob(f"{package}@*"))
+        if pkg_dirs:
+            return pkg_dirs[0]
+        return None
+
+
+# ==========================================
+# 列表展示（完全基于 _deps、_path、.dep）
+# ==========================================
+
 def list_deps(detailed=False):
-    """列出所有已安装的依赖（通过 .dep 标记判断）"""
+    """列出所有已安装的依赖（基于 deps/ 目录下的 .dep 标记）"""
     if not DEPS_DIR.exists():
         print("🌊 No dependencies installed yet.")
         return
-
     deps = {}
     for dep_dir in DEPS_DIR.iterdir():
         if dep_dir.is_dir():
-            parts = dep_dir.name.split('@')
-            if len(parts) == 2:
-                name, version = parts
-                if name not in deps:
-                    deps[name] = []
-                deps[name].append(version)
-
+            # 只有存在 .dep 标记的依赖才算“被引用”
+            markers = list(dep_dir.glob(".dep_*"))
+            if markers:
+                parts = dep_dir.name.split('@')
+                if len(parts) == 2:
+                    name, version = parts
+                    if name not in deps:
+                        deps[name] = []
+                    deps[name].append(version)
     for name in sorted(deps.keys()):
         versions = deps[name]
         if detailed:
@@ -119,25 +146,40 @@ def list_deps(detailed=False):
             print(f"🌊 - {name}")
 
 
+def list_packages():
+    """列出所有已安装的软件包（基于 bin/ 目录下的 _deps）"""
+    if not INSTALL_DIR.exists():
+        print("🌊 No packages installed yet.")
+        return
+    # 遍历 bin 目录下所有含 _deps 文件的目录
+    packages = []
+    for pkg_dir in INSTALL_DIR.iterdir():
+        if pkg_dir.is_dir() and (pkg_dir / "_deps").exists():
+            parts = pkg_dir.name.split('@')
+            if len(parts) == 2:
+                packages.append((parts[0], parts[1]))
+    if not packages:
+        print("🌊 No packages installed yet.")
+        return
+    print("🌊 Installed packages:")
+    for pkg_name, version in packages:
+        print(f"🌊   - {pkg_name} (v{version})")
+
+
+# ==========================================
+# 依赖查询（完全基于 _deps 和 _path）
+# ==========================================
+
 def query_deps(package, version=None, detailed=False):
-    """查询某个包的依赖，通过 _deps 读取，_path 判断是否已安装"""
-    if version:
-        pkg_dir = INSTALL_DIR / f"{package}@{version}"
-    else:
-        pkg_dirs = list(INSTALL_DIR.glob(f"{package}@*"))
-        if not pkg_dirs:
-            print(f"🌊 Package '{package}' not found.")
-            return
-        pkg_dir = pkg_dirs[0]
-
+    """查询某个包已安装的依赖（基于 _deps）"""
+    pkg_dir = _find_pkg_dir(package, version)
+    if not pkg_dir:
+        print(f"🌊 Package '{package}' not found.")
+        return
     deps = _read_deps(pkg_dir)
-    paths = _read_path(pkg_dir)
-
     if not deps:
         print(f"🌊 Package '{package}' has no dependencies.")
         return
-
-    # 检查每个依赖是否安装
     for dep in deps:
         if '@' in dep:
             name, ver = dep.split('@', 1)
@@ -152,134 +194,291 @@ def query_deps(package, version=None, detailed=False):
 
 
 def query_pkg_reverse(dep_name, dep_version=None):
-    """反向查询：哪个包依赖了某个库"""
-    installed = _load_installed()
-
+    """反向查询：哪个包依赖了某个库（基于 _deps 文件）"""
+    pkg_dirs = list(INSTALL_DIR.glob("*@*"))
     if dep_version:
         dep_key = f"{dep_name}@{dep_version}"
-        for pkg_name, info in installed.items():
-            pkg_dir = INSTALL_DIR / f"{pkg_name}@{info.get('version', '')}"
+        for pkg_dir in pkg_dirs:
             deps = _read_deps(pkg_dir)
             if dep_key in deps:
-                print(f"🌊 - {pkg_name}@{info.get('version', '')}")
+                parts = pkg_dir.name.split('@')
+                if len(parts) == 2:
+                    print(f"🌊 - {parts[0]}@{parts[1]}")
     else:
-        for pkg_name, info in installed.items():
-            pkg_dir = INSTALL_DIR / f"{pkg_name}@{info.get('version', '')}"
+        for pkg_dir in pkg_dirs:
             deps = _read_deps(pkg_dir)
             for dep in deps:
                 if dep.startswith(f"{dep_name}@"):
                     dep_ver = dep.split('@', 1)[1]
-                    print(f"🌊 @{dep_ver}")
-                    print(f"    - {pkg_name}@{info.get('version', '')}")
+                    parts = pkg_dir.name.split('@')
+                    if len(parts) == 2:
+                        print(f"🌊 @{dep_ver}")
+                        print(f"    - {parts[0]}@{parts[1]}")
 
+
+# ==========================================
+# 路径管理（完全基于 _path 及备份文件）
+# ==========================================
 
 def change_dep_path(package, version, dep, new_path):
     """修改依赖路径（通过修改 _path 文件）"""
     if not new_path:
         print(f"{RED}🌊 Error: Missing new path.{RESET}")
         return
-
     if '..' in new_path:
         print(f"{RED}🌊 Error: Relative paths are not allowed. Please use an absolute path.{RESET}")
         return
-
-    pkg_dir = INSTALL_DIR / f"{package}@{version}"
+    pkg_dir = _find_pkg_dir(package, version)
+    if not pkg_dir:
+        print(f"{RED}🌊 Error: Package not found.{RESET}")
+        return
     path_file = pkg_dir / "_path"
-
     if not path_file.exists():
         print(f"{RED}🌊 Error: Path file not found.{RESET}")
         return
-
-    # 备份默认路径
     if not (pkg_dir / "_path.bak_default").exists():
         shutil.copy2(path_file, pkg_dir / "_path.bak_default")
-
-    # 写入新路径
     with open(path_file, 'w') as f:
         f.write(new_path)
-
     print(f"{GREEN}🌊 Path updated for {package}@{version}.{RESET}")
 
 
 def restore_default_path(package, version, dep):
     """恢复默认路径（通过读取 _path.bak_default）"""
-    pkg_dir = INSTALL_DIR / f"{package}@{version}"
+    pkg_dir = _find_pkg_dir(package, version)
+    if not pkg_dir:
+        print(f"{RED}🌊 Error: Package not found.{RESET}")
+        return
     path_file = pkg_dir / "_path"
     default_bak = pkg_dir / "_path.bak_default"
-
     if not default_bak.exists():
         print(f"{RED}🌊 Error: No default backup found.{RESET}")
         return
-
-    # 备份当前为 bak_1, bak_2...
     i = 1
     while (pkg_dir / f"_path.bak_{i}").exists():
         i += 1
     shutil.copy2(path_file, pkg_dir / f"_path.bak_{i}")
-
-    # 恢复默认
     shutil.copy2(default_bak, path_file)
     print(f"{GREEN}🌊 Default path restored.{RESET}")
 
 
 def delete_path_record(package, version=None, force=False):
-    """删除路径备份记录（通过 _path.bak 文件）"""
-    if version:
-        pkg_dir = INSTALL_DIR / f"{package}@{version}"
+    """删除路径备份记录（基于 _path.bak_* 文件）"""
+    if '@' in package:
+        pkg_name, ver = package.split('@', 1)
     else:
-        pkg_dirs = list(INSTALL_DIR.glob(f"{package}@*"))
-        if not pkg_dirs:
-            print(f"{RED}🌊 Package '{package}' not found.{RESET}")
-            return
-        pkg_dir = pkg_dirs[0]
-
-    backups = sorted(pkg_dir.glob("_path.bak_*"))
-    if force:
+        pkg_name = package
+        ver = None
+    if '*' in package or '@' in package:
+        pkg_dirs = list(INSTALL_DIR.glob(f"{pkg_name}@*"))
+        if ver and '*' not in ver:
+            pkg_dirs = [d for d in pkg_dirs if d.name.endswith(f"@{ver}")]
+    else:
+        pkg_dirs = list(INSTALL_DIR.glob(f"{pkg_name}@*"))
+    if not pkg_dirs:
+        print(f"{RED}🌊 Package '{package}' not found.{RESET}")
+        return
+    for pkg_dir in pkg_dirs:
         backups = sorted(pkg_dir.glob("_path.bak_*"))
-    else:
-        backups = [b for b in backups if not b.name.endswith("default")]
+        if force:
+            backups = sorted(pkg_dir.glob("_path.bak_*"))
+        else:
+            backups = [b for b in backups if not b.name.endswith("default")]
+        if not backups:
+            continue
+        print(f"🌊 Found backup records for {pkg_dir.name}:")
+        for b in backups:
+            print(f"  - {b.name}")
+        response = input(f"🌊 Delete these records? [Y/n]: ").strip()
+        if response.lower() == 'y':
+            for b in backups:
+                b.unlink()
+                print(f"🌊 Deleted: {b.name}")
+        print(f"{GREEN}🌊 Path records deleted.{RESET}")
 
-    if not backups:
-        print("🌊 No backup records to delete.")
+
+# ==========================================
+# 自动安装依赖（基于 _deps 和 .dep 标记）
+# ==========================================
+
+def _download_dep(name, version, url, sha256=None):
+    """下载依赖并安装到 deps 目录"""
+    import requests
+    arch = _get_arch()
+    dep_dir = DEPS_DIR / f"{name}@{version}"
+    if dep_dir.exists():
+        return
+    DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
+    DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
+    tmp_path = DOWNLOAD_TMP / f"{name}_{version}.partial"
+    if tmp_path.exists():
+        tmp_path.unlink()
+    try:
+        response = requests.get(url, stream=True, timeout=30)
+        if response.status_code == 404:
+            print(f"{RED}🌊 Error: Dependency URL not found: {url}{RESET}")
+            return
+        if response.status_code != 200:
+            print(f"{RED}🌊 Error: Failed to download {name}@{version}: {response.status_code}{RESET}")
+            return
+        with open(tmp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+    except Exception as e:
+        print(f"{RED}🌊 Error: {e}{RESET}")
+        return
+    if sha256:
+        import hashlib
+        actual = hashlib.sha256(tmp_path.read_bytes()).hexdigest()
+        if actual != sha256:
+            print(f"{RED}🌊 Error: SHA256 mismatch for {name}@{version}{RESET}")
+            tmp_path.unlink()
+            return
+    import subprocess
+    dep_dir.mkdir(parents=True, exist_ok=True)
+    depsunzip_path = Path(__file__).resolve().parent / "depsunzip.sh"
+    result = subprocess.run(
+        ['bash', str(depsunzip_path), name, version, str(tmp_path)],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"{RED}🌊 Error: Failed to extract dependency: {result.stderr}{RESET}")
+        tmp_path.unlink()
+        return
+    tmp_path.unlink()
+    print(f"{GREEN}🌊 Dependency {name}@{version} installed.{RESET}")
+
+
+def _get_dep_data(dep_name, dep_version):
+    """从 infosource 获取依赖数据"""
+    import requests
+    arch = _get_arch()
+    url = f"{_get_data_base_url()}/surfboard/depsinfo_{arch}/{dep_name}/_{dep_name}@{dep_version}"
+    try:
+        r = requests.get(url, timeout=30)
+        if r.status_code == 404:
+            return None
+        if r.status_code != 200:
+            return None
+        return r.text
+    except Exception:
+        return None
+
+
+def _get_dep_url_and_sha(dep_name, dep_version):
+    """解析依赖数据，获取 URL 和 SHA256"""
+    data_text = _get_dep_data(dep_name, dep_version)
+    if not data_text:
+        return None, None
+    url = None
+    sha256 = None
+    for line in data_text.strip().splitlines():
+        line = line.strip()
+        if line.startswith("url:"):
+            url = line.split(":", 1)[1].strip().strip('"')
+        elif line.startswith("sha256:"):
+            sha256 = line.split(":", 1)[1].strip().strip('"')
+    return url, sha256
+
+
+def install_deps(target=None, missing=False, missing_all=False):
+    """安装依赖（基于 _deps 文件，真正下载并生成 .dep 标记）"""
+    import requests
+    import subprocess
+    from pathlib import Path
+
+    # 情况1: 安装所有缺失的依赖
+    if missing_all:
+        print(f"{GREEN}🌊 Checking all packages for missing dependencies...{RESET}")
+        # 基于 _deps 文件遍历所有已安装包
+        pkg_dirs = list(INSTALL_DIR.glob("*@*"))
+        all_deps = []
+        for pkg_dir in pkg_dirs:
+            deps = _read_deps(pkg_dir)
+            all_deps.extend(deps)
+        for dep in all_deps:
+            if '@' in dep:
+                name, ver = dep.split('@', 1)
+                dep_dir = DEPS_DIR / f"{name}@{ver}"
+                if not dep_dir.exists():
+                    url, sha256 = _get_dep_url_and_sha(name, ver)
+                    if url:
+                        _download_dep(name, ver, url, sha256)
+                    else:
+                        print(f"{RED}🌊 Missing dependency data: {name}@{ver}{RESET}")
+        print(f"{GREEN}🌊 Dependency check complete.{RESET}")
         return
 
-    print("🌊 Found the following backup records:")
-    for b in backups:
-        print(f"  - {b.name}")
+    # 情况2: 安装特定包缺失的依赖
+    if missing:
+        if not target:
+            print(f"{RED}🌊 Error: Missing package name.{RESET}")
+            return
+        if '@' in target:
+            pkg, ver = target.split('@', 1)
+        else:
+            pkg = target
+            ver = None
+        pkg_dir = _find_pkg_dir(pkg, ver)
+        if not pkg_dir:
+            print(f"{RED}🌊 Package '{pkg}' not found.{RESET}")
+            return
+        deps = _read_deps(pkg_dir)
+        if not deps:
+            print(f"🌊 Package '{pkg}' has no dependencies.")
+            return
+        for dep in deps:
+            if '@' in dep:
+                name, ver = dep.split('@', 1)
+                dep_dir = DEPS_DIR / f"{name}@{ver}"
+                if not dep_dir.exists():
+                    url, sha256 = _get_dep_url_and_sha(name, ver)
+                    if url:
+                        _download_dep(name, ver, url, sha256)
+                    else:
+                        print(f"{RED}🌊 Missing dependency data: {name}@{ver}{RESET}")
+        print(f"{GREEN}🌊 Dependency check complete.{RESET}")
+        return
 
-    response = input(f"🌊 Delete these records? [Y/n]: ").strip()
-    if response.lower() == 'y':
-        for b in backups:
-            b.unlink()
-            print(f"🌊 Deleted: {b.name}")
-        print(f"{GREEN}🌊 Path records deleted.{RESET}")
-    else:
-        print("🌊 Operation cancelled.")
+    # 情况3: 安装特定依赖
+    if target:
+        if '@' in target:
+            dep_name, dep_ver = target.split('@', 1)
+            dep_dir = DEPS_DIR / f"{dep_name}@{dep_ver}"
+            if dep_dir.exists():
+                print(f"{GREEN}🌊 Dependency {dep_name}@{dep_ver} already installed.{RESET}")
+            else:
+                url, sha256 = _get_dep_url_and_sha(dep_name, dep_ver)
+                if url:
+                    _download_dep(dep_name, dep_ver, url, sha256)
+                else:
+                    print(f"{RED}🌊 Missing dependency data: {dep_name}@{dep_ver}{RESET}")
+        return
 
+
+# ==========================================
+# 卸载依赖（完全基于 .dep 标记判断引用计数）
+# ==========================================
 
 def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
-    """卸载依赖（通过 .dep 标记判断引用计数）"""
+    """卸载依赖（基于 .dep 标记判断引用计数）"""
     if unnecessary:
         if not DEPS_DIR.exists():
             print("🌊 No dependencies installed.")
             return
-
         unnecessary_deps = []
         for dep_dir in DEPS_DIR.iterdir():
             if dep_dir.is_dir():
-                # 检查是否有任何 .dep 标记
                 markers = list(dep_dir.glob(".dep_*"))
                 if not markers:
                     unnecessary_deps.append(dep_dir)
-
         if not unnecessary_deps:
             print("🌊 No unnecessary dependencies found.")
             return
-
         print("🌊 The following dependencies are unused:")
         for d in unnecessary_deps:
             print(f"  - {d.name}")
-
         response = input(f"🌊 Delete all unused dependencies? [Y/n]: ").strip()
         if response.lower() == 'y':
             for d in unnecessary_deps:
@@ -323,20 +522,23 @@ def uninstall_deps(dep_name=None, dep_version=None, unnecessary=False):
             print("🌊 Operation cancelled.")
 
 
+# ==========================================
+# 命令行入口（接受参数并执行）
+# ==========================================
+
 def main():
-    import sys
     if len(sys.argv) < 2:
         print("Usage: python3 querier.py <command> [args]")
         return
-
     command = sys.argv[1]
     args = sys.argv[2:]
-
     if command == "list_deps":
         detailed = False
         if '-d' in args or '--detailed' in args:
             detailed = True
         list_deps(detailed)
+    elif command == "list_packages":
+        list_packages()
     elif command == "query_deps":
         pkg = args[0] if args else ""
         ver = None
@@ -366,6 +568,17 @@ def main():
             pkg = args[0]
             ver = args[1] if len(args) > 1 else None
             delete_path_record(pkg, ver, force)
+    elif command == "install_deps":
+        target = args[0] if args else None
+        missing = False
+        missing_all = False
+        if '-m' in args or '--missing' in args:
+            missing = True
+        if '-ma' in args or '--missing-all' in args:
+            missing_all = True
+        if target and '@' in target:
+            target, _ = target.split('@', 1)
+        install_deps(target, missing, missing_all)
     elif command == "uninstall_deps":
         dep_name = args[0] if args else None
         dep_ver = None

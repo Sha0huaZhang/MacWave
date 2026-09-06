@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-MacWave Package Installer (2.1)
+MacWave Package Installer (2.1 重构版)
 负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压。
-依赖标记由 surfboard/querier.py 调用。
+安装完成后，自动生成 _deps、_path，并调用 tagger.sh 生成 .dep 标记。
+支持 --deps 参数（由 wave.py 传入依赖列表）。
 """
 
 import os
@@ -164,6 +165,7 @@ class PackageInstaller:
             sys.exit(result.returncode)
 
     def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
+        """处理下载后的文件，正确生成目录结构"""
         archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
         is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
 
@@ -215,12 +217,14 @@ class PackageInstaller:
             shutil.rmtree(extract_dir, ignore_errors=True)
 
         else:
-            # 强制创建目录结构：/bin/<包名>@<版本>/<包名>
+            # 正确创建结构：/bin/包名@版本/包名
             package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
             package_dir.mkdir(parents=True, exist_ok=True)
+            # 如果目标位置已有文件，先清理
+            if (package_dir / package_name).exists():
+                shutil.rmtree(package_dir / package_name)
             shutil.move(str(temp_path), str(package_dir / package_name))
             final_path = package_dir / package_name
-            os.chmod(final_path, 0o755)
 
         os.chmod(final_path, 0o755)
         self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
@@ -407,24 +411,58 @@ class PackageInstaller:
 
         return final_path
 
-    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False):
+    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False, release=None):
+        """安装包并自动生成 _deps、_path，调用 tagger.sh 生成 .dep 标记"""
         if install_dir is None:
             install_dir = INSTALL_DIR
         if final_path is None:
             final_path = install_dir / package_name
 
-        # 检查文件是否存在于 final_path 或者 install_dir 下
         if not final_path.exists():
-            # 如果 final_path 不存在，尝试在 install_dir 下找同名文件
-            if install_dir and (install_dir / package_name).exists():
-                final_path = install_dir / package_name
-            else:
-                print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
-                sys.exit(1)
+            print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
+            sys.exit(1)
 
         try:
             display_path = to_tilde(final_path)
             print(f"🌊 Successfully installed {package_name} to {display_path}")
+
+            # ========== 生成 _deps 和 _path ==========
+            pkg_dir = final_path.parent
+            if pkg_dir.name != f"{package_name}@{version}":
+                pkg_dir = install_dir / f"{package_name}@{version}"
+                pkg_dir.mkdir(parents=True, exist_ok=True)
+                if not (pkg_dir / package_name).exists():
+                    shutil.copy2(final_path, pkg_dir / package_name)
+                    final_path = pkg_dir / package_name
+
+            # 生成 _deps
+            if release and release.get('deps'):
+                deps = release['deps']
+                with open(pkg_dir / "_deps", 'w') as f:
+                    for dep in deps:
+                        f.write(dep + "\n")
+                print(f"{GREEN}🌊 Generated _deps for {package_name}{RESET}")
+
+                # 生成 _path（记录默认依赖路径）
+                with open(pkg_dir / "_path", 'w') as f:
+                    for dep in deps:
+                        if '@' in dep:
+                            dep_name, dep_ver = dep.split('@', 1)
+                            dep_path = DEPS_DIR / f"{dep_name}@{dep_ver}" / dep_name
+                            f.write(f"{dep_name}@{dep_ver}: {dep_path}\n")
+                print(f"{GREEN}🌊 Generated _path for {package_name}{RESET}")
+
+                # 调用 tagger.sh 生成 .dep 标记
+                tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
+                for dep in release['deps']:
+                    if '@' in dep:
+                        dep_name, dep_ver = dep.split('@', 1)
+                        subprocess.run(
+                            ['bash', str(tagger_path), dep_name, dep_ver, package_name, version],
+                            check=True
+                        )
+                        print(f"{GREEN}🌊 Generated reference marker via tagger.sh{RESET}")
+
             if not skip_db_update:
                 self._record_installation(package_name, version, install_dir, final_path=final_path)
             else:
@@ -465,6 +503,7 @@ def main():
     parser.add_argument('--ver', help='Package version')
     parser.add_argument('--url', help='Binary URL (for install)')
     parser.add_argument('--sha256', help='SHA256 checksum (for install)')
+    parser.add_argument('--deps', help='Dependencies list (JSON array)')
     parser.add_argument('--dir', help='Install directory')
     parser.add_argument('--final-path', help='Final binary path')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
@@ -479,12 +518,22 @@ def main():
     installer = PackageInstaller(verbose=args.verbose)
 
     if args.command == 'install':
+        # 解析 deps 数组
+        deps_list = []
+        if args.deps:
+            try:
+                deps_list = json.loads(args.deps)
+            except json.JSONDecodeError:
+                deps_list = []
+
+        release = {'sha256': args.sha256, 'deps': deps_list}
+
         installer.download_binary(
             url=args.url,
             package_name=args.package,
             args=vars(args),
             install_dir=Path(args.dir) if args.dir else None,
-            release={'sha256': args.sha256} if args.sha256 else None,
+            release=release,
             final_path=Path(args.final_path) if args.final_path else None
         )
         installer.install_package(
@@ -493,7 +542,8 @@ def main():
             version=args.ver,
             install_dir=Path(args.dir) if args.dir else None,
             final_path=Path(args.final_path) if args.final_path else None,
-            skip_db_update=args.skip_db_update
+            skip_db_update=args.skip_db_update,
+            release=release
         )
     elif args.command == 'uninstall':
         print(f"{RED_BOLD}🌊 Error: Uninstall command is handled by depsmanager.sh{RESET}")
