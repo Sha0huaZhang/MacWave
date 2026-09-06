@@ -192,6 +192,7 @@ class PackageInstaller:
                 sys.exit(1)
 
             main_binary = None
+            # 递归遍历所有子目录，优先找和包名完全一致的文件
             for root, dirs, files in os.walk(extract_dir):
                 for file in files:
                     if file == package_name:
@@ -200,10 +201,21 @@ class PackageInstaller:
                 if main_binary:
                     break
 
+            # 如果找不到同名文件，找第一个无后缀文件（通常是可执行文件）
             if not main_binary:
                 for root, dirs, files in os.walk(extract_dir):
                     for file in files:
                         if '.' not in file:
+                            main_binary = Path(root) / file
+                            break
+                    if main_binary:
+                        break
+
+            # 如果还是找不到，找第一个可执行文件
+            if not main_binary:
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        if os.access(Path(root) / file, os.X_OK):
                             main_binary = Path(root) / file
                             break
                     if main_binary:
