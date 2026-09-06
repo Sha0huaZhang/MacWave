@@ -321,10 +321,38 @@ def _download_dep(name, version, url, sha256=None):
         if response.status_code != 200:
             print(f"{RED}🌊 Error: Failed to download {name}@{version}: {response.status_code}{RESET}")
             return
+        total_size = int(response.headers.get('content-length', 0))
         with open(tmp_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
+            if RICH_AVAILABLE:
+                from rich.progress import (
+                    Progress, BarColumn, DownloadColumn, TextColumn,
+                    TransferSpeedColumn, TimeRemainingColumn,
+                )
+                from rich.console import Console
+                console = Console()
+                progress_columns = [
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(bar_width=None),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    DownloadColumn(),
+                    TextColumn("•"),
+                    TextColumn("{task.fields[speed]}"),
+                    TextColumn("•"),
+                    TimeRemainingColumn(),
+                ]
+                with Progress(*progress_columns, console=console) as progress:
+                    task_id = progress.add_task(description=f"🌊 {name}@{version}", total=total_size or None, speed="0 B/s")
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            progress.update(task_id, advance=len(chunk))
+                    progress.update(task_id, speed="0 B/s")
+            else:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        if self.verbose:
+                            print(".", end="", flush=True)
     except Exception as e:
         print(f"{RED}🌊 Error: {e}{RESET}")
         return
