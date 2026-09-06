@@ -290,20 +290,31 @@ class MacWaveCLI:
             sys.exit(1)
 
         release = {"url": None, "sha256": None, "deps": []}
-        for line in data_text.strip().splitlines():
+        lines = data_text.strip().splitlines()
+        last_keyword = None
+        for line in lines:
             line = line.strip()
             if line.startswith("url:"):
+                last_keyword = "url"
                 release["url"] = line.split(":", 1)[1].strip().strip('"')
             elif line.startswith("sha256:"):
+                last_keyword = "sha256"
                 release["sha256"] = line.split(":", 1)[1].strip().strip('"')
             elif line.startswith("deps:"):
+                last_keyword = "deps"
                 deps_str = line.split(":", 1)[1].strip().strip('"')
                 if deps_str:
                     release["deps"].append(deps_str)
-            elif line.startswith('"') and release["deps"]:
-                dep = line.strip().strip('"')
-                if dep:
-                    release["deps"].append(dep)
+            elif line.startswith('"'):
+                # 遇到以 " 开头的行，查看上一行是什么关键字
+                if last_keyword == "deps":
+                    dep = line.strip().strip('"')
+                    if dep:
+                        release["deps"].append(dep)
+                elif last_keyword == "url":
+                    release["url"] += line.strip().strip('"')
+                elif last_keyword == "sha256":
+                    release["sha256"] += line.strip().strip('"')
 
         version = args.ver
         final_path = install_dir / f"{safe_name}@{version}"
