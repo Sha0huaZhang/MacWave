@@ -295,8 +295,8 @@ class MacWaveCLI:
 
         # 检查是否已安装
         if final_path.exists():
-            print(f"🌊 Package '{safe_name}@{version}' is already installed.")
-            response = input(f"🌊 Do you want to reinstall it? [Y/n]: ").strip()
+            print(f"\033[1;31m🌊 Package '{safe_name}@{version}' is already installed.\033[0m")
+            response = input(f"\033[1;31m🌊 Do you want to reinstall it? [Y/n]: \033[0m").strip()
             if response.lower() != 'y':
                 print("🌊 Installation skipped.")
                 return
