@@ -419,6 +419,21 @@ class PackageInstaller:
 
         print("🌊 Verifying SHA256...")
         self._verify_sha256(temp_path, release.get("sha256"))
+
+        # 根据下载 URL 猜测压缩包后缀，并重命名临时文件
+        if url.endswith('.tar.bz2'):
+            renamed_path = DOWNLOAD_TMP / f"{package_name}.tar.bz2"
+        elif url.endswith('.tar.gz'):
+            renamed_path = DOWNLOAD_TMP / f"{package_name}.tar.gz"
+        elif url.endswith('.zip'):
+            renamed_path = DOWNLOAD_TMP / f"{package_name}.zip"
+        else:
+            renamed_path = temp_path  # 保持原样
+
+        if renamed_path != temp_path and temp_path.exists():
+            shutil.move(str(temp_path), str(renamed_path))
+            temp_path = renamed_path
+
         self._process_downloaded_file(temp_path, package_name, final_path)
         print("🌊 Download complete!")
 
