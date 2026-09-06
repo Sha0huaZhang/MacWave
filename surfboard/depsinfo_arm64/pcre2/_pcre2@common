@@ -1,0 +1,4 @@
+des: "PCRE2 - Perl Compatible Regular Expressions library"
+hom: "https://www.pcre.org/"
+lic: "BSD-3-Clause"
+aut: "PCRE Project"

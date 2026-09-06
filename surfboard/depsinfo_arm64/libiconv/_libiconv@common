@@ -1,0 +1,4 @@
+des: "GNU libiconv - character encoding conversion library"
+hom: "https://www.gnu.org/software/libiconv/"
+lic: "LGPL-2.1"
+aut: "GNU Project"
