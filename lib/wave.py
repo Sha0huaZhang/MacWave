@@ -297,7 +297,7 @@ class MacWaveCLI:
         # 自动下载全部缺失依赖，并生成 _deps、_path 和 .dep 标记
         if release.get('deps'):
             import querier
-            querier.auto_install_deps(safe_name, version, release.get('deps', []))
+            querier.install_deps(safe_name, missing=True)
 
     def _get_all_pkg_versions(self, pkg_name):
         """获取某个包的所有版本号（通过拉取 infosource 上的目录列表）"""
