@@ -452,6 +452,15 @@ class PackageInstaller:
                             f.write(f"{dep_name}@{dep_ver}: {dep_path}\n")
                 print(f"{GREEN}🌊 Generated _path for {package_name}{RESET}")
 
+                # 先安装缺失的依赖，确保 deps 目录存在
+                try:
+                    import sys
+                    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'surfboard'))
+                    import querier
+                    querier.install_deps(package_name, missing=True)
+                except Exception as e:
+                    print(f"{YELLOW}🌊 Warning: Failed to install dependencies: {e}{RESET}")
+
                 # 调用 tagger.sh 生成 .dep 标记
                 tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
                 for dep in release['deps']:
