@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-MacWave Package Installer (2.1 重构版)
+MacWave Package Installer (2.1 完整重构版)
 负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压。
 安装完成后，自动生成 _deps、_path，并调用 tagger.sh 生成 .dep 标记。
-支持 --deps 参数（由 wave.py 传入依赖列表）。
+同时支持动态链接包的路径重定向（otool + install_name_tool）。
+下载目录统一为：BASE_DIR/downloads/tmp
 """
 
 import os
@@ -470,17 +471,6 @@ class PackageInstaller:
                         subprocess.run(
                             ['bash', str(tagger_path), dep_name, dep_ver, package_name, version],
                             check=False
-                        )
-                        print(f"{GREEN}🌊 Generated reference marker via tagger.sh{RESET}")
-
-                # 调用 tagger.sh 生成 .dep 标记
-                tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
-                for dep in release['deps']:
-                    if '@' in dep:
-                        dep_name, dep_ver = dep.split('@', 1)
-                        subprocess.run(
-                            ['bash', str(tagger_path), dep_name, dep_ver, package_name, version],
-                            check=True
                         )
                         print(f"{GREEN}🌊 Generated reference marker via tagger.sh{RESET}")
 
