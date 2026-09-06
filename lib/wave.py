@@ -292,6 +292,15 @@ class MacWaveCLI:
 
         version = args.ver
         final_path = install_dir / f"{safe_name}@{version}"
+
+        # 检查是否已安装
+        if final_path.exists():
+            print(f"🌊 Package '{safe_name}@{version}' is already installed.")
+            response = input(f"🌊 Do you want to reinstall it? [Y/n]: ").strip()
+            if response.lower() != 'y':
+                print("🌊 Installation skipped.")
+                return
+
         self._call_installer(safe_name, args, release, version, install_dir, final_path)
 
         # 自动下载全部缺失依赖，并生成 _deps、_path 和 .dep 标记
