@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MacWave Package Installer (2.1 完整重构版)
+MacWave Package Installer (2.1 最终版)
 负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压。
 安装完成后，自动生成 _deps、_path，并调用 tagger.sh 生成 .dep 标记。
 支持动态链接包路径重定向（otool + install_name_tool）。
