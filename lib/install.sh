@@ -132,6 +132,7 @@ REPO_DIR="$BASE_DIR/pkg"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
 DEPS_DIR="$BASE_DIR/deps"
+SURFBOARD_DIR="$BASE_DIR/surfboard"
 CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
@@ -141,6 +142,7 @@ sudo mkdir -p "$REPO_DIR"
 sudo mkdir -p "$LIB_DIR"
 sudo mkdir -p "$DOWNLOAD_DIR"
 sudo mkdir -p "$DEPS_DIR"
+sudo mkdir -p "$SURFBOARD_DIR"
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
@@ -239,18 +241,18 @@ sudo curl -fsSL -o "$REPO_DIR/shasum256.sh" "$SHASUM256_URL"
 sudo chmod +x "$REPO_DIR/shasum256.sh"
 
 echo "🌊 Downloading depsmanager.sh..."
-sudo curl -fsSL -o "$DEPS_DIR/depsmanager.sh" "$DEPSMANAGER_URL"
-sudo chmod +x "$DEPS_DIR/depsmanager.sh"
+sudo curl -fsSL -o "$SURFBOARD_DIR/depsmanager.sh" "$DEPSMANAGER_URL"
+sudo chmod +x "$SURFBOARD_DIR/depsmanager.sh"
 
 echo "🌊 Downloading depsversionparser.py..."
-sudo curl -fsSL -o "$DEPS_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
+sudo curl -fsSL -o "$SURFBOARD_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
 
 echo "🌊 Downloading querier.py..."
-sudo curl -fsSL -o "$DEPS_DIR/querier.py" "$QUERIER_URL"
+sudo curl -fsSL -o "$SURFBOARD_DIR/querier.py" "$QUERIER_URL"
 
 echo "🌊 Downloading tagger.sh..."
-sudo curl -fsSL -o "$DEPS_DIR/tagger.sh" "$TAGGER_URL"
-sudo chmod +x "$DEPS_DIR/tagger.sh"
+sudo curl -fsSL -o "$SURFBOARD_DIR/tagger.sh" "$TAGGER_URL"
+sudo chmod +x "$SURFBOARD_DIR/tagger.sh"
 
 # ==========================================
 # 安装 Python 依赖
