@@ -4,6 +4,7 @@ MacWave 2.1.0 Main CLI (重构版)
 负责解析所有 2.1 命令，调用 pkginstaller.py, querier.py 等。
 支持 wave list pkg 和 wave list deps。
 取消 upgrade 功能。
+支持多行同项 deps 解析（deps: "a" 后面跟 "b" "c"）。
 """
 
 import argparse
@@ -273,6 +274,7 @@ class MacWaveCLI:
         if args.dir:
             install_dir = Path(args.dir).expanduser().resolve()
 
+        # 数据解析：支持多行同项 deps
         data_text = None
         if args.ver:
             data_text = self._get_pkg_data(safe_name, args.ver)
@@ -317,7 +319,7 @@ class MacWaveCLI:
                     release["sha256"] += line.strip().strip('"')
 
         version = args.ver
-        final_path = install_dir / f"{safe_name}@{version}"
+        final_path = install_dir / f"{safe_name}@{version}" / safe_name
 
         # 检查是否已安装
         if final_path.exists():
