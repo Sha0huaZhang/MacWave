@@ -258,7 +258,12 @@ class MacWaveCLI:
         if deps:
             cmd.extend(['--deps', json.dumps(deps)])
 
-        result = subprocess.run(cmd)
+        # 关键修复：必须等待子进程完全执行，并输出其标准输出和错误
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
         if result.returncode != 0:
             sys.exit(result.returncode)
 
