@@ -61,8 +61,8 @@ if "ParsePkgURL" 开头不是"https://"
 
 # 这里加一个和之前一样的进度条
 
-# 调用check_sha256.sh处理文件
-# 写入installed.json由check_sha256.sh进行
+# 调用pkginstaller.sh处理文件
+# 写入installed.json由pkginstaller.sh进行
 
     
 
