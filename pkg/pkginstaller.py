@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-MacWave Package Installer (2.1 最终版)
-负责下载、调用 shasum256.sh 校验、调用 pkgunzip.sh 解压。
-安装完成后，自动生成 _deps、_path，并调用 tagger.sh 生成 .dep 标记。
-支持动态链接包路径重定向（otool + install_name_tool）。
-下载目录统一为：BASE_DIR/downloads/tmp
-"""
+"""pkginstaller.py"""
 
 import os
 import sys
@@ -16,7 +10,9 @@ import fcntl
 import time
 import logging
 import argparse
+import platform
 import subprocess
+import traceback
 from pathlib import Path
 
 # ==========================================
@@ -35,31 +31,20 @@ RESET = '\033[0m'
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
 
-def get_config_path():
-    if CONFIG_FILE.exists():
-        return CONFIG_FILE
-    print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
-    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall.{RESET}")
-    sys.exit(1)
-
 def get_version():
-    config_path = get_config_path().parent / "VERSION.json"
-    if config_path.exists():
+    if VERSION_FILE.exists():
         try:
-            with open(config_path, 'r') as f:
+            with open(VERSION_FILE, 'r') as f:
                 data = json.load(f)
                 return data.get("version", "unknown")
         except Exception:
             pass
     return "unknown"
 
-VERSION = get_version()
-
 def load_config():
-    config_path = get_config_path()
-    if config_path.exists():
+    if CONFIG_FILE.exists():
         try:
-            with open(config_path, 'r') as f:
+            with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
                 base_dir = config.get("base_dir")
                 if base_dir:
@@ -67,25 +52,11 @@ def load_config():
         except Exception:
             pass
     print(f"{RED_BOLD}🌊 Error: Configuration file not found or invalid.{RESET}")
-    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall.{RESET}")
+    print(f"{RED_BOLD}🌊 Please run the install script again to reinstall MacWave.{RESET}")
     sys.exit(1)
 
 BASE_DIR = load_config()
-INSTALL_DIR = BASE_DIR / "bin"
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
-INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
-DEPS_DIR = BASE_DIR / "deps"
-PROTECTED_PACKAGES = ["wave"]
-
-# ==========================================
-# 将绝对路径转换为 ~ 形式
-# ==========================================
-
-def to_tilde(path: Path) -> str:
-    home = Path.home()
-    if str(path).startswith(str(home)):
-        return "~" + str(path)[len(str(home)):]
-    return str(path)
 
 # ==========================================
 # 依赖库检查
@@ -118,481 +89,312 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+
 # ==========================================
-# 核心安装器
+# 核心辅助函数
 # ==========================================
 
-class PackageInstaller:
-    def __init__(self, verbose=False):
-        self.verbose = verbose
-        self._logger = logging.getLogger("PackageInstaller")
-        if not self._logger.handlers:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter('%(message)s'))
-            self._logger.addHandler(handler)
-            self._logger.setLevel(logging.INFO)
+def _parse_rate_limit(rate_str):
+    rate_str = rate_str.upper().strip()
+    multipliers = {'K': 1024, 'M': 1024**2, 'G': 1024**3}
+    try:
+        if rate_str[-1] in multipliers:
+            return float(rate_str[:-1]) * multipliers[rate_str[-1]]
+        return float(rate_str)
+    except ValueError:
+        return None
 
-    def _log(self, message: str, level: str = "info", force: bool = False):
-        if self.verbose or force or level == "error":
-            log_level = getattr(logging, level.upper(), logging.INFO)
-            self._logger.log(log_level, f"🌊 {message}")
 
-    def log(self, message, force=False):
-        self._log(message, "info", force)
+def _check_disk_space(path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
+    total, used, free = shutil.disk_usage(path)
+    if free < required_bytes:
+        print(f"{RED_BOLD}🌊 Error: Insufficient disk space in {path}.{RESET}")
+        sys.exit(1)
+    return True
 
-    def log_verbose(self, message):
-        if self.verbose:
-            self._log(message, "debug")
 
-    def _is_protected(self, package_name: str) -> bool:
-        return package_name.lower() in PROTECTED_PACKAGES
+# ==========================================
+# 获取最高版本（通过 GitHub API）
+# ==========================================
 
-    def _check_disk_space(self, path: Path, required_bytes: int = 10 * 1024 * 1024) -> bool:
-        total, used, free = shutil.disk_usage(path)
-        if free < required_bytes:
-            print(f"{RED_BOLD}🌊 Error: Insufficient disk space in {path}.{RESET}")
-            sys.exit(1)
-        return True
-
-    def _verify_sha256(self, file_path: Path, expected_sha256: str):
-        import subprocess
-        shasum_path = Path(__file__).resolve().parent / "shasum256.sh"
-        result = subprocess.run(
-            ['bash', str(shasum_path), str(file_path), expected_sha256],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode != 0:
-            sys.exit(result.returncode)
-
-    def _process_downloaded_file(self, temp_path: Path, package_name: str, final_path: Path):
-        """处理下载后的文件，正确生成目录结构"""
-        archive_suffix = ['.zip', '.tar.gz', '.tgz', '.tar.bz2', '.tar.xz', '.gz', '.bz2']
-        is_archive = any(temp_path.name.endswith(s) for s in archive_suffix)
-
-        if is_archive:
-            print(f"🌊 Extracting archive...")
-            extract_dir = DOWNLOAD_TMP / f"{package_name}_extract"
-            if extract_dir.exists():
-                shutil.rmtree(extract_dir, ignore_errors=True)
-            extract_dir.mkdir(parents=True, exist_ok=True)
-
-            import subprocess
-            pkgunzip_path = Path(__file__).resolve().parent / "pkgunzip.sh"
-            result = subprocess.run(
-                ['bash', str(pkgunzip_path), str(temp_path), str(extract_dir)],
-                capture_output=True,
-                text=True
-            )
-
-            if result.returncode != 0:
-                print(f"{RED_BOLD}🌊 Error: Failed to extract archive: {result.stderr}{RESET}")
-                if temp_path.exists():
-                    temp_path.unlink()
-                sys.exit(1)
-
-            main_binary = None
-            # 递归遍历所有子目录，优先找和包名完全一致的文件
-            for root, dirs, files in os.walk(extract_dir):
-                for file in files:
-                    if file == package_name:
-                        main_binary = Path(root) / file
-                        break
-                if main_binary:
-                    break
-
-            # 如果找不到同名文件，找第一个无后缀文件（通常是可执行文件）
-            if not main_binary:
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        if '.' not in file:
-                            main_binary = Path(root) / file
-                            break
-                    if main_binary:
-                        break
-
-            # 如果还是找不到，找第一个可执行文件
-            if not main_binary:
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        if os.access(Path(root) / file, os.X_OK):
-                            main_binary = Path(root) / file
-                            break
-                    if main_binary:
-                        break
-
-            if not main_binary:
-                print(f"{RED_BOLD}🌊 Error: Could not find main binary in extracted archive.{RESET}")
-                sys.exit(1)
-
-            final_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(main_binary), str(final_path))
-            shutil.rmtree(extract_dir, ignore_errors=True)
-
-        else:
-            # 正确创建结构：/bin/包名@版本/包名
-            package_dir = final_path.parent / f"{package_name}@{os.path.basename(str(final_path)).split('@')[-1]}"
-            package_dir.mkdir(parents=True, exist_ok=True)
-            # 如果目标位置已有文件，先清理
-            if (package_dir / package_name).exists():
-                shutil.rmtree(package_dir / package_name)
-            shutil.move(str(temp_path), str(package_dir / package_name))
-            final_path = package_dir / package_name
-
-        os.chmod(final_path, 0o755)
-        self.log_verbose(f"Installed to {final_path} ({final_path.stat().st_size} bytes)")
-
-    def download_binary(self, url, package_name, args, install_dir=None, release=None, final_path=None):
-        if install_dir is None:
-            install_dir = INSTALL_DIR
-        if final_path is None:
-            final_path = install_dir / package_name
-
-        if not url:
-            print(f"{RED_BOLD}🌊 Error: URLNone{RESET}")
+def fetch_max_version(package_name):
+    """
+    遍历 infosource 分支，通过 GitHub API 获取文件名并提取版本号。
+    调用 pkgversionparser.py 进行排序，获取最终的最高版本。
+    """
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{ARCH}/{package_name}"
+    try:
+        response = requests.get(api_url, timeout=30)
+        if response.status_code != 200:
+            print(f"{RED_BOLD}🌊 Error: Cannot fetch package list.{RESET}")
             sys.exit(1)
 
-        if release and not release.get("sha256"):
-            print(f"{RED_BOLD}🌊 WARNING: This package has NO SHA256 checksum provided.{RESET}")
-            print(f"{RED_BOLD}🌊 Skipping SHA256 verification is INSECURE and may expose you to tampered files.{RESET}")
-            if not self._confirm_missing_sha256():
-                print(f"{RED_BOLD}🌊 Installation cancelled by user.{RESET}")
-                sys.exit(1)
-            sha256_skip = True
-            print(f"{RED_BOLD}🌊 SHA256 verification will be skipped (user confirmed).{RESET}")
+        file_list = response.json()
+        versions = []
+        for item in file_list:
+            fname = item["name"]
+            if fname.endswith("@common"):
+                continue
+            if "@" in fname:
+                versions.append(fname.split("@")[1])
+
+        # 调用 pkgversionparser.py 进行排序
+        from pkgversionparser import get_max_version
+        return get_max_version(versions)
+    except Exception as e:
+        print(f"{RED_BOLD}🌊 Error: Failed to fetch version list: {e}{RESET}")
+        sys.exit(1)
+
+
+# ==========================================
+# 核心安装流程
+# ==========================================
+
+def handle_install(input_string):
+    # 1. 解析包名
+    parts = input_string.split()
+    if len(parts) >= 2:
+        raw_pkg = parts[1]
+    else:
+        print(f"{RED_BOLD}🌊 Error: Invalid package name{RESET}")
+        sys.exit(1)
+
+    if "@" in raw_pkg:
+        ParsePkgName = raw_pkg.split("@")[0]
+    else:
+        ParsePkgName = raw_pkg
+
+    # 2. 获取架构
+    global ARCH
+    machine = platform.machine().lower()
+    if machine in ["arm64", "aarch64"]:
+        ARCH = "arm64"
+    elif machine in ["x86_64", "amd64"]:
+        ARCH = "amd64"
+    else:
+        print(f"{RED_BOLD}🌊 Error: Unknown Arch!{RESET}")
+        sys.exit(1)
+
+
+    # 3. 解析版本号
+    ParsePkgVersion = None
+    if "@" in input_string:
+        if "--ver" in input_string:
+            print(f"{RED_BOLD}🌊 Error: Repeated Version Number{RESET}")
+            sys.exit(1)
         else:
-            sha256_skip = False
+            ParsePkgVersion = input_string.split("@")[1].split(" ")[0].strip()
+    elif "--ver" in input_string:
+        ParsePkgVersion = input_string.split("--ver")[1].strip().split(" ")[0]
+    else:
+        # 通过 GitHub API 获取最高版本
+        print("🌊 Fetching version info...")
+        ParsePkgVersion = fetch_max_version(ParsePkgName)
+        print("🌊 Version info fetched successfully.")
 
-        self.log_verbose(f"Download URL: {url}")
-        print(f"🌊 Downloading {package_name}...")
+    # 4. 获取远程 URL 和 SHA256
+    pkg_version_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/{ParsePkgName}@{ParsePkgVersion}"
+    try:
+        resp = requests.get(pkg_version_url)
+        if resp.status_code != 200:
+            if "-v" in input_string or "--verbose" in input_string:
+                print(resp.text)
+            elif resp.status_code == 404:
+                print(f"{RED_BOLD}🌊 Error: Can't find parse pacakge version.\n🌊 If you certain this version is existent, Please contact the administrator.{RESET}")
+                sys.exit(1)
+            else:
+                print(f"{RED_BOLD}🌊 Error: Service unavailable, Please contact the administrator.{RESET}")
+                sys.exit(1)
+    except Exception as e:
+        print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+        sys.exit(1)
 
-        DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
-        self._check_disk_space(DOWNLOAD_TMP)
+    # 提取 URL 和 SHA256
+    import re
+    url_match = re.search(r'url:\s*"([^"]+)"', resp.text)
+    sha_match = re.search(r'sha256:\s*"([^"]+)"', resp.text)
 
-        temp_path = DOWNLOAD_TMP / f"{package_name}.partial"
-        if temp_path.exists():
-            temp_path.unlink()
+    if url_match:
+        ParsePkgURL = url_match.group(1)
+    else:
+        print(f"{RED_BOLD}🌊 Error: URL field not found.{RESET}")
+        sys.exit(1)
 
-        request_kwargs = {'stream': True, 'timeout': (30, 30)}
+    if sha_match:
+        ParsePkgSHA256 = sha_match.group(1)
+    else:
+        ParsePkgSHA256 = None
 
-        if args.get('proxy'):
-            proxy = args['proxy']
-            safe_proxy = proxy.replace(proxy.split('@')[-1], '******') if '@' in proxy else proxy
-            self.log_verbose(f"Using proxy: {safe_proxy}")
-            request_kwargs['proxies'] = {'http': args['proxy'], 'https': args['proxy']}
+    # 5. URL 检查
+    if not ParsePkgURL.startswith("https://"):
+        if ParsePkgURL.startswith("http://"):
+            print(f"{RED_BOLD}🌊 ParsePkgURL using HTTP！That's insecure, Please contact the administrator.{RESET}")
+            sys.exit(1)
+        else:
+            print(f"{RED_BOLD}🌊 ParsePkgURL Invalid, Please contact the administrator.{RESET}")
+            sys.exit(1)
 
-        if args.get('skip_ssl'):
-            print(f"{RED_BOLD}🌊 WARNING: SSL verification is DISABLED. This may expose you to man-in-the-middle attacks.{RESET}")
-            request_kwargs['verify'] = False
-            urllib3.disable_warnings(InsecureRequestWarning)
+    # 6. 下载前准备
+    original_filename = ParsePkgURL.split("/")[-1]
+    CONFIG = DOWNLOAD_TMP
+    CONFIG.mkdir(parents=True, exist_ok=True)
+    temp_path = CONFIG / f"{original_filename}.partial"
+    if temp_path.exists():
+        temp_path.unlink()
 
-        download_success = False
-        attempt = 0
-        while not download_success:
-            attempt += 1
-            try:
-                response = requests.get(url, **request_kwargs)
+    # 7. 下载（包含 2.0 RC 的重试逻辑和 Rich 进度条）
+    download_success = False
+    attempt = 0
+    while not download_success:
+        attempt += 1
+        try:
+            response = requests.get(ParsePkgURL, stream=True)
 
-                if response.status_code == 404:
-                    print(f"{RED_BOLD}🌊 Error: ErrorCode 404 - The URL or file does not exist.{RESET}")
-                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
-                    sys.exit(404)
-                elif response.status_code != 200:
-                    print(f"{RED_BOLD}🌊 Error: ErrorCode {response.status_code}{RESET}")
-                    print(f"{RED_BOLD}🌊 URL: {url}{RESET}")
-                    sys.exit(response.status_code)
+            if response.status_code == 404:
+                print(f"{RED_BOLD}🌊 Error: ErrorCode 404 - The URL or file does not exist.{RESET}")
+                print(f"{RED_BOLD}🌊 URL: {ParsePkgURL}{RESET}")
+                sys.exit(404)
+            elif response.status_code != 200:
+                print(f"{RED_BOLD}🌊 Error: ErrorCode {response.status_code}{RESET}")
+                print(f"{RED_BOLD}🌊 URL: {ParsePkgURL}{RESET}")
+                sys.exit(response.status_code)
 
-                total_size = int(response.headers.get('content-length', 0))
-                limit_bps = None
-                if args.get('limit_rate'):
-                    limit_bps = self._parse_rate_limit(args['limit_rate'])
-                    if limit_bps is not None:
-                        limit_bps = int(limit_bps * 0.8)
+            total_size = int(response.headers.get('content-length', 0))
+            limit_bps = None
+            if '--limit-rate' in input_string:
+                limit_rate_str = input_string.split('--limit-rate')[1].strip().split(' ')[0]
+                limit_bps = _parse_rate_limit(limit_rate_str)
+                if limit_bps is not None:
+                    limit_bps = int(limit_bps * 0.8)
 
-                if RICH_AVAILABLE:
-                    from rich.console import Console
-                    progress_columns = [
-                        TextColumn("[progress.description]{task.description}"),
-                        BarColumn(bar_width=None),
-                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                        DownloadColumn(),
-                        TextColumn("•"),
-                        TextColumn("{task.fields[speed]}"),
-                        TextColumn("•"),
-                        TimeRemainingColumn(),
-                    ]
-                    console = Console()
-                    with Progress(*progress_columns, console=console) as progress:
-                        task_id = progress.add_task(description=f"🌊 {package_name}", total=total_size or None, speed="0 B/s")
+            if RICH_AVAILABLE:
+                from rich.console import Console
+                progress_columns = [
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(bar_width=None),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    DownloadColumn(),
+                    TextColumn("•"),
+                    TextColumn("{task.fields[speed]}"),
+                    TextColumn("•"),
+                    TimeRemainingColumn(),
+                ]
+                console = Console()
+                with Progress(*progress_columns, console=console) as progress:
+                    task_id = progress.add_task(description=f"🌊 {ParsePkgName}", total=total_size or None, speed="0 B/s")
 
-                        sha256_hash = hashlib.sha256()
-                        token_bucket = 0.0
-                        last_time = time.monotonic()
-                        speed_last_time = time.monotonic()
-                        speed_last_bytes = 0
+                    sha256_hash = hashlib.sha256()
+                    token_bucket = 0.0
+                    last_time = time.monotonic()
+                    speed_last_time = time.monotonic()
+                    speed_last_bytes = 0
 
-                        with open(temp_path, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                if chunk:
-                                    if limit_bps:
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                if limit_bps:
+                                    now = time.monotonic()
+                                    delta = now - last_time
+                                    token_bucket += delta * limit_bps
+                                    last_time = now
+                                    if token_bucket > 8192:
+                                        token_bucket = 8192
+                                    if token_bucket < len(chunk):
+                                        time.sleep((len(chunk) - token_bucket) / limit_bps)
                                         now = time.monotonic()
                                         delta = now - last_time
                                         token_bucket += delta * limit_bps
                                         last_time = now
-                                        if token_bucket > 8192:
-                                            token_bucket = 8192
-                                        if token_bucket < len(chunk):
-                                            time.sleep((len(chunk) - token_bucket) / limit_bps)
-                                            now = time.monotonic()
-                                            delta = now - last_time
-                                            token_bucket += delta * limit_bps
-                                            last_time = now
-                                        token_bucket -= len(chunk)
+                                    token_bucket -= len(chunk)
 
-                                    f.write(chunk)
-                                    sha256_hash.update(chunk)
-
-                                    current_bytes = progress.tasks[task_id].completed + len(chunk)
-                                    now = time.monotonic()
-
-                                    if now - speed_last_time >= 0.5:
-                                        real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
-                                        speed_last_bytes = current_bytes
-                                        speed_last_time = now
-                                        display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
-                                        if display_speed >= 1024 * 1024:
-                                            speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
-                                        elif display_speed >= 1024:
-                                            speed_str = f"{display_speed / 1024:.1f} kB/s"
-                                        else:
-                                            speed_str = f"{display_speed:.0f} B/s"
-
-                                        progress.update(task_id, speed=speed_str)
-
-                                    progress.update(task_id, advance=len(chunk))
-
-                        if total_size:
-                            current_completed = progress.tasks[task_id].completed
-                            if current_completed < total_size:
-                                progress.update(task_id, advance=total_size - current_completed)
-                        progress.update(task_id, speed="0 B/s")
-
-                else:
-                    sha256_hash = hashlib.sha256()
-                    with open(temp_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            if chunk:
                                 f.write(chunk)
                                 sha256_hash.update(chunk)
-                                if self.verbose:
-                                    print(".", end="", flush=True)
-                    if self.verbose:
-                        print(" ")
 
-                download_success = True
-                break
+                                current_bytes = progress.tasks[task_id].completed + len(chunk)
+                                now = time.monotonic()
 
-            except (ConnectionError, Timeout) as e:
-                if attempt < 2:
-                    print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
-                    print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
-                    retry = input().strip().lower()
-                    if retry == 'y':
-                        continue
-                    else:
-                        print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
-                        sys.exit(1)
+                                if now - speed_last_time >= 0.5:
+                                    real_speed = (current_bytes - speed_last_bytes) / (now - speed_last_time)
+                                    speed_last_bytes = current_bytes
+                                    speed_last_time = now
+                                    display_speed = min(real_speed, limit_bps) if limit_bps else real_speed
+                                    if display_speed >= 1024 * 1024:
+                                        speed_str = f"{display_speed / (1024 * 1024):.1f} MB/s"
+                                    elif display_speed >= 1024:
+                                        speed_str = f"{display_speed / 1024:.1f} kB/s"
+                                    else:
+                                        speed_str = f"{display_speed:.0f} B/s"
+
+                                    progress.update(task_id, speed=speed_str)
+
+                                progress.update(task_id, advance=len(chunk))
+
+                    if total_size:
+                        current_completed = progress.tasks[task_id].completed
+                        if current_completed < total_size:
+                            progress.update(task_id, advance=total_size - current_completed)
+                    progress.update(task_id, speed="0 B/s")
+
+            else:
+                sha256_hash = hashlib.sha256()
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            sha256_hash.update(chunk)
+                            if '-v' in input_string or '--verbose' in input_string:
+                                print(".", end="", flush=True)
+                if '-v' in input_string or '--verbose' in input_string:
+                    print(" ")
+
+            download_success = True
+            break
+
+        except (ConnectionError, Timeout) as e:
+            if attempt < 2:
+                print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
+                print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
+                retry = input().strip().lower()
+                if retry == 'y':
+                    continue
                 else:
                     print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
                     sys.exit(1)
-
-            except HTTPError as e:
-                status_code = e.response.status_code if e.response is not None else 1
-                print(f"{RED_BOLD}🌊 Error: ErrorCode {status_code}{RESET}")
-                sys.exit(status_code)
-
-            except Exception as e:
-                if self.verbose:
-                    traceback.print_exc()
-                print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+            else:
+                print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
                 sys.exit(1)
 
-        print("🌊 Verifying SHA256...")
-        self._verify_sha256(temp_path, release.get("sha256"))
+        except HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else 1
+            print(f"{RED_BOLD}🌊 Error: ErrorCode {status_code}{RESET}")
+            sys.exit(status_code)
 
-        # 根据下载 URL 猜测压缩包后缀，并重命名临时文件
-        if url.endswith('.tar.bz2'):
-            renamed_path = DOWNLOAD_TMP / f"{package_name}.tar.bz2"
-        elif url.endswith('.tar.gz'):
-            renamed_path = DOWNLOAD_TMP / f"{package_name}.tar.gz"
-        elif url.endswith('.zip'):
-            renamed_path = DOWNLOAD_TMP / f"{package_name}.zip"
-        else:
-            renamed_path = temp_path  # 保持原样
-
-        if renamed_path != temp_path and temp_path.exists():
-            shutil.move(str(temp_path), str(renamed_path))
-            temp_path = renamed_path
-
-        self._process_downloaded_file(temp_path, package_name, final_path)
-        print("🌊 Download complete!")
-
-        return final_path
-
-    def install_package(self, package_name, args, version=None, install_dir=None, final_path=None, skip_db_update=False, release=None):
-        """安装包并自动生成 _deps、_path，调用 tagger.sh 生成 .dep 标记"""
-        if install_dir is None:
-            install_dir = INSTALL_DIR
-        if final_path is None:
-            final_path = install_dir / package_name
-
-        if not final_path.exists():
-            print(f"{RED_BOLD}🌊 Error: Binary file not found after download.{RESET}")
-            sys.exit(1)
-
-        try:
-            display_path = to_tilde(final_path)
-            print(f"🌊 Successfully installed {package_name} to {display_path}")
-
-            # ========== 生成 _deps 和 _path ==========
-            pkg_dir = final_path.parent
-            if pkg_dir.name != f"{package_name}@{version}":
-                pkg_dir = install_dir / f"{package_name}@{version}"
-                pkg_dir.mkdir(parents=True, exist_ok=True)
-                if not (pkg_dir / package_name).exists():
-                    shutil.copy2(final_path, pkg_dir / package_name)
-                    final_path = pkg_dir / package_name
-
-            # 生成 _deps
-            if release and release.get('deps'):
-                deps = release['deps']
-                with open(pkg_dir / "_deps", 'w') as f:
-                    for dep in deps:
-                        f.write(dep + "\n")
-                print(f"{GREEN}🌊 Generated _deps for {package_name}{RESET}")
-
-                # 生成 _path（记录默认依赖路径）
-                with open(pkg_dir / "_path", 'w') as f:
-                    for dep in deps:
-                        if '@' in dep:
-                            dep_name, dep_ver = dep.split('@', 1)
-                            dep_path = DEPS_DIR / f"{dep_name}@{dep_ver}" / dep_name
-                            f.write(f"{dep_name}@{dep_ver}: {dep_path}\n")
-                print(f"{GREEN}🌊 Generated _path for {package_name}{RESET}")
-
-                # 先安装缺失的依赖，确保 deps 目录存在
-                try:
-                    import sys
-                    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'surfboard'))
-                    import querier
-                    querier.install_deps(package_name, missing=True)
-                except Exception as e:
-                    print(f"{YELLOW}🌊 Warning: Failed to install dependencies: {e}{RESET}")
-                    print(f"{YELLOW}🌊 依赖安装失败，但主包已成功安装。请稍后手动处理依赖。{RESET}")
-
-                # 调用 tagger.sh 生成 .dep 标记
-                tagger_path = Path(__file__).resolve().parent.parent / 'surfboard' / 'tagger.sh'
-                for dep in deps:
-                    if '@' in dep:
-                        dep_name, dep_ver = dep.split('@', 1)
-                        subprocess.run(
-                            ['bash', str(tagger_path), dep_name, dep_ver, package_name, version],
-                            check=False
-                        )
-                        print(f"{GREEN}🌊 Generated reference marker via tagger.sh{RESET}")
-
-            if not skip_db_update:
-                self._record_installation(package_name, version, install_dir, final_path=final_path)
-            else:
-                self.log_verbose("Skipping DB update (--skip-db-update specified)")
-        except OSError as e:
-            print(f"{RED_BOLD}🌊 Error: Failed to install package: {e}{RESET}")
-            sys.exit(1)
-
-    def _record_installation(self, package_name, release_version=None, install_dir=None, final_path=None):
-        if install_dir is None:
-            install_dir = INSTALL_DIR
-        if final_path is None:
-            final_path = install_dir / package_name
-
-        try:
-            INSTALLED_DB.parent.mkdir(parents=True, exist_ok=True)
-            with open(INSTALLED_DB, 'a+') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                f.seek(0)
-                try:
-                    content = f.read()
-                    installed = json.loads(content) if content else {}
-                except json.JSONDecodeError:
-                    installed = {}
-                installed[package_name] = {"version": release_version, "binary_path": str(final_path)}
-                f.seek(0)
-                f.truncate()
-                json.dump(installed, f, indent=2)
         except Exception as e:
-            self.log(f"Warning: Could not record installation: {e}", force=True)
+            print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
+            sys.exit(1)
 
+    # 8. 删掉 .partial 后缀，恢复原文件名
+    final_download_path = CONFIG / original_filename
+    temp_path.rename(final_download_path)
 
-def main():
-    parser = argparse.ArgumentParser(description="MacWave Package Installer")
-    parser.add_argument('--version', action='version', version=f'Package Installer {VERSION}')
-    parser.add_argument('--command', required=True, choices=['install', 'uninstall'], help='Command to execute')
-    parser.add_argument('--package', required=True, help='Package name')
-    parser.add_argument('--ver', help='Package version')
-    parser.add_argument('--url', help='Binary URL (for install)')
-    parser.add_argument('--sha256', help='SHA256 checksum (for install)')
-    parser.add_argument('--deps', help='Dependencies list (JSON array)')
-    parser.add_argument('--dir', help='Install directory')
-    parser.add_argument('--final-path', help='Final binary path')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
-    parser.add_argument('--proxy', help='HTTP/HTTPS proxy')
-    parser.add_argument('--skip-ssl', action='store_true', help='Skip SSL verification')
-    parser.add_argument('--limit-rate', help='Limit download speed')
-    parser.add_argument('--resume', action='store_true', help='Resume interrupted download')
-    parser.add_argument('--dry-run', action='store_true', help='Dry run')
-    parser.add_argument('--skip-db-update', action='store_true', help='Skip updating installed.json (used by wave upgrade)')
+    # 9. 拼接长字符串并传给 pkginstaller.sh
+    # ParseDir 固定为 BASE_DIR/bin/软件包名@版本号
+    parse_dir_value = f"{BASE_DIR}/bin/{ParsePkgName}@{ParsePkgVersion}"
+    pkg_info_string = (
+        f"{ParsePkgName}\n{ParsePkgVersion}\n{ParsePkgSHA256}\n{parse_dir_value}"
+    )
 
-    args = parser.parse_args()
-    installer = PackageInstaller(verbose=args.verbose)
-
-    if args.command == 'install':
-        # 解析 deps 数组
-        deps_list = []
-        if args.deps:
-            try:
-                deps_list = json.loads(args.deps)
-            except json.JSONDecodeError:
-                deps_list = []
-
-        release = {'sha256': args.sha256, 'deps': deps_list}
-
-        installer.download_binary(
-            url=args.url,
-            package_name=args.package,
-            args=vars(args),
-            install_dir=Path(args.dir) if args.dir else None,
-            release=release,
-            final_path=Path(args.final_path) if args.final_path else None
-        )
-        installer.install_package(
-            package_name=args.package,
-            args=vars(args),
-            version=args.ver,
-            install_dir=Path(args.dir) if args.dir else None,
-            final_path=Path(args.final_path) if args.final_path else None,
-            skip_db_update=args.skip_db_update,
-            release=release
-        )
-    elif args.command == 'uninstall':
-        print(f"{RED_BOLD}🌊 Error: Uninstall command is handled by depsmanager.sh{RESET}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
+    # 调用 pkginstaller.sh
     try:
-        main()
-    except KeyboardInterrupt:
-        print("\n🌊 Download interrupted by user.")
-        print("🌊 Operation cancelled by user.")
-        print("🌊 Tip: You can resume the download next time using: wave install <package_name> -C")
-        sys.exit(130)
+        script_path = os.path.join(os.path.dirname(__file__), 'pkginstaller.sh')
+        result = subprocess.run(
+            ['bash', script_path, pkg_info_string],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print(result.stderr)
+            sys.exit(result.returncode)
+        print(result.stdout.strip())
+    except Exception as e:
+        print(f"{RED_BOLD}🌊 Error: Failed to invoke shell script: {e}{RESET}")
+        sys.exit(1)
