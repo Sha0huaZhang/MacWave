@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""pkginstaller.py"""
+
+# pkginstaller.py
 
 import os
 import sys
@@ -15,18 +16,14 @@ import subprocess
 import traceback
 from pathlib import Path
 
-# ==========================================
 # 颜色定义
-# ==========================================
 
 RED_BOLD = '\033[1;31m'
 GREEN = '\033[32m'
 YELLOW = '\033[33m'
 RESET = '\033[0m'
 
-# ==========================================
 # 配置加载
-# ==========================================
 
 CONFIG_FILE = Path("/opt/macwave_config/config.json")
 VERSION_FILE = Path("/opt/macwave_config/VERSION.json")
@@ -58,9 +55,7 @@ def load_config():
 BASE_DIR = load_config()
 DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
 
-# ==========================================
 # 依赖库检查
-# ==========================================
 
 try:
     import requests
@@ -90,9 +85,7 @@ except ImportError:
     RICH_AVAILABLE = False
 
 
-# ==========================================
 # 核心辅助函数
-# ==========================================
 
 def _parse_rate_limit(rate_str):
     rate_str = rate_str.upper().strip()
@@ -113,9 +106,7 @@ def _check_disk_space(path: Path, required_bytes: int = 10 * 1024 * 1024) -> boo
     return True
 
 
-# ==========================================
 # 获取最高版本（通过 GitHub API）
-# ==========================================
 
 def fetch_max_version(package_name):
     """
@@ -146,9 +137,7 @@ def fetch_max_version(package_name):
         sys.exit(1)
 
 
-# ==========================================
 # 核心安装流程
-# ==========================================
 
 def handle_install(input_string):
     # 1. 解析包名
@@ -225,7 +214,7 @@ def handle_install(input_string):
     else:
         ParsePkgSHA256 = None
 
-    # 5. URL 检查
+    # 5. 简单 URL 检查，避免低级错误
     if not ParsePkgURL.startswith("https://"):
         if ParsePkgURL.startswith("http://"):
             print(f"{RED_BOLD}🌊 ParsePkgURL using HTTP！That's insecure, Please contact the administrator.{RESET}")
@@ -398,3 +387,8 @@ def handle_install(input_string):
     except Exception as e:
         print(f"{RED_BOLD}🌊 Error: Failed to invoke shell script: {e}{RESET}")
         sys.exit(1)
+        
+
+if __name__ == "__main__":
+    input_string = " ".join(sys.argv[1:])
+    handle_install(input_string)
