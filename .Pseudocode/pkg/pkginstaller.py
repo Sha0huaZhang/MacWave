@@ -3,6 +3,8 @@
 
 程序开始
 # ------------------------------------------------------
+读取/opt/macwave_config/config.json，获取下载目录
+def CONFIG = 下载目录
 # 处理输入的字符串（来自wave.py）. # 形如 wave install ldid@ver
 def "install+一个空格后"到"下一个空格前"或"@前" 的字符串 = "ParsePkgName"
 # 通过os获取架构:arm64或amd64
@@ -48,13 +50,20 @@ if "ParsePkgURL" 开头不是"https://"
         print "🌊 ParsePkgURL Invalid, Please contact the administrator."{RED}{BOLD}
 
 通过网址"ParsePkgURL"获取下载资源
+下载到f"{CONFIG}/tmp
+    if 产生错误码
+        if (输入的字符串含有"-v" or 输入的字符串含有"--verbose"）
+            输出详细错误返回内容
+        elif 错误码为404
+            print "🌊 Error: Can't find parse pacakge version. \n 🌊 If you certain this version is existent, Please contact the administrator."{RED}{BOLD}
+        else:
+            print "🌊 Error: The Service of this Package is unavailable, Please contact the administrator ."{RED}{BOLD}
 
+# 这里加一个和之前一样的进度条
 
+# 调用check_sha256.sh处理文件
+# 写入installed.json由check_sha256.sh进行
 
-    
-
-
-        
     
 
     
