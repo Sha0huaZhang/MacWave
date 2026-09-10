@@ -82,7 +82,6 @@ except ImportError:
     RICH_AVAILABLE = False
 
 
-
 # -------------------- 辅助函数 --------------------
 
 def _parse_rate_limit(rate_str):
@@ -106,14 +105,21 @@ def _check_disk_space(path: Path, required_bytes: int = 10 * 1024 * 1024) -> boo
 
 # -------------------- 参数解析 --------------------
 
+ALLOWED_FLAGS = {
+    "-v", "-C",
+    "--verbose", "--skip-ssl", "--continue",
+    "--limit-rate", "--proxy"
+}
+
 def parse_flags(input_string):
-    
+
     # 截取所有 "-开头"（且 - 前是空格）至下一个空格的内容。
     # 规则：
     # 1. 单独的 "-" 表示参数结束，后续不统计。
     # 2. "--" 开头保持不变。
     # 3. "-" 开头（但不是 "--"）将其每个字母拆开，如 -abc = -a -b -c。
-    
+    # 4. 参数必须在白名单内，否则报错。
+
     flags = []
     stop_parsing = False
 
@@ -130,6 +136,12 @@ def parse_flags(input_string):
         elif token.startswith("-") and len(token) > 1:
             for ch in token[1:]:
                 flags.append(f"-{ch}")
+
+    # 白名单校验
+    for flag in flags:
+        if flag not in ALLOWED_FLAGS:
+            print(f"{RED_BOLD}🌊 Error: Input contains illegal fields.{RESET}")
+            sys.exit(1)
 
     return flags
 
@@ -481,10 +493,8 @@ def handle_install(input_string):
         sys.exit(1)
 
 
-
-
 if __name__ == "__main__":
-   try:
+    try:
         input_string = " ".join(sys.argv[1:])
         handle_install(input_string)
     except KeyboardInterrupt:
