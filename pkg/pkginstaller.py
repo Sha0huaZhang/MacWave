@@ -484,5 +484,10 @@ def handle_install(input_string):
 
 
 if __name__ == "__main__":
-    input_string = " ".join(sys.argv[1:])
-    handle_install(input_string)
+   try:
+        input_string = " ".join(sys.argv[1:])
+        handle_install(input_string)
+    except KeyboardInterrupt:
+        print("🌊 Operation cancelled by user.")
+        print("🌊 You can use -C to resume the download next time.")
+        sys.exit(130)
