@@ -174,5 +174,6 @@ PYEOF
 # -------------------- 输出成功 --------------------
 
 echo -e "${GREEN}🌊 Successfully installed ${ParsePkgName}@${ParsePkgVersion}${RESET}"
-echo "🌊 Binary installed to: $ParseDir"
+DISPLAY_PATH="${ParseDir/$HOME/~}"
+echo "🌊 Binary installed to: $DISPLAY_PATH"
 exit 0
