@@ -131,8 +131,6 @@ INSTALL_DIR="$BASE_DIR/bin"
 REPO_DIR="$BASE_DIR/pkg"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
-DEPS_DIR="$BASE_DIR/deps"
-SURFBOARD_DIR="$BASE_DIR/surfboard"
 CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
@@ -141,8 +139,6 @@ sudo mkdir -p "$INSTALL_DIR"
 sudo mkdir -p "$REPO_DIR"
 sudo mkdir -p "$LIB_DIR"
 sudo mkdir -p "$DOWNLOAD_DIR"
-sudo mkdir -p "$DEPS_DIR"
-sudo mkdir -p "$SURFBOARD_DIR"
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
@@ -196,23 +192,18 @@ fi
 # ==========================================
 
 # 程序文件全部从 2.1.0 分支拉取
+# 注：2.1.0 暂不处理 deps（依赖），相关文件留待后续版本引入
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
+PKGINSTALLER_SH_URL="$BASE_URL/pkg/pkginstaller.sh"
+PKGINFOHELPER_URL="$BASE_URL/pkg/pkginfohelper.py"
+UNINSTALLER_URL="$BASE_URL/pkg/uninstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
-SPECIALVERSIONPARSER_URL="$BASE_URL/pkg/specialversionparser.py"
-PATH_PARSER_URL="$BASE_URL/pkg/pathparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
-SHASUM256_URL="$BASE_URL/pkg/shasum256.sh"
-DEPSMANAGER_URL="$BASE_URL/surfboard/depsmanager.sh"
-DEPSUNZIP_URL="$BASE_URL/surfboard/depsunzip.sh"
-DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
-QUERIER_URL="$BASE_URL/surfboard/querier.py"
-TAGGER_URL="$BASE_URL/surfboard/tagger.sh"
 
 # 纯数据从 infosource 拉取（下载时动态生成）
 DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
-DEPS_DATA_PREFIX="$DATA_BASE_URL/surfboard/depsinfo_${ARCH}"
 
 # ==========================================
 # 下载文件（根据新目录放置）
@@ -228,40 +219,22 @@ sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
 echo "🌊 Downloading pkginstaller.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
+echo "🌊 Downloading pkginstaller.sh..."
+sudo curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
+sudo chmod +x "$REPO_DIR/pkginstaller.sh"
+
+echo "🌊 Downloading pkginfohelper.py..."
+sudo curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
+
+echo "🌊 Downloading uninstaller.py..."
+sudo curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
+
 echo "🌊 Downloading pkgversionparser.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
-
-echo "🌊 Downloading specialversionparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/specialversionparser.py" "$SPECIALVERSIONPARSER_URL"
-
-echo "🌊 Downloading pathparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/pathparser.py" "$PATH_PARSER_URL"
 
 echo "🌊 Downloading pkgunzip.sh..."
 sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
 sudo chmod +x "$REPO_DIR/pkgunzip.sh"
-
-echo "🌊 Downloading shasum256.sh..."
-sudo curl -fsSL -o "$REPO_DIR/shasum256.sh" "$SHASUM256_URL"
-sudo chmod +x "$REPO_DIR/shasum256.sh"
-
-echo "🌊 Downloading depsmanager.sh..."
-sudo curl -fsSL -o "$SURFBOARD_DIR/depsmanager.sh" "$DEPSMANAGER_URL"
-sudo chmod +x "$SURFBOARD_DIR/depsmanager.sh"
-
-echo "🌊 Downloading depsunzip.sh..."
-sudo curl -fsSL -o "$SURFBOARD_DIR/depsunzip.sh" "$DEPSUNZIP_URL"
-sudo chmod +x "$SURFBOARD_DIR/depsunzip.sh"
-
-echo "🌊 Downloading depsversionparser.py..."
-sudo curl -fsSL -o "$SURFBOARD_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
-
-echo "🌊 Downloading querier.py..."
-sudo curl -fsSL -o "$SURFBOARD_DIR/querier.py" "$QUERIER_URL"
-
-echo "🌊 Downloading tagger.sh..."
-sudo curl -fsSL -o "$SURFBOARD_DIR/tagger.sh" "$TAGGER_URL"
-sudo chmod +x "$SURFBOARD_DIR/tagger.sh"
 
 # ==========================================
 # 下载完成后，立刻把所有权交还给用户（至关重要）

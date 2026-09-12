@@ -3,7 +3,7 @@
 MacWave depsversionparser.py
 负责所有依赖版本号的解析、比较和排序逻辑。
 支持 alpha/beta/rc 预发布版本，遇到无数字后缀自动补 0。
-特殊版本（procursus, macwaveteam）由 specialversionparser.py 处理。
+特殊版本（procursus, macwaveteam 等）由 pkgversionparser.py 提供。
 """
 
 import re
@@ -11,11 +11,11 @@ import logging
 import sys
 from pathlib import Path
 
-# 确保能找到 pkg/ 目录下的 specialversionparser.py
+# 确保能找到 pkg/ 目录下的 pkgversionparser.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
 
 from packaging.version import parse as parse_version, InvalidVersion
-from specialversionparser import is_special_version, safe_parse_special_version
+from pkgversionparser import is_special_version, safe_parse_special_version
 
 
 def handle_pre_release(v: str) -> str:

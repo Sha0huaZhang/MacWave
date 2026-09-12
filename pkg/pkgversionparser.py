@@ -3,13 +3,73 @@
 MacWave pkgversionparser.py
 负责所有软件包（Software Package）常规版本号的解析、比较和排序逻辑。
 支持 alpha/beta/rc 预发布版本，遇到无数字后缀自动补 0（例如 rc -> rc0）。
-特殊版本（procursus, macwaveteam）由 specialversionparser.py 处理。
+特殊版本（procursus, macwaveteam 等）在本文件内处理。
 """
 
 import re
 import logging
 from packaging.version import parse as parse_version, InvalidVersion
-from specialversionparser import is_special_version, safe_parse_special_version
+
+
+def is_special_version(v: str) -> bool:
+    """判断版本号是否包含特殊后缀标记"""
+    v = str(v)
+    return bool(re.search(r'(procursus|macwaveteam|team|Xteam)', v, re.IGNORECASE))
+
+
+def extract_special_info(v: str):
+    """从特殊版本号中提取基础数字和后缀编号"""
+    v = str(v)
+    info = {"base": None, "suffix_type": None, "suffix_num": 0}
+
+    # 处理 procursus 类型：1.0-procursus7 或 2.1.5-procursus7
+    proc_match = re.search(r'(\d+\.\d+(?:\.\d+)?)[-_]?procursus(\d+)', v, re.IGNORECASE)
+    if proc_match:
+        base = proc_match.group(1)
+        if base.count('.') == 1:
+            base += '.0'
+        info["base"] = base
+        info["suffix_type"] = "procursus"
+        info["suffix_num"] = int(proc_match.group(2))
+        return info
+
+    # 处理 macwaveteam 类型：1.0-macwaveteam2 或 1.0-Xteam2
+    macwave_match = re.search(r'(\d+\.\d+(?:\.\d+)?)[-_]?(?:macwaveteam|Xteam)(\d+)', v, re.IGNORECASE)
+    if macwave_match:
+        base = macwave_match.group(1)
+        if base.count('.') == 1:
+            base += '.0'
+        info["base"] = base
+        info["suffix_type"] = "macwaveteam"
+        info["suffix_num"] = int(macwave_match.group(2))
+        return info
+
+    # 兜底处理：匹配任意数字 + 数字后缀
+    base_match = re.search(r'(\d+\.\d+(?:\.\d+)?)', v)
+    if base_match:
+        base = base_match.group(1)
+        if base.count('.') == 1:
+            base += '.0'
+        info["base"] = base
+        info["suffix_type"] = "unknown"
+        info["suffix_num"] = 0
+        return info
+
+    return None
+
+
+def safe_parse_special_version(v: str):
+    """安全解析特殊版本号，返回 packaging.version 对象。特殊版本视为正式版。"""
+    v = str(v)
+    info = extract_special_info(v)
+    if not info:
+        logging.warning(f"Invalid special version string '{v}', falling back to 0.0.0")
+        return parse_version("0.0.0")
+
+    # 组装为 X.Y.Z.N 格式（N 为后缀编号）
+    base = info["base"]
+    suffix_num = info["suffix_num"]
+    return parse_version(f"{base}.{suffix_num}")
 
 
 def handle_pre_release(v: str) -> str:
