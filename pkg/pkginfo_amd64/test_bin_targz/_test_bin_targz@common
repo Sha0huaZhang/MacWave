@@ -1,0 +1,5 @@
+bin_name: "test_bin_targz"
+des: "MacWave format test package for .tar.gz"
+hom: "https://github.com/Sha0huaZhang/MacWavePkgTest"
+lic: "MIT"
+aut: "MacWave Test"

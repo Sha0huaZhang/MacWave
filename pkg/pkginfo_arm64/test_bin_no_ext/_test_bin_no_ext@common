@@ -1,0 +1,5 @@
+bin_name: "test_bin_no_ext"
+des: "MacWave format test package for no-extension"
+hom: "https://github.com/Sha0huaZhang/MacWavePkgTest"
+lic: "MIT"
+aut: "MacWave Test"
