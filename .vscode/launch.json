@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "wave install ldid",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/lib/wave.py",
+            "args": ["install", "ldid@2.1.5-procursus7"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "wave info ldid",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/lib/wave.py",
+            "args": ["info", "ldid"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "wave uninstall ldid",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/lib/wave.py",
+            "args": ["uninstall", "ldid@2.1.5-procursus7"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "wave list",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/lib/wave.py",
+            "args": ["list"],
+            "console": "integratedTerminal"
+        }
+    ]
+}

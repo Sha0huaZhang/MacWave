@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Sync to deploy dir",
+            "type": "shell",
+            "command": "cp pkg/*.py pkg/*.sh ~/.local/macwave/pkg/ && cp lib/*.py ~/.local/macwave/lib/ && cp lib/wave.py ~/.local/macwave/lib/wave && chmod +x ~/.local/macwave/lib/wave",
+            "problemMatcher": []
+        },
+        {
+            "label": "Check shell syntax",
+            "type": "shell",
+            "command": "for f in pkg/*.sh lib/*.sh surfboard/*.sh; do bash -n \"$f\" || exit 1; done",
+            "problemMatcher": []
+        },
+        {
+            "label": "End-to-end test",
+            "type": "shell",
+            "command": "python3 lib/wave.py install ldid@2.1.5-procursus7 && python3 lib/wave.py info ldid && python3 lib/wave.py list && python3 lib/wave.py uninstall ldid@2.1.5-procursus7",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test all formats",
+            "type": "shell",
+            "command": "bash scripts/test_formats.sh",
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,47 @@
+name: Format Test
+
+on:
+  push:
+    branches: [2.1.0]
+  pull_request:
+    branches: [2.1.0]
+  workflow_dispatch:
+
+jobs:
+  format-test:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: pip install requests packaging rich
+
+      - name: Setup MacWave config
+        run: |
+          sudo mkdir -p /opt/macwave_config
+          sudo tee /opt/macwave_config/config.json > /dev/null << EOF
+          {"base_dir": "/tmp/macwave-test"}
+          EOF
+          sudo tee /opt/macwave_config/VERSION.json > /dev/null << EOF
+          {"version": "2.1.0"}
+          EOF
+          sudo chown -R $(whoami) /opt/macwave_config
+          mkdir -p /tmp/macwave-test/bin /tmp/macwave-test/pkg /tmp/macwave-test/downloads/tmp
+
+      - name: Deploy scripts
+        run: |
+          cp pkg/*.py pkg/*.sh /tmp/macwave-test/pkg/
+          mkdir -p /tmp/macwave-test/lib
+          cp lib/*.py /tmp/macwave-test/lib/
+          cp lib/wave.py /tmp/macwave-test/lib/wave
+          chmod +x /tmp/macwave-test/lib/wave
+
+      - name: Run format tests
+        run: |
+          bash scripts/format_test.sh

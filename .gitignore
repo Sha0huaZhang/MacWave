@@ -1,0 +1,41 @@
+# ========== 忽略本地动态生成的用户数据 ==========
+# 临时下载目录和临时文件
+downloads/
+*.partial
+tmp/
+
+# 运行时动态生成的用户数据（不要上传）
+installed.json
+repo_cache.json
+_path
+_deps
+.dep_*
+
+# ========== 忽略所有 .bak 备份文件 ==========
+*.bak
+*.bak_*
+*.bak_default
+
+# ========== 忽略特定后缀的临时脚本（保留主源文件） ==========
+test_*.py
+backup_*.py
+*_temp.py
+*_old.py
+*_copy.py
+
+test_*.sh
+backup_*.sh
+*_temp.sh
+*_old.sh
+*_copy.sh
+
+test_*.rb
+backup_*.rb
+*_temp.rb
+*_old.rb
+*_copy.rb
+
+# ========== 忽略 Python 编译缓存和系统文件 ==========
+__pycache__/
+*.pyc
+.DS_Store

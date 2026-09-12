@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# MacWave 🌊 Official Installer
+# MacWave 🌊 Official Installer (2.1.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/lib/install.sh)"
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
 
 set -e
 
-BRANCH="main"
+BRANCH="2.1.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
+DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
 # ==========================================
 # 颜色定义
@@ -35,7 +36,7 @@ home_to_tilde() {
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.0(244B9)!"
+echo "🌊 Welcome to MacWave 2.1.0!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -47,7 +48,7 @@ ARCH=$(uname -m)
 echo "🌊 Detected architecture: $ARCH"
 
 # ==========================================
-# 交互式目录选择（根据架构显示不同选项）
+# 交互式目录选择
 # ==========================================
 
 if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
@@ -153,10 +154,10 @@ EOF
 
 sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  "version": "2.0(244B9)",
+  "version": "2.1.0",
   "components": {
-    "installer": "2.0(244B9)",
-    "parser": "2.0(244B9)"
+    "installer": "2.1.0",
+    "parser": "2.1.0"
   }
 }
 EOF
@@ -190,30 +191,19 @@ fi
 # 文件 URL（全部适配新的 GitHub 目录结构）
 # ==========================================
 
+# 程序文件全部从 2.1.0 分支拉取
+# 注：2.1.0 暂不处理 deps（依赖），相关文件留待后续版本引入
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
-VERSION_PARSER_URL="$BASE_URL/pkg/versionparser.py"
-PARSER_URL="$BASE_URL/pkg/pkgparser.rb"
-PKGINFO_URL="$BASE_URL/pkg/pkginfo_${ARCH}.txt"
+PKGINSTALLER_SH_URL="$BASE_URL/pkg/pkginstaller.sh"
+PKGINFOHELPER_URL="$BASE_URL/pkg/pkginfohelper.py"
+UNINSTALLER_URL="$BASE_URL/pkg/uninstaller.py"
+PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
+PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 
-# ==========================================
-# 检查 Ruby 版本（要求 >= 2.6.10）
-# ==========================================
-
-echo "🌊 Checking Ruby version..."
-if ! command -v ruby &> /dev/null; then
-    echo -e "${RED_BOLD}🌊 Error: Ruby is not installed. Please install Ruby 2.6.10 or higher.${RESET}"
-    exit 1
-fi
-
-RUBY_VERSION=$(ruby -e 'puts RUBY_VERSION')
-
-if ! ruby -e "exit Gem::Version.new('$RUBY_VERSION') >= Gem::Version.new('2.6.10')" 2>/dev/null; then
-    echo -e "${RED_BOLD}🌊 Error: Ruby version $RUBY_VERSION is too old. Please upgrade to 2.6.10 or higher.${RESET}"
-    exit 1
-fi
-echo "🌊 Ruby version $RUBY_VERSION is OK."
+# 纯数据从 infosource 拉取（下载时动态生成）
+DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
 
 # ==========================================
 # 下载文件（根据新目录放置）
@@ -229,15 +219,28 @@ sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
 echo "🌊 Downloading pkginstaller.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
-echo "🌊 Downloading versionparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/versionparser.py" "$VERSION_PARSER_URL"
+echo "🌊 Downloading pkginstaller.sh..."
+sudo curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
+sudo chmod +x "$REPO_DIR/pkginstaller.sh"
 
-echo "🌊 Downloading pkgparser.rb..."
-sudo curl -fsSL -o "$REPO_DIR/pkgparser.rb" "$PARSER_URL"
-sudo chmod +x "$REPO_DIR/pkgparser.rb"
+echo "🌊 Downloading pkginfohelper.py..."
+sudo curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
 
-echo "🌊 Downloading pkginfo_${ARCH}.txt..."
-sudo curl -fsSL -o "$REPO_DIR/pkginfo_${ARCH}.txt" "$PKGINFO_URL"
+echo "🌊 Downloading uninstaller.py..."
+sudo curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
+
+echo "🌊 Downloading pkgversionparser.py..."
+sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
+
+echo "🌊 Downloading pkgunzip.sh..."
+sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
+sudo chmod +x "$REPO_DIR/pkgunzip.sh"
+
+# ==========================================
+# 下载完成后，立刻把所有权交还给用户（至关重要）
+# ==========================================
+
+sudo chown -R "$CURRENT_USER": "$BASE_DIR"
 
 # ==========================================
 # 安装 Python 依赖
@@ -320,5 +323,9 @@ if [[ $agreement =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}You have agreed to the agreement. Installation continues.${RESET}"
 else
     echo -e "${RED_BOLD}You do not agree to the agreement. Installation stopped.${RESET}"
+    echo -e "${RED_BOLD}🌊 Cleaning up downloaded files...${RESET}"
+    sudo rm -rf "$BASE_DIR"
+    sudo rm -rf "$CONFIG_DIR"
+    echo -e "${RED_BOLD}🌊 All files have been deleted.${RESET}"
     exit 1
 fi

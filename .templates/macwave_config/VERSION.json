@@ -1,0 +1,7 @@
+{
+  "version": "9.9.9",
+  "components": {
+    "installer": "9.9.9",
+    "parser": "9.9.9"
+  }
+}
