@@ -200,7 +200,7 @@ def handle_download_args(input_string):
 
 # -------------------- 下载核心（含真正断点续传） -------------------
 
-def download_file(url, temp_path, config, input_string):
+def download_file(url, temp_path, config, input_string, display_name):
     request_kwargs = {"stream": True}
 
     # SSL 验证（内部变量 SkipSSLVerify 逻辑）
@@ -269,7 +269,7 @@ def download_file(url, temp_path, config, input_string):
                 ]
                 with Progress(*progress_columns, console=console) as progress:
                     task_id = progress.add_task(
-                        description=f"🌊 {url.split('/')[-1]}",
+                        description=f"🌊 {display_name}",
                         total=total_size or None
                     )
                     if existing_size > 0:
@@ -371,8 +371,8 @@ def handle_install(input_string):
 
     # 1. 解析包名
     parts = input_string.split()
-    if len(parts) >= 2:
-        raw_pkg = parts[1]
+    if len(parts) >= 3:
+        raw_pkg = parts[2]
     else:
         print(f"{RED_BOLD}🌊 Error: Invalid package name{RESET}")
         sys.exit(1)
@@ -425,7 +425,7 @@ def handle_install(input_string):
     bin_name = bin_name_match.group(1)
 
     # 5. 获取 URL 和 SHA256
-    pkg_version_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/{ParsePkgName}@{ParsePkgVersion}"
+    pkg_version_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/_{ParsePkgName}@{ParsePkgVersion}"
     try:
         resp = requests.get(pkg_version_url)
         if resp.status_code != 200:
@@ -466,7 +466,7 @@ def handle_install(input_string):
     DOWNLOAD_TMP.mkdir(parents=True, exist_ok=True)
     temp_path = DOWNLOAD_TMP / f"{original_filename}.partial"
 
-    download_file(ParsePkgURL, temp_path, config, input_string)
+    download_file(ParsePkgURL, temp_path, config, input_string, bin_name)
 
     # 8. 删掉 .partial 后缀
     final_download_path = DOWNLOAD_TMP / original_filename
@@ -484,10 +484,12 @@ def handle_install(input_string):
             ['bash', script_path, pkg_info_string],
             capture_output=True, text=True
         )
+        if result.stdout.strip():
+            print(result.stdout.strip())
+        if result.stderr.strip():
+            print(result.stderr.strip())
         if result.returncode != 0:
-            print(result.stderr)
             sys.exit(result.returncode)
-        print(result.stdout.strip())
     except Exception as e:
         print(f"{RED_BOLD}🌊 Error: Failed to invoke shell script: {e}{RESET}")
         sys.exit(1)

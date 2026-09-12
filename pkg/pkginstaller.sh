@@ -21,7 +21,15 @@ if [[ -z "$INPUT_STR" ]]; then
     exit 1
 fi
 
-IFS=$'\n' read -r ParsePkgName ParsePkgVersion ParsePkgSHA256 ParseDir <<< "$INPUT_STR"
+lines=()
+while IFS= read -r line; do
+    lines+=("$line")
+done <<< "$INPUT_STR"
+
+ParsePkgName="${lines[0]}"
+ParsePkgVersion="${lines[1]}"
+ParsePkgSHA256="${lines[2]}"
+ParseDir="${lines[3]}"
 
 if [[ -z "$ParsePkgName" || -z "$ParsePkgVersion" || -z "$ParseDir" ]]; then
     echo -e "${RED_BOLD}🌊 Error: Incomplete package info.${RESET}"
@@ -31,13 +39,7 @@ fi
 # -------------------- 定位脚本与目录 --------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHECK_SCRIPT="$SCRIPT_DIR/check_pkg_sha256.sh"
 UNZIP_SCRIPT="$SCRIPT_DIR/pkgunzip.sh"
-
-if [[ ! -f "$CHECK_SCRIPT" ]]; then
-    echo -e "${RED_BOLD}🌊 Error: check_pkg_sha256.sh not found.${RESET}"
-    exit 1
-fi
 
 if [[ ! -f "$UNZIP_SCRIPT" ]]; then
     echo -e "${RED_BOLD}🌊 Error: pkgunzip.sh not found.${RESET}"
@@ -49,7 +51,7 @@ fi
 # Python 传过来的 ParseDir 是最终目标路径，
 # 原文件在 BASE_DIR/downloads/tmp 下。
 # 通过 ParseDir 反推 BASE_DIR。
-BASE_DIR="$(dirname "$(dirname "$(dirname "$ParseDir")")")"
+BASE_DIR="$(dirname "$(dirname "$ParseDir")")"
 DOWNLOAD_TMP="$BASE_DIR/downloads/tmp"
 
 # 在下载临时目录里找最新生成的、带原始扩展名的文件
@@ -71,11 +73,15 @@ fi
 
 if [[ -n "$ParsePkgSHA256" ]]; then
     echo "🌊 Verifying SHA256..."
-    if ! bash "$CHECK_SCRIPT" "$ORIGINAL_FILE" "$ParsePkgSHA256"; then
+    ACTUAL_SHA256=$(shasum -a 256 "$ORIGINAL_FILE" | awk '{print $1}')
+    if [[ "$ACTUAL_SHA256" != "$ParsePkgSHA256" ]]; then
         echo -e "${RED_BOLD}🌊 Error: SHA256 verification failed. Removing corrupted file.${RESET}"
+        echo -e "${RED_BOLD}🌊 Actual:   $ACTUAL_SHA256${RESET}"
+        echo -e "${GREEN}🌊 Expected: $ParsePkgSHA256${RESET}"
         rm -f "$ORIGINAL_FILE"
         exit 1
     fi
+    echo -e "${GREEN}🌊 SHA256 verification passed!${RESET}"
 else
     echo -e "${YELLOW}🌊 Warning: No SHA256 provided, skipping verification.${RESET}"
 fi
@@ -84,26 +90,36 @@ fi
 
 echo "🌊 Extracting package..."
 EXTRACT_DIR="$DOWNLOAD_TMP/extract_$$"
-mkdir -p "$EXTRACT_DIR"
 
-if ! bash "$UNZIP_SCRIPT" "$ORIGINAL_FILE" "$EXTRACT_DIR"; then
-    echo -e "${RED_BOLD}🌊 Error: Extraction failed.${RESET}"
-    rm -rf "$EXTRACT_DIR"
-    exit 1
-fi
+# 非压缩包（尤其是裸二进制）不交给 pkgunzip.sh，直接作为最终文件安装
+case "$ORIGINAL_FILE" in
+    *.zip|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz|*.tar|*.gz|*.bz2)
+        mkdir -p "$EXTRACT_DIR"
 
-# -------------------- 找出解压出的唯一二进制文件 --------------------
+        if ! bash "$UNZIP_SCRIPT" "$ORIGINAL_FILE" "$EXTRACT_DIR"; then
+            echo -e "${RED_BOLD}🌊 Error: Extraction failed.${RESET}"
+            rm -rf "$EXTRACT_DIR"
+            exit 1
+        fi
 
-BIN_COUNT=$(find "$EXTRACT_DIR" -type f | wc -l | tr -d ' ')
-if [[ "$BIN_COUNT" -eq 0 ]]; then
-    echo -e "${RED_BOLD}🌊 Error: No binary found after extraction.${RESET}"
-    rm -rf "$EXTRACT_DIR"
-    exit 1
-elif [[ "$BIN_COUNT" -gt 1 ]]; then
-    echo -e "${YELLOW}🌊 Warning: Multiple files found, using the first one.${RESET}"
-fi
+        # -------------------- 找出解压出的唯一二进制文件 --------------------
 
-BIN_FILE=$(find "$EXTRACT_DIR" -type f | head -n 1)
+        BIN_COUNT=$(find "$EXTRACT_DIR" -type f | wc -l | tr -d ' ')
+        if [[ "$BIN_COUNT" -eq 0 ]]; then
+            echo -e "${RED_BOLD}🌊 Error: No binary found after extraction.${RESET}"
+            rm -rf "$EXTRACT_DIR"
+            exit 1
+        elif [[ "$BIN_COUNT" -gt 1 ]]; then
+            echo -e "${YELLOW}🌊 Warning: Multiple files found, using the first one.${RESET}"
+        fi
+
+        BIN_FILE=$(find "$EXTRACT_DIR" -type f | head -n 1)
+        ;;
+    *)
+        # 裸二进制，直接使用下载到的原文件
+        BIN_FILE="$ORIGINAL_FILE"
+        ;;
+esac
 
 # -------------------- 移动到目标位置 --------------------
 
