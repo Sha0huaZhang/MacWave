@@ -48,23 +48,23 @@ def safe_parse_pkg_version(v):
     return parse_version("0.0.0")
 
 
-def sort_pkg_versions(versions, reverse=True):
+def sort_versions(versions, reverse=True):
     return sorted(versions, key=lambda v: safe_parse_pkg_version(v), reverse=reverse)
 
 
-def get_max_pkg_version(versions):
+def get_max_version(versions):
     if not versions:
         return None
-    sorted_versions = sort_pkg_versions(versions)
+    sorted_versions = sort_versions(versions)
     return sorted_versions[0]
 
 
 def main():
     test_versions = ["1.0.0-rc", "1.0.0", "2.1.5-procursus7", "1.0-Xteam1", "1.0.0-alpha", "1.0.0-beta", "1.0.0-rc1"]
     print("原始版本列表:", test_versions)
-    sorted_versions = sort_pkg_versions(test_versions)
+    sorted_versions = sort_versions(test_versions)
     print("排序后的版本:", sorted_versions)
-    print("最高版本:", get_max_pkg_version(test_versions))
+    print("最高版本:", get_max_version(test_versions))
 
 
 if __name__ == "__main__":

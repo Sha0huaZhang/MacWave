@@ -82,7 +82,7 @@ def main():
     # 3. 命令分发
     if FirstWord in COMMANDS:
         module_name = COMMANDS[FirstWord]
-        full_input = " ".join(words)
+        full_input = "wave " + " ".join(words)
 
         if module_name == "pkginstaller":
             from pkginstaller import handle_install
