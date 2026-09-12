@@ -18,6 +18,12 @@
             "type": "shell",
             "command": "python3 lib/wave.py install ldid@2.1.5-procursus7 && python3 lib/wave.py info ldid && python3 lib/wave.py list && python3 lib/wave.py uninstall ldid@2.1.5-procursus7",
             "problemMatcher": []
+        },
+        {
+            "label": "Test all formats",
+            "type": "shell",
+            "command": "bash scripts/test_formats.sh",
+            "problemMatcher": []
         }
     ]
 }
