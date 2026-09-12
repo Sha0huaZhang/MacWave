@@ -223,6 +223,21 @@ def print_detailed_help():
     print("For more details, visit: https://macwave.org")
 
 
+# -------------------- 版本与错误提示 --------------------
+
+def print_version():
+    """输出当前 MacWave 的版本号"""
+    version = get_project_version()
+    print(f"🌊 MacWave {version}")
+
+
+def print_error_help():
+    """未知命令或参数时：先报错，再输出完整帮助"""
+    print(f"{BOLD}{RED}🌊 Error: Unknown command or argument.{RESET}")
+    print()
+    print_custom_help()
+
+
 def main():
     """直接运行 python3 help.py 时，预览帮助信息"""
     print_custom_help()
