@@ -1,5 +1,5 @@
 # 🌊 MacWave 
-A package manager for macOS/Linux jailbreak developers.
+A package manager for macOS/Linux software developers.
 # 🌊 Official Website
 
 [macwave.org](https://macwave.org)
