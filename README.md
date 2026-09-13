@@ -1,4 +1,4 @@
-# 🌊 MacWave
+## 🌊 MacWave
 
 A package manager for macOS software developers.
 
@@ -38,7 +38,7 @@ source ~/.zshrc
 ```
 
 (If you are using bash instead of zsh, run ```source ~/.bashrc```)
-# 🌊 Download Directory 
+## 🌊 Download Directory 
 Installed binaries are stored in:    
 ```
 1. ~/.local/macwave
@@ -51,7 +51,7 @@ Config file is stored in:
 /opt/macwave_config
 ```
 
-# 🌊 Command Reference
+## 🌊 Command Reference
 
 ```
 Usage:
@@ -82,7 +82,7 @@ wave install <pkgname>@<version>   Download certain version(s) of a package
 
 ```
 
-# 🌊 Supported Packages
+## 🌊 Supported Packages
 (Listed in alphabetical order)
 
 ```
@@ -92,11 +92,11 @@ ldid          by Jay Freeman (saurik) / Procursus Team
 trollrestore  by JJTech (@JJTech0130)
 wget          by GNU Project
 ```
-# 🌊 License
+## 🌊 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-# 🌊 Contact Us
+## 🌊 Contact Us
 
 Email：[hi@macwave.org](mailto:hi@macwave.org)
 
