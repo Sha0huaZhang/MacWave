@@ -1,18 +1,36 @@
-# 🌊 MacWave 
-A package manager for macOS/Linux software developers.
-# 🌊 Official Website
+# 🌊 MacWave
+
+A package manager for macOS software developers.
+
+## 🌊 Official Website
 
 [macwave.org](https://macwave.org)
 
-# 🌊 What is MacWave? 
+## 🌊 Latest Version
 
-MacWave is a **package manager** that runs on **macOS/Linux**, specifically designed to host **iOS/iPadOS jailbreak-related software packages** for jailbreak developers and researchers. These packages are **typically not included in mainstream package managers**. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
-# 🌊 Install MacWave    
-In the terminal, run the following command:        
+2.1.0, Release on 2026-09-13
+
+## 🌊 What is MacWave?
+
+MacWave is a **package manager** that runs on **macOS/Linux**, designed to host common software packages for macOS software developers.
+
+## 🌊 Why MacWave
+
+1. **One command, install common packages.** No more scattered download links.
+2. **Mandatory `@version`.** Every binary is stored as `package@version`, so multiple versions can coexist without conflicting with system tools.
+3. **No cache, always up to date.** Package metadata is fetched live from the `infosource` branch.
+4. **8 archive formats, CI-verified.** Supports no-extension binaries, `.zip`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar`, `.gz`, `.bz2`.
+5. **Verify first, extract later.** SHA256 is checked before extraction.
+6. **Resumable downloads.** Interrupted? Resume with `-C`.
+7. **Lightweight and transparent.** Pure Python + Shell. No heavy runtime, no hidden behavior.
+
+## 🌊 Install MacWave
+
+In the terminal, run:
+
 ```
-curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/main/install.sh | bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
 ```
-⚠️ **Important**: After installation, **restart your terminal** or **run the following command** to apply PATH changes immediately:
 ```
 source ~/.zshrc
 ```
@@ -21,7 +39,14 @@ source ~/.zshrc
 # 🌊 Download Directory 
 Installed binaries are stored in:    
 ```
-~/.local/macwave/bin
+1. ~/.local/macwave
+2. /opt/macwave
+3. /usr/local/macwave (Only Intel Mac)
+4. Custom
+```
+Config file is stored in:
+```
+/opt/macwave_config
 ```
 
 # 🌊 Command Reference
@@ -36,9 +61,7 @@ Commands:
   list        List installed packages
   search      Search for a package in the index
   info        Display detailed information about a package
-  update      Update the package index
-  upgrade     Upgrade an installed package to the latest version
-  doctor      Check your system for missing dependencies
+  
 
 Flags:
   -h, --help              Show help for any command
@@ -46,31 +69,26 @@ Flags:
   -v, --verbose           Enable verbose output (show detailed logs)
 
 Global Flags (can be used with any command):
-  -B, --beta-version      Install the latest beta version (if available)
-  -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads
   -C, --continue          Resume interrupted downloads (like curl -C -)
       --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
       --skip-ssl          Skip SSL certificate verification (insecure)
       --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
-      --dry-run           Simulate the installation without making changes
-      --json              Output in JSON format (for scripting)
       --ver string        Install a specific version of the package
 
-Examples:
-  wave install machox
-  wave install ldid --ver 2.1.5
-  wave install machox -B
-  wave search choma -f
-  wave info trollresigner
+Special Flags:
+wave install <pkgname>@<version>   Download certain version(s) of a package
+
 ```
 
 # 🌊 Supported Packages
 (Listed in alphabetical order)
 
 ```
-machox          by Sha0huaZhang
-ldid            by Jay Freeman (saurik) / Procursus Team
-test_001        by Sha0huaZhang
+choma         by opa334
+jq            by Stephen Dolan, Nicolas Williams, et al.
+ldid          by Jay Freeman (saurik) / Procursus Team
+trollrestore  by JJTech (@JJTech0130)
+wget          by GNU Project
 ```
 # 🌊 License
 
