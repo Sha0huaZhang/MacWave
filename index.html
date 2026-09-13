@@ -351,11 +351,11 @@
         <img src="logo3.jpg" alt="MacWave Logo" class="logo-img logo-3">
     </div>
 
-    <p class="tagline" style="max-width:800px;">A package manager for macOS/Linux software developers.</p>
+    <p class="tagline" style="max-width:800px;">A package manager for macOS software developers.</p>
 
     <div class="version-block" style="color: #a0b0d0; font-size: 0.95rem; margin-top: -10px; margin-bottom: 30px;">
-        <span class="v-line">Latest Official Version : 2.0</span>
-        <span class="v-line">Latest Beta Version : 2.1RC</span>
+        <span class="v-line">Latest Version : 2.1.0</span>
+        <span class="v-line">Release on 2026-09-13</span>
     </div>
 
     <a href="https://github.com/Sha0huaZhang/MacWave/releases" class="btn-github">View On GitHub</a>
@@ -372,22 +372,29 @@
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px;">What is MacWave?</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
-            <strong>MacWave</strong> is a <strong>package manager</strong> that runs on <strong>macOS, Linux or WSL</strong>, specifically designed to host <strong>iOS/iPadOS jailbreak-related software packages</strong> for jailbreak developers and researchers. These packages are <strong>typically not included in mainstream package managers</strong>. Previously, jailbreak projects required downloading from various scattered sources. Now, you only need a single terminal command.
+            <strong>MacWave</strong> is a <strong>package manager</strong> that runs on <strong>macOS/Linux</strong>, designed to host <strong>common software packages</strong> for <strong>macOS software developers</strong>.
         </p>
+
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Why MacWave</h2>
+        <ul style="font-size: 1.1rem; line-height: 1.8; opacity: 0.9; padding-left: 1.2em;">
+            <li><strong>One command, install common packages.</strong> No more scattered download links.</li>
+            <li><strong>Mandatory @version.</strong> Every binary is stored as <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">package@version</code>, so multiple versions can coexist without conflicting with system tools.</li>
+            <li><strong>No cache, always up to date.</strong> Package metadata is fetched live from the infosource branch.</li>
+            <li><strong>8 archive formats, CI-verified.</strong> Supports no-extension binaries, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.zip</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.tar.gz</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.tar.bz2</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.tar.xz</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.tar</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.gz</code>, <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">.bz2</code>.</li>
+            <li><strong>Verify first, extract later.</strong> SHA256 is checked before extraction.</li>
+            <li><strong>Resumable downloads.</strong> Interrupted? Resume with <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">-C</code>.</li>
+            <li><strong>Lightweight and transparent.</strong> Pure Python + Shell. No heavy runtime, no hidden behavior.</li>
+        </ul>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported macOS Version</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 1; font-weight: bold; color: #ffffff;">
-            macOS 10.15 Catalina and above
+            macOS Sonoma 14 and above
         </p>
 
-        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Install MacWave(latest version)</h2>
-
-        <p class="install-note">
-            Before installing MacWave, you need to install <strong>Python</strong>(3.13 and above), view at <a href="https://python.org" target="_blank">python.org</a> <span class="small-link-text">(Click link to open)</span>
-        </p>
+        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Install MacWave</h2>
 
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
-            In the terminal, run the following command:
+            In the terminal, run:
         </p>
         <div class="code-container has-copy-btn">
             <button class="copy-btn" onclick="copyCode(this)">
@@ -396,29 +403,21 @@
                     <div class="square-front"></div>
                 </div>
             </button>
-            <pre><span class="code-dollar">$</span> /bin/bash -c "$(curl -fsSL https://macwave.org/install.sh)"</pre>
+            <pre><span class="code-dollar">$</span> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"</pre>
         </div>
 
-        <div class="warning-box" style="background-color: #1e2a4a; border-left: 6px solid #f1c40f; padding: 15px 20px; border-radius: 8px; margin-top: 20px;">
-            <p style="margin: 0; font-size: 1rem; line-height: 1.5; color: #f1c40f; font-weight: bold;">
-                Important:
-            </p>
-            <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #ffffff;">
-                After installation, <strong>restart your terminal</strong> or <strong>run the following command</strong> to apply PATH changes immediately:
-            </p>
-            <div class="code-container has-copy-btn" style="margin-top: 10px;">
-                <button class="copy-btn" onclick="copyCode(this)">
-                    <div class="copy-icon">
-                        <div class="square-back"></div>
-                        <div class="square-front"></div>
-                    </div>
-                </button>
-                <pre><span class="code-dollar">$</span> source ~/.zshrc</pre>
-            </div>
-            <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
-                (If you are using bash instead of zsh, run <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">source ~/.bashrc</code>)
-            </p>
+        <div class="code-container has-copy-btn">
+            <button class="copy-btn" onclick="copyCode(this)">
+                <div class="copy-icon">
+                    <div class="square-back"></div>
+                    <div class="square-front"></div>
+                </div>
+            </button>
+            <pre><span class="code-dollar">$</span> source ~/.zshrc</pre>
         </div>
+        <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
+            (If you are using bash instead of zsh, run <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">source ~/.bashrc</code>)
+        </p>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Uninstall MacWave</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
@@ -431,16 +430,7 @@
                     <div class="square-front"></div>
                 </div>
             </button>
-            <pre>/bin/bash -c "INSTALL_DIR=\"\$HOME/.local/macwave\"; echo -e \"\033[31mYou are deleting MacWave, are you sure? [Y/n]\033[0m\"; read -n 1 -r; echo; if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then echo \"🌊 Uninstall cancelled.\"; exit 0; fi; if [ -d \"\$INSTALL_DIR\" ]; then echo \"🌊 Removing \$INSTALL_DIR...\"; rm -rf \"\$INSTALL_DIR\"; else echo \"🌊 MacWave installation directory not found. Skipping.\"; fi; for RC_FILE in \"\$HOME/.zshrc\" \"\$HOME/.bashrc\"; do if [ -f \"\$RC_FILE\" ]; then sed -i '' '/# MacWave/d' \"\$RC_FILE\" 2>/dev/null || true; sed -i '' '/export PATH=\".*macwave\/bin/d' \"\$RC_FILE\" 2>/dev/null || true; echo \"🌊 Removed MacWave PATH entries from \$RC_FILE\"; fi; done; echo \"\"; echo \"🌊 MacWave has been uninstalled.\"; echo \"🌊 Please restart your terminal to apply changes.\""</pre>
-        </div>
-
-        <div class="warning-box" style="background-color: #1e2a4a; border-left: 6px solid #f1c40f; padding: 15px 20px; border-radius: 8px; margin-top: 20px;">
-            <p style="margin: 0; font-size: 1rem; line-height: 1.5; color: #f1c40f; font-weight: bold;">
-                Important:
-            </p>
-            <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #ffffff;">
-                This command <strong>permanently removes MacWave and its configuration files</strong>. Make sure you have <strong>copied the entire command correctly</strong> before pressing Enter.
-            </p>
+            <pre><span class="code-dollar">$</span> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/uninstall.sh)"</pre>
         </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Download Directory</h2>
@@ -448,85 +438,55 @@
             Installed binaries are stored in:
         </p>
         <div class="code-container">
-            <pre>~/.local/macwave/bin</pre>
+            <pre>1. ~/.local/macwave
+2. /opt/macwave
+3. /usr/local/macwave (Only Intel Mac)
+4. Custom</pre>
         </div>
-
-        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Special Thanks</h2>
-        <p style="font-size: 1.1rem; line-height: 1.6; color: #ffffff; opacity: 1;">
-            <strong>Haxx</strong> (Daniel Stenberg, Linus, Bjorn, Kjell, et al.) for <strong>cURL</strong>
-        </p>
-
-        <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Credits</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">
-            MacWave is built upon the work of the following developers:
+            Config file is stored in:
         </p>
         <div class="code-container">
-            <pre>
-choma           by Lars Fröder (opa334)
-cURL            by Haxx (Daniel Stenberg, Linus, Bjorn, Kjell, et al.)
-ldid            by Jay Freeman (saurik) / Procursus Team
-MachOX          by Sha0huaZhang (MacWave Team)
-palera1n        by palera1n Team (Nick Chan, Ploosh, Samara, Mineek, staturnz, kokshidoll)
-TrollRestore    by JJTech0130
-            </pre>
+            <pre>/opt/macwave_config</pre>
         </div>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Command Reference</h2>
         <pre>
-Usage: wave &lt;command&gt; [package] [flags]
+Usage:
+  wave &lt;command&gt; [package] [flags]
 
-MacWave 1.0.0 🌊
-A package manager for macOS/Linux jailbreak developers.
+Commands:
+  install     Install a package
+  uninstall   Uninstall a package
+  list        List installed packages
+  search      Search for a package in the index
+  info        Display detailed information about a package
 
-positional arguments:
-  {install,uninstall,list,search,info,update,upgrade,doctor}
-                          Commands
-    install               Install a package
-    uninstall             Uninstall a package
-    list                  List installed packages
-    search                Search for a package in the index
-    info                  Display detailed information about a package
-    update                Update the package index
-    upgrade               Upgrade an installed package to the latest version
-    doctor                Check your system for missing dependencies
-
-parameters:
-  -h, --help              show this help message and exit
-  -V, --version           show program's version number and exit
-  -v, --verbose           Enable verbose output (show detailed debug logs, including exception stack traces)
-  -B, --beta-version      Install the latest beta version (if available)
-      --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
-      --skip-ssl          Skip SSL certificate verification (insecure, with interactive confirmation)
-      --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
-      --dry-run           Simulate the installation without making changes
-      --json              Output in JSON format (for scripting)
+Flags:
+  -h, --help              Show help for any command
+  -V, --version           Print version information
+  -v, --verbose           Enable verbose output (show detailed logs)
 
 Global Flags (can be used with any command):
-  -B, --beta-version      Install the latest beta version (if available)
-  -D, --dir string        Specify an output directory (e.g., ~/Desktop) for downloads
-  -C, --continue          Resume interrupted downloads (like curl -C -, but just -C, DON'T use -C -!)
+  -C, --continue          Resume interrupted downloads (like curl -C -)
       --proxy string      Specify an HTTP/HTTPS proxy (e.g., http://127.0.0.1:8080)
-      --skip-ssl          Skip SSL certificate verification (insecure, with interactive confirmation)
+      --skip-ssl          Skip SSL certificate verification (insecure)
       --limit-rate string Limit download speed (e.g., 200K, 1M, 5M)
-      --dry-run           Simulate the installation without making changes
-      --json              Output in JSON format (for scripting)
       --ver string        Install a specific version of the package
 
-For more details, visit: https://macwave.org
+Special Flags:
+wave install &lt;pkgname&gt;@&lt;version&gt;   Download certain version(s) of a package
 </pre>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Supported Packages</h2>
         <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">(Listed in alphabetical order)</p>
         <div class="code-container">
             <pre>
-choma               by Lars Fröder (opa334)
-ldid                by Jay Freeman (saurik) / Procursus Team
-machox              by Sha0huaZhang
-palera1n            by palera1n Team (Nick Chan, Ploosh, Samara, Mineek, staturnz, kokshidoll)
-test_001            by Sha0huaZhang
-test_no_sha256      by Sha0huaZhang
-test_wrong_sha256   by Sha0huaZhang
-trollrestore        by JJTech0130
+choma         by opa334
+jq            by Stephen Dolan, Nicolas Williams, et al.
+ldid          by Jay Freeman (saurik) / Procursus Team
+trollrestore  by JJTech (@JJTech0130)
+wget          by GNU Project
             </pre>
         </div>
 
