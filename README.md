@@ -6,6 +6,8 @@ A package manager for macOS software developers.
 
 [macwave.org](https://macwave.org)
 
+## 🌊 Supported macOS Version
+macOS Sonoma14 and above
 ## 🌊 Latest Version
 
 2.1.0, Release on 2026-09-13
