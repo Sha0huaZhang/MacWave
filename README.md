@@ -50,7 +50,11 @@ Config file is stored in:
 ```
 /opt/macwave_config
 ```
+## Uninstall MacWave
 
+To completely remove MacWave from your system, run the following command in your terminal:
+
+```/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/uninstall.sh)"
 ## 🌊 Command Reference
 
 ```
