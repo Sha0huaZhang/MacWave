@@ -1,0 +1,5 @@
+bin_name: "trollrestore"
+des: "MacWave test package."
+hom: "https://github.com/JJTech0130/TrollRestore"
+lic: "MIT"
+aut: "JJTech (@JJTech0130)"
