@@ -65,15 +65,15 @@ def get_arch():
         sys.exit(1)
 
 
-def parse_pkg_from_bin(filename):
+def parse_pkg_from_bin(dirname):
     
-    # 从 bin 目录的文件名解析出包名和版本。
+    # 从 bin 目录下的目录名解析出包名和版本。
     # 形如 ldid@2.1.5-procursus7 -> ("ldid", "2.1.5-procursus7")
     
-    if "@" in filename:
-        name, version = filename.split("@", 1)
+    if "@" in dirname:
+        name, version = dirname.split("@", 1)
         return name, version
-    return filename, None
+    return dirname, None
 
 
 def fetch_remote_versions(pkg_name, arch):
@@ -122,13 +122,14 @@ def fetch_remote_info(pkg_name, arch):
 
 def handle_list():
     
-    # 直接扫描 BASE_DIR/bin 目录，列出所有已安装的包。
+    # 直接扫描 BASE_DIR/bin 目录下的子目录，列出所有已安装的包
+    # （2.2 起每个包是一个 <包名>@<版本号> 目录）。
     
     if not BIN_DIR.exists():
         print("🌊 No packages installed yet.")
         return
 
-    entries = sorted([f.name for f in BIN_DIR.iterdir() if f.is_file()])
+    entries = sorted([f.name for f in BIN_DIR.iterdir() if f.is_dir()])
     if not entries:
         print("🌊 No packages installed yet.")
         return
@@ -182,10 +183,11 @@ def handle_info(pkg_name):
     arch = get_arch()
 
     # 1. 扫描本地 bin 目录，找出所有该包的已安装版本
+    # （2.2 起每个版本对应一个 <包名>@<版本号> 目录）
     installed_versions = []
     if BIN_DIR.exists():
         for f in BIN_DIR.iterdir():
-            if f.is_file():
+            if f.is_dir():
                 name, version = parse_pkg_from_bin(f.name)
                 if name.lower() == pkg_name.lower() and version:
                     installed_versions.append(version)

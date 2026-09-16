@@ -123,11 +123,29 @@ esac
 
 # -------------------- 移动到目标位置 --------------------
 
-TARGET_DIR="$(dirname "$ParseDir")"
-mkdir -p "$TARGET_DIR"
+# 2.2 起 bin/ 下改为目录结构：bin/{bin_name}@{version}/{bin_name}
+INSTALL_DIR_NAME="$(basename "$ParseDir")"
+BIN_NAME="${INSTALL_DIR_NAME%@*}"
 
-mv "$BIN_FILE" "$ParseDir"
-chmod 755 "$ParseDir"
+mkdir -p "$ParseDir"
+mv "$BIN_FILE" "$ParseDir/$BIN_NAME"
+chmod 755 "$ParseDir/$BIN_NAME"
+
+# -------------------- 创建软链接 --------------------
+
+# links/{bin_name}@{version} -> ../bin/{bin_name}@{version}/{bin_name}
+LINKS_DIR="$BASE_DIR/links"
+mkdir -p "$LINKS_DIR"
+
+LINK_PATH="$LINKS_DIR/$INSTALL_DIR_NAME"
+LINK_TARGET="../bin/$INSTALL_DIR_NAME/$BIN_NAME"
+
+# 重装场景：软链接已存在则先删除再创建
+if [[ -L "$LINK_PATH" || -e "$LINK_PATH" ]]; then
+    rm -f "$LINK_PATH"
+fi
+
+ln -s "$LINK_TARGET" "$LINK_PATH"
 
 # -------------------- 清理临时文件 --------------------
 
@@ -174,6 +192,8 @@ PYEOF
 # -------------------- 输出成功 --------------------
 
 echo -e "${GREEN}🌊 Successfully installed ${ParsePkgName}@${ParsePkgVersion}${RESET}"
-DISPLAY_PATH="${ParseDir/$HOME/~}"
-echo "🌊 Binary installed to: $DISPLAY_PATH"
+DISPLAY_DIR="${ParseDir/$HOME/~}"
+DISPLAY_LINK="${LINK_PATH/$HOME/~}"
+echo "🌊 Binary installed to: $DISPLAY_DIR/$BIN_NAME"
+echo "🌊 Link created at: $DISPLAY_LINK"
 exit 0

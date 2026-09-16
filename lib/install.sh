@@ -128,6 +128,7 @@ USE_SUDO="sudo"
 # ==========================================
 
 INSTALL_DIR="$BASE_DIR/bin"
+LINKS_DIR="$BASE_DIR/links"
 REPO_DIR="$BASE_DIR/pkg"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
@@ -136,6 +137,7 @@ CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
 sudo mkdir -p "$INSTALL_DIR"
+sudo mkdir -p "$LINKS_DIR"
 sudo mkdir -p "$REPO_DIR"
 sudo mkdir -p "$LIB_DIR"
 sudo mkdir -p "$DOWNLOAD_DIR"
@@ -289,7 +291,7 @@ if ! grep -q "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
     echo "🌊 Adding MacWave to PATH in $RC_FILE..."
     echo "" >> "$RC_FILE"
     echo "# MacWave" >> "$RC_FILE"
-    echo "export PATH=\"$INSTALL_DIR:$LIB_DIR:\$PATH\"" >> "$RC_FILE"
+    echo "export PATH=\"$INSTALL_DIR:$LINKS_DIR:$LIB_DIR:\$PATH\"" >> "$RC_FILE"
 else
     echo "🌊 MacWave is already in your PATH."
 fi

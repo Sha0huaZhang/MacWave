@@ -39,6 +39,7 @@ def load_config():
 
 BASE_DIR = load_config()
 BIN_DIR = BASE_DIR / "bin"
+LINKS_DIR = BASE_DIR / "links"
 INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
 
 
@@ -79,7 +80,8 @@ def save_installed(installed):
 
 
 def find_installed_versions(pkg_name):
-    # 扫描 bin 目录，返回该包所有已安装版本（降序，排除 .bak 备份）
+    # 扫描 bin 目录（2.2 起为 <包名>@<版本号> 目录），
+    # 返回该包所有已安装版本（降序，排除 .bak 备份）
     if not BIN_DIR.exists():
         return []
     prefix = f"{pkg_name}@"
@@ -98,9 +100,12 @@ def find_installed_versions(pkg_name):
 # -------------------- 删除动作 --------------------
 
 def remove_one(pkg_name, version, installed):
-    # 删除单个 <包名>@<版本号>（含 .bak），并同步 installed.json
+    # 删除单个 <包名>@<版本号>（bin 下的目录 + links 下的软链接，含 .bak），
+    # 并同步 installed.json
     target = BIN_DIR / f"{pkg_name}@{version}"
     backup = BIN_DIR / f"{pkg_name}@{version}.bak"
+    link = LINKS_DIR / f"{pkg_name}@{version}"
+    backup_link = LINKS_DIR / f"{pkg_name}@{version}.bak"
 
     record = installed.get(pkg_name)
     if record and record.get("version") == version and record.get("binary_path"):
@@ -119,6 +124,11 @@ def remove_one(pkg_name, version, installed):
         shutil.rmtree(backup)
     elif backup.exists():
         backup.unlink()
+
+    # 软链接可能是悬空的，用 is_symlink 判断
+    for link_path in (link, backup_link):
+        if link_path.is_symlink() or link_path.exists():
+            link_path.unlink()
 
     # 只有记录版本与删除版本一致时才移除记录，避免误删其他版本
     if record and record.get("version") == version:
