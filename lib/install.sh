@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# MacWave 🌊 Official Installer (2.1.0)
+# MacWave 🌊 Official Installer (2.2.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
 # Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
 
 set -e
 
-BRANCH="2.1.0"
+BRANCH="2.2.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
 DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
@@ -33,10 +33,67 @@ home_to_tilde() {
 }
 
 # ==========================================
+# 辅助函数：校验自定义目录，防止路径穿越
+# ==========================================
+
+validate_custom_dir() {
+    local dir="$1"
+
+    # 1. 空输入
+    if [[ -z "$dir" ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Empty path is not allowed.${RESET}" >&2
+        return 1
+    fi
+
+    # 2. 拒绝包含 ".." 的路径（路径穿越）
+    if [[ "$dir" == *".."* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Path traversal ('..') is not allowed.${RESET}" >&2
+        return 1
+    fi
+
+    # 3. 拒绝控制字符（\0、换行、回车、制表等）
+    if [[ "$dir" == *$'\n'* ]] || [[ "$dir" == *$'\r'* ]] || [[ "$dir" == *$'\t'* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Invalid control characters in path.${RESET}" >&2
+        return 1
+    fi
+
+    # 4. 拒绝非 ASCII 字符（防止宽字节 / Unicode 变体 / 同形字绕过）
+    if LC_ALL=C grep -q '[^a-zA-Z0-9/_.~ -]' <<< "$dir"; then
+        echo -e "${RED_BOLD}🌊 Error: Path contains non-ASCII or invalid characters.${RESET}" >&2
+        echo -e "${RED_BOLD}🌊 Only ASCII letters, digits, '/', '-', '_', '.', '~', and spaces are allowed.${RESET}" >&2
+        return 1
+    fi
+
+    # 5. 展开 ~
+    local expanded="${dir/#\~/$HOME}"
+
+    # 6. 拒绝相对路径
+    if [[ "$expanded" != /* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Please use an absolute path (starting with / or ~).${RESET}" >&2
+        return 1
+    fi
+
+    # 7. 拒绝连续斜杠
+    if [[ "$expanded" == *"//"* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Path contains consecutive slashes.${RESET}" >&2
+        return 1
+    fi
+
+    # 8. 拒绝根目录
+    if [[ "$expanded" == "/" ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Cannot install to root directory.${RESET}" >&2
+        return 1
+    fi
+
+    echo "$expanded"
+    return 0
+}
+
+# ==========================================
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.1.0!"
+echo "🌊 Welcome to MacWave $BRANCH!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -52,7 +109,6 @@ echo "🌊 Detected architecture: $ARCH"
 # ==========================================
 
 if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
-    # Intel Mac：显示 /usr/local/macwave 选项
     echo -e "${YELLOW}Where do you want to install MacWave? (Enter the number)${RESET}"
     echo "1. ~/.local/macwave"
     echo "2. /opt/macwave"
@@ -76,7 +132,8 @@ if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
         4)
             echo -e "${YELLOW}Please enter the installation directory:${RESET}"
             read -r custom_dir < /dev/tty
-            BASE_DIR="${custom_dir/#\~/$HOME}"
+            validated=$(validate_custom_dir "$custom_dir") || exit 1
+            BASE_DIR="$validated"
             ;;
         *)
             echo -e "${RED_BOLD}🌊 Invalid choice. Using default: ~/.local/macwave${RESET}"
@@ -84,7 +141,6 @@ if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
             ;;
     esac
 else
-    # Apple Silicon：不显示 /usr/local（不可写）
     echo -e "${YELLOW}Where do you want to install MacWave? (Enter the number)${RESET}"
     echo "1. ~/.local/macwave"
     echo "2. /opt/macwave"
@@ -104,7 +160,8 @@ else
         3)
             echo -e "${YELLOW}Please enter the installation directory:${RESET}"
             read -r custom_dir < /dev/tty
-            BASE_DIR="${custom_dir/#\~/$HOME}"
+            validated=$(validate_custom_dir "$custom_dir") || exit 1
+            BASE_DIR="$validated"
             ;;
         *)
             echo -e "${RED_BOLD}🌊 Invalid choice. Using default: ~/.local/macwave${RESET}"
@@ -116,7 +173,7 @@ fi
 DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
 
 # ==========================================
-# 判断是否需要 sudo（无论安装到哪，只要涉及 /opt 都强制获取）
+# 判断是否需要 sudo
 # ==========================================
 
 echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
@@ -145,7 +202,7 @@ sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
 # ==========================================
-# 写入配置文件（使用 sudo tee 写入）
+# 写入配置文件
 # ==========================================
 
 sudo tee "$CONFIG_FILE" > /dev/null << EOF
@@ -165,7 +222,7 @@ sudo tee "$VERSION_FILE" > /dev/null << EOF
 EOF
 
 # ==========================================
-# 关键：把所有权交还给当前真实用户
+# 把所有权交还给当前真实用户
 # ==========================================
 
 CURRENT_USER=$(whoami)
@@ -180,7 +237,7 @@ echo "🌊 Configuration saved to /opt/macwave_config/config.json"
 echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
 
 # ==========================================
-# 删除旧版 repo.json（如果存在）
+# 删除旧版 repo.json
 # ==========================================
 
 OLD_JSON="$REPO_DIR/repo.json"
@@ -190,13 +247,12 @@ if [ -f "$OLD_JSON" ]; then
 fi
 
 # ==========================================
-# 文件 URL（全部适配新的 GitHub 目录结构）
+# 文件 URL
 # ==========================================
 
-# 程序文件全部从 2.1.0 分支拉取
-# 注：2.1.0 暂不处理 deps（依赖），相关文件留待后续版本引入
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
+CONFIGERROR_URL="$BASE_URL/lib/configerror.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
 PKGINSTALLER_SH_URL="$BASE_URL/pkg/pkginstaller.sh"
 PKGINFOHELPER_URL="$BASE_URL/pkg/pkginfohelper.py"
@@ -204,11 +260,10 @@ UNINSTALLER_URL="$BASE_URL/pkg/uninstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 
-# 纯数据从 infosource 拉取（下载时动态生成）
 DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
 
 # ==========================================
-# 下载文件（根据新目录放置）
+# 下载文件
 # ==========================================
 
 echo "🌊 Downloading wave..."
@@ -217,6 +272,9 @@ sudo chmod +x "$LIB_DIR/wave"
 
 echo "🌊 Downloading help.py..."
 sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
+
+echo "🌊 Downloading configerror.py..."
+sudo curl -fsSL -o "$LIB_DIR/configerror.py" "$CONFIGERROR_URL"
 
 echo "🌊 Downloading pkginstaller.py..."
 sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
@@ -239,7 +297,7 @@ sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
 sudo chmod +x "$REPO_DIR/pkgunzip.sh"
 
 # ==========================================
-# 下载完成后，立刻把所有权交还给用户（至关重要）
+# 把所有权交还给用户
 # ==========================================
 
 sudo chown -R "$CURRENT_USER": "$BASE_DIR"
@@ -276,7 +334,7 @@ else
 fi
 
 # ==========================================
-# 添加到 PATH（bin 和 lib 目录都要加）
+# 添加到 PATH
 # ==========================================
 
 if [[ "$SHELL" == *"zsh"* ]]; then
