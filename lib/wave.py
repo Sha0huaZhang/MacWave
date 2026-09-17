@@ -5,6 +5,10 @@
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from configerror import check_environment
+check_environment()
+
 
 # -------------------- 配置与模块路径 --------------------
 
@@ -101,7 +105,7 @@ def main():
             print_version()
 
         # 预留：query
-        
+
         sys.exit(0)
 
     # 4. 未知输入
