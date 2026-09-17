@@ -16,11 +16,11 @@ RESET = '\033[0m'
 # -------------------- 环境检测与报错 --------------------
 
 def check_environment():
-    """
-    检测当前环境：
-    - 如果 /opt/macwave_config/config.json 存在，说明已正式安装，正常继续。
-    - 如果不存在，且当前在 git 仓库里，报错并退出。
-    """
+    
+    # 检测当前环境
+    # - 如果 /opt/macwave_config/config.json 存在，说明已正式安装，正常继续。
+    # - 如果不存在，且当前在 git 仓库里，报错并退出。
+    
     config_file = Path("/opt/macwave_config/config.json")
     if config_file.exists():
         return
