@@ -71,3 +71,9 @@ def check_environment():
     print("If you have any other questions, please contact hi@macwave.org.")
 
     sys.exit(1)
+
+
+if __name__ == "__main__":
+    print("🌊 This module is not meant to be run directly.")
+    print("🌊 It is used internally by wave.py.")
+    sys.exit(1)
