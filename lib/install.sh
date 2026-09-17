@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# MacWave 🌊 Official Installer (2.2.0)
+# MacWave 🌊 Official Installer (2.1.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
 # Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
 
 set -e
 
-BRANCH="2.2.0"
+BRANCH="2.1.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
 DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
@@ -39,47 +39,39 @@ home_to_tilde() {
 validate_custom_dir() {
     local dir="$1"
 
-    # 1. 空输入
     if [[ -z "$dir" ]]; then
         echo -e "${RED_BOLD}🌊 Error: Empty path is not allowed.${RESET}" >&2
         return 1
     fi
 
-    # 2. 拒绝包含 ".." 的路径（路径穿越）
     if [[ "$dir" == *".."* ]]; then
         echo -e "${RED_BOLD}🌊 Error: Path traversal ('..') is not allowed.${RESET}" >&2
         return 1
     fi
 
-    # 3. 拒绝控制字符（\0、换行、回车、制表等）
     if [[ "$dir" == *$'\n'* ]] || [[ "$dir" == *$'\r'* ]] || [[ "$dir" == *$'\t'* ]]; then
         echo -e "${RED_BOLD}🌊 Error: Invalid control characters in path.${RESET}" >&2
         return 1
     fi
 
-    # 4. 拒绝非 ASCII 字符（防止宽字节 / Unicode 变体 / 同形字绕过）
     if LC_ALL=C grep -q '[^a-zA-Z0-9/_.~ -]' <<< "$dir"; then
         echo -e "${RED_BOLD}🌊 Error: Path contains non-ASCII or invalid characters.${RESET}" >&2
         echo -e "${RED_BOLD}🌊 Only ASCII letters, digits, '/', '-', '_', '.', '~', and spaces are allowed.${RESET}" >&2
         return 1
     fi
 
-    # 5. 展开 ~
     local expanded="${dir/#\~/$HOME}"
 
-    # 6. 拒绝相对路径
     if [[ "$expanded" != /* ]]; then
         echo -e "${RED_BOLD}🌊 Error: Please use an absolute path (starting with / or ~).${RESET}" >&2
         return 1
     fi
 
-    # 7. 拒绝连续斜杠
     if [[ "$expanded" == *"//"* ]]; then
         echo -e "${RED_BOLD}🌊 Error: Path contains consecutive slashes.${RESET}" >&2
         return 1
     fi
 
-    # 8. 拒绝根目录
     if [[ "$expanded" == "/" ]]; then
         echo -e "${RED_BOLD}🌊 Error: Cannot install to root directory.${RESET}" >&2
         return 1
@@ -176,12 +168,29 @@ DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
 # 判断是否需要 sudo
 # ==========================================
 
-echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
-sudo -v
-USE_SUDO="sudo"
+CURRENT_USER=$(whoami)
+
+if [[ "$BASE_DIR" == "$HOME"* ]]; then
+    NEED_SUDO=false
+else
+    NEED_SUDO=true
+fi
+
+run_cmd() {
+    if [[ "$NEED_SUDO" == "true" ]]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+if [[ "$NEED_SUDO" == "true" ]]; then
+    echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
+    sudo -v
+fi
 
 # ==========================================
-# 创建目录（全用 sudo 创建）
+# 创建目录
 # ==========================================
 
 INSTALL_DIR="$BASE_DIR/bin"
@@ -193,11 +202,13 @@ CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
-sudo mkdir -p "$INSTALL_DIR"
-sudo mkdir -p "$LINKS_DIR"
-sudo mkdir -p "$REPO_DIR"
-sudo mkdir -p "$LIB_DIR"
-sudo mkdir -p "$DOWNLOAD_DIR"
+run_cmd mkdir -p "$INSTALL_DIR"
+run_cmd mkdir -p "$LINKS_DIR"
+run_cmd mkdir -p "$REPO_DIR"
+run_cmd mkdir -p "$LIB_DIR"
+run_cmd mkdir -p "$DOWNLOAD_DIR"
+
+# /opt/macwave_config 始终需要 sudo（在 $HOME 之外）
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
@@ -225,9 +236,10 @@ EOF
 # 把所有权交还给当前真实用户
 # ==========================================
 
-CURRENT_USER=$(whoami)
+if [[ "$NEED_SUDO" == "true" ]]; then
+    sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+fi
 
-sudo chown -R "$CURRENT_USER": "$BASE_DIR"
 sudo chown -R "$CURRENT_USER": "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 sudo chmod 644 "$CONFIG_FILE"
@@ -243,7 +255,7 @@ echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
 OLD_JSON="$REPO_DIR/repo.json"
 if [ -f "$OLD_JSON" ]; then
     echo "🌊 Removing old repo.json (legacy format)..."
-    sudo rm -f "$OLD_JSON"
+    run_cmd rm -f "$OLD_JSON"
 fi
 
 # ==========================================
@@ -267,40 +279,42 @@ DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
 # ==========================================
 
 echo "🌊 Downloading wave..."
-sudo curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
-sudo chmod +x "$LIB_DIR/wave"
+run_cmd curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
+run_cmd chmod +x "$LIB_DIR/wave"
 
 echo "🌊 Downloading help.py..."
-sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
+run_cmd curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
 
 echo "🌊 Downloading configerror.py..."
-sudo curl -fsSL -o "$LIB_DIR/configerror.py" "$CONFIGERROR_URL"
+run_cmd curl -fsSL -o "$LIB_DIR/configerror.py" "$CONFIGERROR_URL"
 
 echo "🌊 Downloading pkginstaller.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
 echo "🌊 Downloading pkginstaller.sh..."
-sudo curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
-sudo chmod +x "$REPO_DIR/pkginstaller.sh"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
+run_cmd chmod +x "$REPO_DIR/pkginstaller.sh"
 
 echo "🌊 Downloading pkginfohelper.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
 
 echo "🌊 Downloading uninstaller.py..."
-sudo curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
 
 echo "🌊 Downloading pkgversionparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
 
 echo "🌊 Downloading pkgunzip.sh..."
-sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
-sudo chmod +x "$REPO_DIR/pkgunzip.sh"
+run_cmd curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
+run_cmd chmod +x "$REPO_DIR/pkgunzip.sh"
 
 # ==========================================
-# 把所有权交还给用户
+# 把所有权交还给用户（下载后再次确保）
 # ==========================================
 
-sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+if [[ "$NEED_SUDO" == "true" ]]; then
+    sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+fi
 
 # ==========================================
 # 安装 Python 依赖
@@ -384,7 +398,7 @@ if [[ $agreement =~ ^[Yy]$ ]]; then
 else
     echo -e "${RED_BOLD}You do not agree to the agreement. Installation stopped.${RESET}"
     echo -e "${RED_BOLD}🌊 Cleaning up downloaded files...${RESET}"
-    sudo rm -rf "$BASE_DIR"
+    run_cmd rm -rf "$BASE_DIR"
     sudo rm -rf "$CONFIG_DIR"
     echo -e "${RED_BOLD}🌊 All files have been deleted.${RESET}"
     exit 1
