@@ -3,6 +3,8 @@ des: "MacWave test package."
 hom: "https://github.com/Sha0huaZhang/test_001"
 lic: "MIT"
 aut: "Sha0huaZhang (MacWave Team)"
-deps: "nosuchdep@9.9.9"
+deps: "gettext@0.21.0"
+      "openssl@3.0.15"
+      "zlib@1.2.13"
 
 
