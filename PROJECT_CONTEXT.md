@@ -132,3 +132,82 @@ deps: "gettext@0.21.0"
 - 所有输出带 🌊 前缀；错误 `print(f"{RED_BOLD}🌊 Error: …{RESET}")` 后 `sys.exit(1)`
 - Shell 脚本 `set -e`，同样的颜色定义与 🌊 前缀
 - 脚本之间用 `\n` 分隔的长字符串传参；安装信息为 8 行：名称 / 版本号 / sha256 / 目标目录 / BASE_DIR / 可执行文件名 / 依赖者 / 原文件名
+
+---
+
+## 七、安装「带依赖的软件包」时，各程序依次做什么
+
+以 `wave install wget@1.25.0` 为例（`_wget@1.25.0` 的 deps 为
+`gettext@0.21.0`、`libiconv@1.16`、`libidn2@2.3.8`、`libunistring@1.3`、`openssl@3.0.15`、`pcre2@10.42`、`zlib@1.2.13`，
+其中 `gettext` 自己又依赖 `libiconv@1.16`）。
+
+### 步骤总览
+
+| # | 程序 | 做什么 |
+| --- | --- | --- |
+| 1 | `lib/wave.py` | 读 `base_dir`，把 `lib/`、`pkg/`、`surfboard/` 注入 `sys.path`；按 `COMMANDS` 字典把 `install` 分发给 `pkginstaller.handle_install("wave install wget@1.25.0")` |
+| 2 | `pkg/pkginstaller.py` | 解析下载参数（`-v` / `-C` / `--skip-ssl` / `--limit-rate` / `--proxy`，白名单校验）；解析包名与架构 |
+| 3 | `pkg/pkginstaller.py` | 定版本：`@版本号` → `--ver` → 都没有则调 `fetch_max_version()`（GitHub API，带 `?ref=infosource`） |
+| 4 | `pkg/pkginstaller.py` | 拉 `_wget@common`，解析出 `bin_name`（缺失即报错） |
+| 5 | `pkg/pkginstaller.py` | 拉 `_wget@1.25.0`，解析出 `url` / `sha256` / **`deps`**（多行，向上回溯的 DSL 解析）；校验 `url` 必须是 https |
+| 6 | `pkg/pkginstaller.py` | `download_file()` 下载到 `downloads/tmp/`（rich 进度条、`.partial` + 断点续传、限速、代理、30 秒超时后询问重试），完成后去掉 `.partial` 后缀 |
+| 7 | `pkg/pkginstaller.py` → `pkg/pkginstaller.sh` | 传 8 行长字符串（含目标目录 `bin/wget@1.25.0`）与依赖列表，`pkginstaller.sh` 用 `binary` 模式安装 wget 本体 |
+| 8 | `surfboard/depsmanager.sh` | `mw_install_artifact`：定位原文件 → SHA256 校验 → 解压 → 取一个可执行文件（同名优先，否则取第一个并打警告）→ `chmod 755` → 建软链接 `links/wget@1.25.0` → 写 `_DEPS`（7 行依赖） |
+| 9 | `pkg/pkginstaller.sh` | 写 `pkg/installed.json`（带 `fcntl` 文件锁），打印安装结果 |
+| 10 | `pkg/pkginstaller.py` | 调 `depsinstaller.install_dependencies()`，逐个安装 7 个依赖 |
+| 11 | `surfboard/depsinstaller.py` | 每个依赖 `ensure_dependency()`：校验引用格式 → `querier.is_installed()` 判断是否已装 |
+| 12 | `surfboard/depsinstaller.py` | 未装时：拉 `_依赖名@common` 取 `dep_name`、拉 `_依赖名@版本号` 取 `url` / `sha256` / `deps`；找不到则报 `Dependency '…' not found in depsinfo.` 并退出 |
+| 13 | `surfboard/depsinstaller.py` | **先递归装下层依赖**（`gettext` 会先把 `libiconv` 装好）→ 再下载自己（复用第 6 步的同一个 `download_file`，进度条一致）→ 调 `surfboard/depsinstaller.sh` |
+| 14 | `surfboard/depsinstaller.sh` → `depsmanager.sh` | `tree` 模式安装：整棵解压目录落到 `deps/{依赖名}/{依赖名}@{版本号}/`，单顶层目录自动下沉一层，`bin/` 下每个文件都 `chmod 755` 并各建一条软链接进 `links/`，写 `_DEPS` |
+| 15 | `surfboard/depsinstaller.sh` | 按传入的依赖者信息创建标记：被包依赖 → `.depped_pkg_wget@1.25.0`，被依赖依赖 → `.depped_dep_gettext@0.21.0` |
+| 16 | `surfboard/depsinstaller.py` | 对刚装好的依赖目录调 `transfer_paths()` → `surfboard/transfer.sh` |
+| 17 | `surfboard/transfer.sh` | 建「库文件名 → 本地实际路径」索引（产物自身 `lib/` → 该产物 `_DEPS` 列出的依赖 → 其它已安装依赖兜底），对每个 Mach-O 用 `install_name_tool -change` 改写动态库引用、给有 id 的 dylib 改 `-id`，最后 `codesign --force --sign -` 重签名 |
+| 18 | `surfboard/depsinstaller.py` | 已安装的依赖：跳过下载，只调 `tagger.sh` 补标记（例如 `libiconv` 同时被 `gettext` 和 `wget` 依赖，就会有两条标记） |
+| 19 | `pkg/pkginstaller.py` | 依赖全部装完后，对 `bin/wget@1.25.0` 调 `transfer_paths()`，把 wget 二进制的 `@rpath/...` 引用指向 `deps/…/lib` 下的实际文件 |
+
+### 时序
+
+```mermaid
+sequenceDiagram
+    participant W as lib/wave.py
+    participant P as pkg/pkginstaller.py
+    participant S as pkg/pkginstaller.sh
+    participant M as surfboard/depsmanager.sh
+    participant D as surfboard/depsinstaller.py
+    participant X as surfboard/transfer.sh
+
+    W->>P: handle_install("wave install wget@1.25.0")
+    P->>P: 版本 / bin_name / url / sha256 / deps
+    P->>P: download_file()（进度条）
+    P->>S: 8 行长字符串 + deps 列表
+    S->>M: mw_install_artifact（binary 模式）
+    M-->>S: 落盘 + links/ + _DEPS
+    S-->>P: 安装成功
+    P->>D: install_dependencies(7 个依赖)
+    loop 每个依赖（先子后己）
+        D->>D: 未装 → 拉 depsinfo 元数据
+        D->>D: 递归装下层依赖
+        D->>M: depsinstaller.sh（tree 模式）
+        D->>X: transfer_paths(依赖目录)
+    end
+    P->>X: transfer_paths(bin/wget@1.25.0)
+```
+
+### 为什么要这个顺序
+
+- **依赖必须先落盘**：`transfer.sh` 要把引用指向 `deps/…/lib` 里的真实文件，所以顺序是「先装下层依赖 → 再装自身 → 最后做路径替换」；软件包自身则在依赖全部装完后再统一替换
+- **`_DEPS` 先写**：`transfer.sh` 靠它确定"该去找哪些依赖的 lib"，同时它是卸载时清理依赖的唯一依据
+- **标记文件在最后打**：只有依赖真正装好了才记录"谁依赖了我"，避免中途失败留下错误标记
+
+### 这条命令跑完后的目录形态
+
+```
+BASE_DIR/bin/wget@1.25.0/        wget 二进制 + _DEPS（7 行依赖）
+BASE_DIR/deps/gettext/gettext@0.21.0/     bin/ lib/ include/ … + _DEPS + .depped_pkg_wget@1.25.0
+BASE_DIR/deps/libiconv/libiconv@1.16/     … + _DEPS + .depped_pkg_wget@1.25.0 + .depped_dep_gettext@0.21.0
+BASE_DIR/deps/{libidn2,libunistring,openssl,pcre2,zlib}/…  各自整树 + _DEPS + .depped_pkg_wget@1.25.0
+BASE_DIR/links/                  wget@1.25.0，以及每个依赖 bin/ 下可执行文件的一条链接
+                                 （如 openssl@3.0.15、iconv@1.16、msgfmt@0.21.0 …）—— 此目录已在 PATH 上
+```
+
+卸载时的逆向动作见「五、关键机制」第 3、4 条：先删自己的标记，某个依赖再无任何标记时才连同它的依赖一起级联删除。
