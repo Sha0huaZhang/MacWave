@@ -1,1 +1,132 @@
-1
+# 🌊 MacWave 项目结构
+
+面向 macOS / Linux 软件开发者的包管理器，主要托管 iOS/iPadOS 越狱相关软件包。
+技术栈：Python + Shell。
+
+- `2.2.0` 等版本分支：程序代码
+- `infosource` 分支：纯数据（包与依赖的元数据、下载地址、校验值）
+
+---
+
+## 一、仓库目录
+
+```
+lib/          入口与帮助
+pkg/          安装与查询核心
+surfboard/    依赖处理
+scripts/      回归测试脚本
+.github/      CI
+.templates/   目录与文件的模板样例（bin/、pkg/、macwave_config/）
+.Pseudocode/  早期伪代码，仅作参考
+STYLE.md      代码风格约定
+README.md     用户文档
+```
+
+## 二、各文件作用
+
+### lib/ —— 入口与帮助
+
+| 文件 | 作用 |
+| --- | --- |
+| `wave.py` | 主入口。读 `/opt/macwave_config/config.json` 的 `base_dir`，把 `lib/`、`pkg/`、`surfboard/` 注入 `sys.path`；用 `COMMANDS` 字典把 `install / uninstall / list / search / info / version` 分发到对应模块，`ARGUMENTS` 处理 `-h/--help/-V/--version` |
+| `help.py` | 帮助与版本文本：`print_custom_help`（简短用法）、`print_detailed_help`（详细命令）、`print_version`、`print_error_help` |
+| `install.sh` | 官方安装脚本：选安装目录、`sudo` 提权、写 `config.json` / `VERSION.json`、把 `lib/`、`pkg/`、`surfboard/` 下的程序文件全部拉下来、安装 Python 依赖（requests / packaging / rich）、把 `bin/` + `links/` + `lib/` 写入 PATH、许可协议确认 |
+| `uninstall.sh` | 卸载 MacWave 本体：读配置定位 `BASE_DIR`（失败则遍历候选路径）、二次确认后删除安装目录与配置目录、清掉 rc 文件里的 PATH 行、最后自删 |
+
+### pkg/ —— 安装与查询核心
+
+| 文件 | 作用 |
+| --- | --- |
+| `pkginstaller.py` | **软件包安装编排**。解析参数与架构 → 定版本（`@版本`、`--ver` 或远程取最高）→ 拉 `_包名@common` 取 `bin_name` → 拉版本文件取 `url` / `sha256` / `deps` → 下载（rich 进度条、断点续传、限速、代理、30 秒超时+重试询问）→ 调 `pkginstaller.sh` → 通过 `depsinstaller` 递归安装依赖 |
+| `pkginstaller.sh` | **软件包安装入口（binary 模式）**：组装长字符串，调用通用安装核心 `depsmanager.sh` 的 `mw_install_artifact`，写 `installed.json`，输出安装结果 |
+| `pkginfohelper.py` | `list`（扫描 `bin/` 下的目录）、`search`（远程匹配包名）、`info`（本地已装版本 + 远程可装版本 + `@common` 描述） |
+| `pkgversionparser.py` | 版本号比较与排序；处理 `alpha/beta/rc` 预发布，以及 `procursus` / `macwaveteam` / `Xteam` 等特殊版本 |
+| `pkgunzip.sh` | 按扩展名解压：`zip` / `tar.gz` / `tar.bz2` / `tar.xz` / `tar` / `gz` / `bz2` |
+| `uninstaller.py` | **卸载**：扫描 `bin/` 找出该包所有版本；删除包目录与软链接；按 `_DEPS` 删除依赖标记，若某依赖已无任何标记，则连同它自己的依赖一起级联删除 |
+
+### surfboard/ —— 依赖处理（2.2 新增）
+
+| 文件 | 作用 |
+| --- | --- |
+| `depsinstaller.py` | **依赖安装编排（Python）**。校验/解析依赖引用 → 拉 `_依赖名@common` 取 `dep_name` → 拉 `_依赖名@版本号` 取 `url` / `sha256` / `deps` → 复用 `pkginstaller.download_file` 下载（进度条与软件包一致）→ 调 `depsinstaller.sh` → 递归安装子依赖；依赖已安装时只补标记（走 `tagger.sh` 命令行） |
+| `depsinstaller.sh` | **依赖安装入口（tree 模式）**：`source depsmanager.sh` → 调 `mw_install_artifact` → 在依赖目录里创建 `.depped_pkg_*` / `.depped_dep_*` 标记 |
+| `depsmanager.sh` | **通用安装核心**（被 `pkginstaller.sh` 与 `depsinstaller.sh` source，不单独执行）：定位下载到的原文件、SHA256 校验、解压、落盘（`binary` / `tree` 两种形态）、创建 `links/` 软链接、写 `_DEPS`、标记文件辅助函数 |
+| `tagger.sh` | `.depped_*` 标记文件原语：`tagger_create` / `tagger_delete` / `tagger_has_any`，既可 `bash tagger.sh <动作> …` 调用，也可被 source |
+| `depsversionparser.py` | 依赖引用解析（强制 `依赖名@版本号`）与版本比较；版本逻辑复用 `pkgversionparser.py` |
+| `querier.py` | 查询依赖是否已安装：`deps/{引用名}/{引用名}@{版本号}/` 存在**且含 `_DEPS`** 才算安装完成（避免中途失败留下的空目录被误判） |
+
+### scripts/ 与 CI
+
+| 文件 | 作用 |
+| --- | --- |
+| `scripts/format_test.sh` | 8 种打包格式（无扩展名 / zip / tar.gz / tar.bz2 / tar.xz / tar / gz / bz2）逐个跑 install → 运行 → uninstall |
+| `.github/workflows/format-test.yml` | 在 `macos-latest` 上把 `lib/`、`pkg/`、`surfboard/` 部署到 `/tmp/macwave-test`，再运行上面的脚本 |
+
+## 三、安装后的运行时目录
+
+`BASE_DIR` 取自 `/opt/macwave_config/config.json` 的 `base_dir`（默认 `~/.local/macwave`）。
+
+```
+BASE_DIR/bin/{可执行文件名}@{版本}/            软件包：二进制 + _DEPS
+BASE_DIR/deps/{引用名}/{引用名}@{版本}/        依赖：整棵解压目录 + _DEPS + .depped_* 标记
+BASE_DIR/links/{名字}@{版本}                   软链接，此目录已加入 PATH
+BASE_DIR/pkg/installed.json                   已安装软件包记录
+BASE_DIR/downloads/tmp/                       下载临时目录（*.partial 表示未下载完）
+BASE_DIR/{lib,pkg,surfboard}/                 程序文件自身
+/opt/macwave_config/config.json               base_dir
+/opt/macwave_config/VERSION.json              版本信息
+```
+
+## 四、数据源（`infosource` 分支）
+
+软件包：
+
+```
+pkg/pkginfo_{arch}/{包名}/_{包名}@common     bin_name / des / hom / lic / aut
+pkg/pkginfo_{arch}/{包名}/_{包名}@{版本号}    url / sha256 / deps
+```
+
+依赖：
+
+```
+surfboard/depsinfo_{arch}/{依赖名}/_{依赖名}@common     dep_name / des / hom / lic / aut
+surfboard/depsinfo_{arch}/{依赖名}/_{依赖名}@{版本号}     url / sha256 / deps
+```
+
+- `{arch}` 为 `arm64` 或 `amd64`
+- 下载地址强制 `https://`
+- **`deps` 写在版本文件里**（不是 `@common`），每行一个 `依赖名@版本号`，多行书写：
+
+```
+deps: "gettext@0.21.0"
+      "openssl@3.0.15"
+      "zlib@1.2.13"
+```
+
+- 简易 DSL 解析规则：行内第一个引号**前**有 `字段:` 声明，该行属于该字段；否则向上回溯到最近的字段声明；同一字段多行合并为列表。`deps` 字段缺失即视为无依赖
+- 依赖引用格式强制 `依赖名@版本号`，不合规直接报错退出
+- 依赖名/版本在 `depsinfo_{arch}/` 里找不到时报错退出
+
+## 五、关键机制
+
+1. **目录 + 软链接**：包与依赖都不再以“单个文件”形式存在，而是目录；`links/` 里放软链接并已加入 PATH。用户必须输入 `名字@版本号`，不带版本号一律 `command not found`
+2. **两种安装形态**（共用 `depsmanager.sh` 的同一套流程）：
+   - `binary`（软件包）：解压后只取一个可执行文件，同名优先，找不到同名则取第一个并打 YELLOW 警告
+   - `tree`（依赖）：保留整棵解压目录（库包不能只取一个文件）；`bin/` 下的每个文件都软链到 `links/{名字}@{版本号}`，因此不依赖“与包同名的可执行文件”
+3. **`_DEPS`**：安装后写入，每行形如 `"a@1.0"`；卸载时据此清理依赖
+4. **`.depped_*` 标记**：记录“谁依赖了我”
+   - `.depped_pkg_{包名}@{版本号}`：被某个软件包依赖
+   - `.depped_dep_{依赖名}@{版本号}`：被某个依赖依赖
+   - 卸载时先删掉自己的标记；某依赖已无任何标记，才连同它自己的依赖一起级联删除，多个依赖者共享时不会被误删
+5. **递归**：依赖自身的 `deps` 会被继续安装
+6. **网络**：所有请求 30 秒超时；下载超时或连接失败时询问是否重试
+
+## 六、代码约定
+
+见 `STYLE.md`，要点：
+
+- Python 文件头 5 行：shebang / 空行 / `# 文件名` / 空行 / 代码，其后用 `# -------------------- 分区名 --------------------` 分区
+- 颜色常量模块级单引号：`RED_BOLD` / `GREEN` / `YELLOW` / `RESET`
+- 所有输出带 🌊 前缀；错误 `print(f"{RED_BOLD}🌊 Error: …{RESET}")` 后 `sys.exit(1)`
+- Shell 脚本 `set -e`，同样的颜色定义与 🌊 前缀
+- 脚本之间用 `\n` 分隔的长字符串传参；安装信息为 8 行：名称 / 版本号 / sha256 / 目标目录 / BASE_DIR / 可执行文件名 / 依赖者 / 原文件名
