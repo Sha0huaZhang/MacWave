@@ -168,8 +168,12 @@ def remove_dep_links(dep_path):
             link.unlink()
 
 
-def remove_dependency(artifact_dir, depender_kind, depender_name, depender_version):
-    # 递归清理：删除自己的依赖者标记，没有其他依赖者时连同其依赖一起删除
+def remove_dependency(artifact_dir, depender_kind, depender_name, depender_version, visited=None):
+    # 递归清理：删除自己的依赖者标记，没有其他依赖者时连同其依赖一起删除。
+    # visited 记录本轮已处理过的依赖目录，避免循环依赖（A→B→A）导致无限递归
+    if visited is None:
+        visited = set()
+
     for ref in read_deps_file(artifact_dir):
         dep_name, dep_version = parse_dep_ref(ref)
         dep_path = dep_dir(dep_name, dep_version)
@@ -182,12 +186,17 @@ def remove_dependency(artifact_dir, depender_kind, depender_name, depender_versi
         if has_depender_tag(dep_path):
             continue
 
+        resolved_dep = dep_path.resolve()
+        if resolved_dep in visited:
+            continue
+        visited.add(resolved_dep)
+
         # 已无任何依赖者：先清软链接与它自己的依赖，再删除目录
         print(f"🌊 Removing orphan dependency {dep_name}@{dep_version}...")
 
         remove_dep_links(dep_path)
 
-        remove_dependency(dep_path, "dep", dep_name, dep_version)
+        remove_dependency(dep_path, "dep", dep_name, dep_version, visited)
         shutil.rmtree(dep_path)
 
         owner_dir = dep_path.parent
