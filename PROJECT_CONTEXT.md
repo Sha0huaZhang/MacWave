@@ -30,7 +30,7 @@ README.md     用户文档
 | --- | --- |
 | `wave.py` | 主入口。读 `/opt/macwave_config/config.json` 的 `base_dir`，把 `lib/`、`pkg/`、`surfboard/` 注入 `sys.path`；用 `COMMANDS` 字典把 `install / uninstall / list / search / info / version` 分发到对应模块，`ARGUMENTS` 处理 `-h/--help/-V/--version` |
 | `help.py` | 帮助与版本文本：`print_custom_help`（简短用法）、`print_detailed_help`（详细命令）、`print_version`、`print_error_help` |
-| `install.sh` | 官方安装脚本：选安装目录、`sudo` 提权、写 `config.json` / `VERSION.json`、把 `lib/`、`pkg/`、`surfboard/` 下的程序文件全部拉下来、安装 Python 依赖（requests / packaging / rich）、把 `bin/` + `links/` + `lib/` 写入 PATH、许可协议确认 |
+| `install.sh` | 官方安装脚本：选安装目录、`sudo` 提权、建运行时目录（`bin` / `links` / `deps` / `pkg` / `surfboard` / `lib` / `downloads/tmp`）、写 `config.json` / `VERSION.json`、把 `lib/`、`pkg/`、`surfboard/` 下的程序文件全部拉下来、安装 Python 依赖（requests / packaging / rich）、把 `bin/` + `links/` + `lib/` 写入 PATH（升级时替换旧版只含 `bin`/`lib` 的行）、清理旧版平铺 `bin/` 文件、检查 Xcode 命令行工具（`otool` / `install_name_tool` / `codesign`）、许可协议确认（直接回车视为同意） |
 | `uninstall.sh` | 卸载 MacWave 本体：读配置定位 `BASE_DIR`（失败则遍历候选路径）、二次确认后删除安装目录与配置目录、清掉 rc 文件里的 PATH 行、最后自删 |
 
 ### pkg/ —— 安装与查询核心

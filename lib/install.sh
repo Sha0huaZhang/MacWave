@@ -2,13 +2,12 @@
 
 # MacWave 🌊 Official Installer (2.2.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.2.0/lib/install.sh)"
 
 set -e
 
 BRANCH="2.2.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
-DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
 # ==========================================
 # 颜色定义
@@ -198,6 +197,7 @@ LINKS_DIR="$BASE_DIR/links"
 REPO_DIR="$BASE_DIR/pkg"
 SURFBOARD_DIR="$BASE_DIR/surfboard"
 LIB_DIR="$BASE_DIR/lib"
+DEPS_DIR="$BASE_DIR/deps"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
 CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
@@ -208,6 +208,7 @@ run_cmd mkdir -p "$LINKS_DIR"
 run_cmd mkdir -p "$REPO_DIR"
 run_cmd mkdir -p "$SURFBOARD_DIR"
 run_cmd mkdir -p "$LIB_DIR"
+run_cmd mkdir -p "$DEPS_DIR"
 run_cmd mkdir -p "$DOWNLOAD_DIR"
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
@@ -259,6 +260,35 @@ if [ -f "$OLD_JSON" ]; then
 fi
 
 # ==========================================
+# 清理旧版（2.1.0）遗留的平铺 bin/ 文件
+# ==========================================
+
+LEGACY_BINS=$(find "$INSTALL_DIR" -maxdepth 1 -type f 2>/dev/null || true)
+if [[ -n "$LEGACY_BINS" ]]; then
+    echo -e "${YELLOW}🌊 Removing files installed by an older version in $DISPLAY_DIR/bin:${RESET}"
+    while IFS= read -r legacy_file; do
+        echo -e "${YELLOW}    $(basename "$legacy_file")${RESET}"
+    done <<< "$LEGACY_BINS"
+    while IFS= read -r legacy_file; do
+        run_cmd rm -f "$legacy_file"
+    done <<< "$LEGACY_BINS"
+    echo -e "${YELLOW}🌊 2.2.0 keeps packages in bin/{name}@{version}/ directories.${RESET}"
+    echo -e "${YELLOW}🌊 Please reinstall the packages: wave install {name}${RESET}"
+fi
+
+# ==========================================
+# 检查动态库路径替换所需的工具
+# ==========================================
+
+if command -v otool > /dev/null 2>&1 && command -v install_name_tool > /dev/null 2>&1 && command -v codesign > /dev/null 2>&1; then
+    echo "🌊 Xcode Command Line Tools detected (otool / install_name_tool / codesign)."
+else
+    echo -e "${YELLOW}🌊 Warning: Xcode Command Line Tools not found.${RESET}"
+    echo -e "${YELLOW}🌊 Dependency libraries cannot be relocated, so some packages may fail to run.${RESET}"
+    echo "🌊 You can install them later with: xcode-select --install"
+fi
+
+# ==========================================
 # 文件 URL
 # ==========================================
 
@@ -280,9 +310,6 @@ DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
 QUERIER_URL="$BASE_URL/surfboard/querier.py"
 TAGGER_SH_URL="$BASE_URL/surfboard/tagger.sh"
 TRANSFER_SH_URL="$BASE_URL/surfboard/transfer.sh"
-
-# 纯数据从 infosource 拉取（下载时动态生成）
-DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
 
 # ==========================================
 # 下载文件
@@ -394,13 +421,24 @@ else
     RC_FILE="$HOME/.profile"
 fi
 
-if ! grep -q "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
-    echo "🌊 Adding MacWave to PATH in $RC_FILE..."
-    echo "" >> "$RC_FILE"
-    echo "# MacWave" >> "$RC_FILE"
-    echo "export PATH=\"$INSTALL_DIR:$LINKS_DIR:$LIB_DIR:\$PATH\"" >> "$RC_FILE"
-else
+PATH_LINE="export PATH=\"$INSTALL_DIR:$LINKS_DIR:$LIB_DIR:\$PATH\""
+
+if grep -qF "$PATH_LINE" "$RC_FILE" 2>/dev/null; then
     echo "🌊 MacWave is already in your PATH."
+else
+    if grep -qF "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
+        # 旧版本（如 2.1.0）的 PATH 行只有 bin/ 与 lib/，升级后需要换成含 links/ 的新行
+        echo "🌊 Replacing old MacWave PATH entry in $RC_FILE..."
+        grep -v -F "export PATH=\"$INSTALL_DIR" "$RC_FILE" > "$RC_FILE.macwave.tmp" || true
+        cat "$RC_FILE.macwave.tmp" > "$RC_FILE"
+        rm -f "$RC_FILE.macwave.tmp"
+    else
+        echo "🌊 Adding MacWave to PATH in $RC_FILE..."
+        echo "" >> "$RC_FILE"
+        echo "# MacWave" >> "$RC_FILE"
+    fi
+
+    echo "$PATH_LINE" >> "$RC_FILE"
 fi
 
 # ==========================================
@@ -428,7 +466,7 @@ echo ""
 echo -e "${YELLOW}Please read the agreement before use (see bottom of https://macwave.org).${RESET}"
 echo -e "${YELLOW}Have you read and agreed to the agreement? [Y/n]${RESET}"
 read -r agreement < /dev/tty
-if [[ $agreement =~ ^[Yy]$ ]]; then
+if [[ -z "$agreement" || "$agreement" =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}You have agreed to the agreement. Installation continues.${RESET}"
 else
     echo -e "${RED_BOLD}You do not agree to the agreement. Installation stopped.${RESET}"
