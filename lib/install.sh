@@ -455,8 +455,6 @@ echo "🌊 To use 'wave' immediately in this terminal, run:"
 echo -e "${YELLOW}    source $RC_DISPLAY${RESET}"
 echo "🌊 Or simply open a new terminal window."
 echo ""
-echo "🌊 Try it now:"
-echo "    wave install test_001"
 
 # ==========================================
 # 许可协议确认
