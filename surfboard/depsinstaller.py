@@ -45,6 +45,7 @@ DOWNLOAD_TMP = BASE_DIR / "downloads" / "tmp"
 
 DEPSINFO_BASE = "https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/surfboard"
 TAGGER_SCRIPT = Path(__file__).resolve().parent / "tagger.sh"
+TRANSFER_SCRIPT = Path(__file__).resolve().parent / "transfer.sh"
 
 
 # -------------------- 依赖库检查 --------------------
@@ -209,6 +210,22 @@ def download_dependency(dep_url, dep_display_name, config, input_string):
     return original_filename
 
 
+def transfer_paths(target_dir):
+
+    # 路径替换（Homebrew 式）：交给 surfboard/transfer.sh，
+    # 把产物里 Mach-O 的动态库引用与 install name 改成 BASE_DIR 下的实际位置。
+
+    result = subprocess.run(
+        ['bash', str(TRANSFER_SCRIPT), str(target_dir), str(BASE_DIR)],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+
 def install_dependency_shell(dep_name, dep_version, dep_sha256, dep_display_name,
                              target_dir, dep_refs, depender, original_filename):
 
@@ -285,15 +302,18 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
 
     check_dep_url(dep_url)
 
-    # 4. 下载 + 安装（安装脚本会写入 _DEPS 与依赖者标记）
+    # 4. 先递归安装它自己的依赖：路径替换时这些库必须已经在磁盘上
+    if dep_refs:
+        install_dependencies(dep_refs, arch, config, input_string,
+                             ("dep", dep_name, dep_version))
+
+    # 5. 下载 + 安装自己（安装脚本会写入 _DEPS 与依赖者标记）
     original_filename = download_dependency(dep_url, dep_display_name, config, input_string)
     install_dependency_shell(dep_name, dep_version, dep_sha256, dep_display_name,
                              target_dir, dep_refs, depender, original_filename)
 
-    # 5. 递归安装依赖的依赖
-    if dep_refs:
-        install_dependencies(dep_refs, arch, config, input_string,
-                             ("dep", dep_name, dep_version))
+    # 6. 路径替换：把自己的动态库引用指向刚装好的依赖
+    transfer_paths(target_dir)
 
 
 def install_dependencies(dep_refs, arch, config, input_string, depender):

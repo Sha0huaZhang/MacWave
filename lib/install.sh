@@ -279,6 +279,7 @@ DEPSMANAGER_SH_URL="$BASE_URL/surfboard/depsmanager.sh"
 DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
 QUERIER_URL="$BASE_URL/surfboard/querier.py"
 TAGGER_SH_URL="$BASE_URL/surfboard/tagger.sh"
+TRANSFER_SH_URL="$BASE_URL/surfboard/transfer.sh"
 
 # 纯数据从 infosource 拉取（下载时动态生成）
 DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
@@ -337,6 +338,10 @@ run_cmd curl -fsSL -o "$SURFBOARD_DIR/querier.py" "$QUERIER_URL"
 echo "🌊 Downloading surfboard/tagger.sh..."
 run_cmd curl -fsSL -o "$SURFBOARD_DIR/tagger.sh" "$TAGGER_SH_URL"
 run_cmd chmod +x "$SURFBOARD_DIR/tagger.sh"
+
+echo "🌊 Downloading surfboard/transfer.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/transfer.sh" "$TRANSFER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/transfer.sh"
 
 # ==========================================
 # 把所有权交还给用户（下载后再次确保）

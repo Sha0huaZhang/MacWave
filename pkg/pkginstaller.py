@@ -84,6 +84,7 @@ except ImportError:
 try:
     from depsinstaller import (
         install_dependencies, parse_common_fields, get_field, get_deps,
+        transfer_paths,
     )
 except ImportError as error:
     print(f"{RED_BOLD}🌊 Error: 'surfboard' module is not available ({error}).{RESET}")
@@ -519,6 +520,9 @@ def handle_install(input_string):
     if dep_refs:
         install_dependencies(dep_refs, ARCH, config, input_string,
                              ("pkg", bin_name, ParsePkgVersion))
+
+    # 11. 路径替换：把二进制的动态库引用指向刚装好的依赖
+    transfer_paths(target_dir)
 
 
 if __name__ == "__main__":
