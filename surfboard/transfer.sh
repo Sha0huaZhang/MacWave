@@ -204,10 +204,12 @@ while IFS= read -r file; do
         fi
     done <<< "$otool_output"
 
-    # dylib 自身的 install name 也要指向实际位置
+    # dylib 自身的 install name 也要指向实际位置。
+    # 只有本来就有 LC_ID_DYLIB 的文件才改：engines/ossl-modules 里的插件是
+    # MH_BUNDLE 类型，本来没有 id，install_name_tool 也设不上，硬设会每次空改一遍。
     if [[ "$file" == *.dylib ]]; then
         current_id="$(otool -D "$file" 2>/dev/null | sed -n '2p' || true)"
-        if [[ "$current_id" != "$file" ]]; then
+        if [[ -n "$current_id" && "$current_id" != "$file" ]]; then
             if install_name_tool -id "$file" "$file" 2>/dev/null; then
                 modified=1
             fi
