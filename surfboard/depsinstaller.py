@@ -226,6 +226,26 @@ def transfer_paths(target_dir):
         sys.exit(result.returncode)
 
 
+def transfer_installed_artifacts(*extra_dirs):
+
+    # 统一收尾的路径替换：等所有依赖与软件包都落到磁盘上再做，
+    # 否则“先装的依赖引用了后装的依赖”（例如 libidn2 → libunistring）会解析不到，
+    # 留下 @rpath 引用导致运行时 dyld 加载失败。
+    # 每个目录单独处理，解析时优先该产物自己的 lib/。
+
+    deps_root = BASE_DIR / "deps"
+    if deps_root.is_dir():
+        for owner_dir in sorted(deps_root.iterdir()):
+            if not owner_dir.is_dir():
+                continue
+            for version_dir in sorted(owner_dir.iterdir()):
+                if version_dir.is_dir():
+                    transfer_paths(version_dir)
+
+    for extra_dir in extra_dirs:
+        transfer_paths(extra_dir)
+
+
 def install_dependency_shell(dep_name, dep_version, dep_sha256, dep_display_name,
                              target_dir, dep_refs, depender, original_filename):
 
@@ -311,9 +331,6 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
     original_filename = download_dependency(dep_url, dep_display_name, config, input_string)
     install_dependency_shell(dep_name, dep_version, dep_sha256, dep_display_name,
                              target_dir, dep_refs, depender, original_filename)
-
-    # 6. 路径替换：把自己的动态库引用指向刚装好的依赖
-    transfer_paths(target_dir)
 
 
 def install_dependencies(dep_refs, arch, config, input_string, depender):

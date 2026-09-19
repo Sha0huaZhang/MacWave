@@ -49,9 +49,13 @@ done
 # -------------------- 库索引（名字 -> 绝对路径） --------------------
 
 MAP_FILE="$(mktemp -t macwave-transfer)"
+TREE_FILE="$(mktemp -t macwave-tree)"
+UNRESOLVED_FILE="$(mktemp -t macwave-unresolved)"
+MISSING_FILE="$(mktemp -t macwave-missing)"
+EXTERNAL_FILE="$(mktemp -t macwave-external)"
 
 cleanup() {
-    rm -f "$MAP_FILE"
+    rm -f "$MAP_FILE" "$TREE_FILE" "$UNRESOLVED_FILE" "$MISSING_FILE" "$EXTERNAL_FILE"
 }
 trap cleanup EXIT
 
@@ -84,6 +88,15 @@ map_add_tree() {
     done < <(find "$root" -type f 2>/dev/null)
 }
 
+tree_add_tree() {
+    # 只登记文件名，用于分辨“我们的树里有但没接上”与“根本不属于我们的库”
+    local root="$1"
+    local file
+    while IFS= read -r file; do
+        echo "$(basename "$file")" >> "$TREE_FILE"
+    done < <(find "$root" -type f 2>/dev/null)
+}
+
 map_lookup() {
     # 命中则输出绝对路径，否则返回 1
     local name="$1"
@@ -99,6 +112,7 @@ map_lookup() {
 
 # 1. 目标目录自身
 map_add_tree "$TARGET_DIR"
+tree_add_tree "$TARGET_DIR"
 
 # 2. _DEPS 列出的依赖（优先于其它同名库）
 DEPS_FILE="$TARGET_DIR/_DEPS"
@@ -120,6 +134,13 @@ fi
 # 3. 其余已安装依赖的 lib（兜底）
 for dep_lib in "$BASE_DIR"/deps/*/*/lib; do
     map_add_dir "$dep_lib"
+done
+
+# 4. 记录“我们自己的树”里出现过的文件名，用于后续分流未解析引用
+for dep_tree in "$BASE_DIR"/deps/*/*; do
+    if [[ -d "$dep_tree" ]]; then
+        tree_add_tree "$dep_tree"
+    fi
 done
 
 # -------------------- 辅助函数 --------------------
@@ -155,7 +176,6 @@ is_macho() {
 # -------------------- 逐个 Mach-O 替换 --------------------
 
 CHANGED=0
-UNRESOLVED=0
 
 while IFS= read -r file; do
     if ! is_macho "$file"; then
@@ -195,7 +215,7 @@ while IFS= read -r file; do
         fi
 
         if [[ -z "$new_path" ]]; then
-            UNRESOLVED=$((UNRESOLVED + 1))
+            echo "$old_path" >> "$UNRESOLVED_FILE"
             continue
         fi
 
@@ -230,8 +250,32 @@ if [[ "$CHANGED" -gt 0 ]]; then
     echo "🌊 Relocated $CHANGED Mach-O file(s) in ${TARGET_DIR#"$BASE_DIR"/}"
 fi
 
-if [[ "$UNRESOLVED" -gt 0 ]]; then
-    echo -e "${YELLOW}🌊 Warning: $UNRESOLVED library reference(s) could not be resolved.${RESET}"
+if [[ -s "$UNRESOLVED_FILE" ]]; then
+    # 分流：我们自己的树里存在同名文件 → 真的没接上（警告）；
+    #       树里根本没有 → 外部/未声明的依赖，MacWave 无从接，只作提示。
+    while IFS= read -r ref; do
+        if grep -qxF "${ref##*/}" "$TREE_FILE" 2>/dev/null; then
+            echo "$ref" >> "$MISSING_FILE"
+        else
+            echo "$ref" >> "$EXTERNAL_FILE"
+        fi
+    done < "$UNRESOLVED_FILE"
+
+    if [[ -s "$MISSING_FILE" ]]; then
+        missing_count="$(wc -l < "$MISSING_FILE" | tr -d ' ')"
+        echo -e "${YELLOW}🌊 Warning: $missing_count library reference(s) exist in this installation but could not be linked:${RESET}"
+        sort -u "$MISSING_FILE" | head -10 | while IFS= read -r ref; do
+            echo -e "${YELLOW}🌊   $ref${RESET}"
+        done
+    fi
+
+    if [[ -s "$EXTERNAL_FILE" ]]; then
+        external_count="$(wc -l < "$EXTERNAL_FILE" | tr -d ' ')"
+        echo "🌊 Note: $external_count library reference(s) not provided by any installed dependency, left unchanged:"
+        sort -u "$EXTERNAL_FILE" | head -10 | while IFS= read -r ref; do
+            echo "🌊   $ref"
+        done
+    fi
 fi
 
 exit 0

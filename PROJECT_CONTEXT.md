@@ -52,7 +52,7 @@ README.md     用户文档
 | `depsinstaller.sh` | **依赖安装入口（tree 模式）**：`source depsmanager.sh` → 调 `mw_install_artifact` → 在依赖目录里创建 `.depped_pkg_*` / `.depped_dep_*` 标记 |
 | `depsmanager.sh` | **通用安装核心**（被 `pkginstaller.sh` 与 `depsinstaller.sh` source，不单独执行）：定位下载到的原文件、SHA256 校验、解压、落盘（`binary` / `tree` 两种形态）、创建 `links/` 软链接、写 `_DEPS`、标记文件辅助函数 |
 | `tagger.sh` | `.depped_*` 标记文件原语：`tagger_create` / `tagger_delete` / `tagger_has_any`，既可 `bash tagger.sh <动作> …` 调用，也可被 source |
-| `transfer.sh` | **路径替换（Homebrew 式）**：把产物里所有 Mach-O 的动态库引用（`LC_LOAD_DYLIB`）与自身 `install name`（`LC_ID_DYLIB`）改写成 `BASE_DIR` 下的绝对路径，运行时 dyld 才找得到依赖；改过的文件自动做 ad-hoc 重签名（Apple Silicon 必需）。解析顺序：产物自己的 `lib/` → `_DEPS` 列出的依赖 → 其它已安装依赖的 `lib` |
+| `transfer.sh` | **路径替换（Homebrew 式）**：把产物里所有 Mach-O 的动态库引用（`LC_LOAD_DYLIB`）与自身 `install name`（`LC_ID_DYLIB`）改写成 `BASE_DIR` 下的绝对路径，运行时 dyld 才找得到依赖；改过的文件自动做 ad-hoc 重签名（Apple Silicon 必需）。解析顺序：产物自己的 `lib/` → `_DEPS` 列出的依赖 → 其它已安装依赖的 `lib`。接不上的引用分两类报告：本地树里其实有、只是没接上 → YELLOW 警告；本地根本没有（上游包自带的外部依赖，如 gettext 的 `libxml2` / `ncurses`）→ 🌊 Note 列出名字并保持原样 |
 | `depsversionparser.py` | 依赖引用解析（强制 `依赖名@版本号`）与版本比较；版本逻辑复用 `pkgversionparser.py` |
 | `querier.py` | 查询依赖是否已安装：`deps/{引用名}/{引用名}@{版本号}/` 存在**且含 `_DEPS`** 才算安装完成（避免中途失败留下的空目录被误判） |
 
@@ -119,8 +119,8 @@ deps: "gettext@0.21.0"
    - `.depped_pkg_{包名}@{版本号}`：被某个软件包依赖
    - `.depped_dep_{依赖名}@{版本号}`：被某个依赖依赖
    - 卸载时先删掉自己的标记；某依赖已无任何标记，才连同它自己的依赖一起级联删除，多个依赖者共享时不会被误删
-5. **递归**：依赖自身的 `deps` 会被继续安装（先装下层、再装自己，最后做路径替换）
-6. **动态库路径替换**：依赖包里的库不会自动被 dyld 找到（conda 包的 install name 是 `@rpath/xxx.dylib`，自带 rpath 只有 `@loader_path/`，跨目录必然失败）。安装完成后由 `surfboard/transfer.sh` 用 `otool` + `install_name_tool` 把引用改成 `BASE_DIR` 下的绝对路径，并 `codesign --force --sign -` 重签名；因此顺序必须是「先装依赖 → 再装自身 → 再做替换」
+5. **递归**：依赖自身的 `deps` 会被继续安装（先装下层、再装自己）
+6. **动态库路径替换**：依赖包里的库不会自动被 dyld 找到（conda 包的 install name 是 `@rpath/xxx.dylib`，自带 rpath 只有 `@loader_path/`，跨目录必然失败）。安装完成后由 `surfboard/transfer.sh` 用 `otool` + `install_name_tool` 把引用改成 `BASE_DIR` 下的绝对路径，并 `codesign --force --sign -` 重签名。替换统一放在**全部产物就位之后**做（先逐个处理 `deps/*/*`，再处理软件包目录），因为依赖声明顺序与实际库依赖顺序未必一致——例如 `wget` 的 `deps` 里 `libidn2` 排在 `libunistring` 前面，而 `libidn2.0.dylib` 恰好引用 `libunistring.5.dylib`，提前替换会解析不到
 7. **网络**：所有请求 30 秒超时；下载超时或连接失败时询问是否重试
 
 ## 六、代码约定
@@ -160,10 +160,11 @@ deps: "gettext@0.21.0"
 | 13 | `surfboard/depsinstaller.py` | **先递归装下层依赖**（`gettext` 会先把 `libiconv` 装好）→ 再下载自己（复用第 6 步的同一个 `download_file`，进度条一致）→ 调 `surfboard/depsinstaller.sh` |
 | 14 | `surfboard/depsinstaller.sh` → `depsmanager.sh` | `tree` 模式安装：整棵解压目录落到 `deps/{依赖名}/{依赖名}@{版本号}/`，单顶层目录自动下沉一层，`bin/` 下每个文件都 `chmod 755` 并各建一条软链接进 `links/`，写 `_DEPS` |
 | 15 | `surfboard/depsinstaller.sh` | 按传入的依赖者信息创建标记：被包依赖 → `.depped_pkg_wget@1.25.0`，被依赖依赖 → `.depped_dep_gettext@0.21.0` |
-| 16 | `surfboard/depsinstaller.py` | 对刚装好的依赖目录调 `transfer_paths()` → `surfboard/transfer.sh` |
-| 17 | `surfboard/transfer.sh` | 建「库文件名 → 本地实际路径」索引（产物自身 `lib/` → 该产物 `_DEPS` 列出的依赖 → 其它已安装依赖兜底），对每个 Mach-O 用 `install_name_tool -change` 改写动态库引用、给有 id 的 dylib 改 `-id`，最后 `codesign --force --sign -` 重签名 |
+| 16 | `surfboard/depsinstaller.py` | 只负责装依赖，不在此时做路径替换（见第 18 步） |
+| 17 | `surfboard/depsinstaller.py` | 已安装的依赖：跳过下载，只调 `tagger.sh` 补标记（例如 `libiconv` 同时被 `gettext` 和 `wget` 依赖，就会有两条标记） |
 | 18 | `surfboard/depsinstaller.py` | 已安装的依赖：跳过下载，只调 `tagger.sh` 补标记（例如 `libiconv` 同时被 `gettext` 和 `wget` 依赖，就会有两条标记） |
-| 19 | `pkg/pkginstaller.py` | 依赖全部装完后，对 `bin/wget@1.25.0` 调 `transfer_paths()`，把 wget 二进制的 `@rpath/...` 引用指向 `deps/…/lib` 下的实际文件 |
+| 18 | `pkg/pkginstaller.py` → `surfboard/depsinstaller.py` → `surfboard/transfer.sh` | 依赖与软件包全部就位后，调 `transfer_installed_artifacts()`：先逐个 `deps/*/*` 处理，再处理包目录——建「库文件名 → 本地实际路径」索引（产物自身 `lib/` → 该产物 `_DEPS` 列出的依赖 → 其它已安装依赖兜底），对每个 Mach-O 用 `install_name_tool -change` 改写动态库引用、给有 id 的 dylib 改 `-id`，最后 `codesign --force --sign -` 重签名 |
+| 19 | `surfboard/transfer.sh` | 幂等：已正确的引用直接跳过，重复执行零副作用（可作为修复既有安装的手段） |
 
 ### 时序
 
@@ -188,14 +189,14 @@ sequenceDiagram
         D->>D: 未装 → 拉 depsinfo 元数据
         D->>D: 递归装下层依赖
         D->>M: depsinstaller.sh（tree 模式）
-        D->>X: transfer_paths(依赖目录)
     end
-    P->>X: transfer_paths(bin/wget@1.25.0)
+    P->>X: transfer_installed_artifacts(包目录)
+    Note over X: 先逐个 deps/*/*，再处理包目录
 ```
 
 ### 为什么要这个顺序
 
-- **依赖必须先落盘**：`transfer.sh` 要把引用指向 `deps/…/lib` 里的真实文件，所以顺序是「先装下层依赖 → 再装自身 → 最后做路径替换」；软件包自身则在依赖全部装完后再统一替换
+- **路径替换必须最后统一做**：`transfer.sh` 把引用指向 `deps/…/lib` 里的真实文件，所以要求目标库已经落盘。而 `deps` 的声明顺序与实际库依赖顺序未必一致（`libidn2` 排在 `libunistring` 前，但前者引用后者），因此逐产物即时替换会漏改；统一放到“全部产物就位之后”才能一次解析干净
 - **`_DEPS` 先写**：`transfer.sh` 靠它确定"该去找哪些依赖的 lib"，同时它是卸载时清理依赖的唯一依据
 - **标记文件在最后打**：只有依赖真正装好了才记录"谁依赖了我"，避免中途失败留下错误标记
 
