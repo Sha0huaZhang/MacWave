@@ -104,7 +104,7 @@ def fetch_remote_info(pkg_name, arch):
     
     common_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{arch}/{pkg_name}/_{pkg_name}@common"
     try:
-        resp = requests.get(common_url)
+        resp = requests.get(common_url, timeout=30)
         if resp.status_code != 200:
             return None
     except Exception:

@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -41,6 +42,7 @@ BASE_DIR = load_config()
 BIN_DIR = BASE_DIR / "bin"
 LINKS_DIR = BASE_DIR / "links"
 INSTALLED_DB = BASE_DIR / "pkg" / "installed.json"
+TAGGER_SCRIPT = Path(__file__).resolve().parent.parent / "surfboard" / "tagger.sh"
 
 
 # -------------------- 依赖库检查 --------------------
@@ -49,6 +51,13 @@ try:
     from pkgversionparser import sort_versions
 except ImportError:
     print(f"{RED_BOLD}🌊 Error: 'pkgversionparser' module is not available.{RESET}")
+    sys.exit(1)
+
+try:
+    from depsversionparser import parse_dep_ref
+    from querier import dep_dir
+except ImportError as error:
+    print(f"{RED_BOLD}🌊 Error: 'surfboard' module is not available ({error}).{RESET}")
     sys.exit(1)
 
 
@@ -99,6 +108,93 @@ def find_installed_versions(pkg_name):
 
 # -------------------- 删除动作 --------------------
 
+def read_deps_file(artifact_dir):
+    # 读取 _DEPS，返回依赖引用列表（每行形如 "a@1.0"）
+    deps_file = artifact_dir / "_DEPS"
+    if not deps_file.exists():
+        return []
+
+    refs = []
+    try:
+        with open(deps_file, 'r') as f:
+            for line in f:
+                ref = line.strip().strip('"').strip()
+                if ref:
+                    refs.append(ref)
+    except Exception:
+        return []
+    return refs
+
+
+def run_tagger(*args):
+    return subprocess.run(
+        ['bash', str(TAGGER_SCRIPT), *args],
+        capture_output=True, text=True
+    )
+
+
+def delete_depender_tag(dep_path, depender_kind, depender_name, depender_version):
+    action = "delete-pkg" if depender_kind == "pkg" else "delete-dep"
+    result = run_tagger(action, str(dep_path), depender_name, depender_version)
+
+    if result.returncode != 0:
+        if result.stdout.strip():
+            print(result.stdout.strip())
+        if result.stderr.strip():
+            print(result.stderr.strip())
+        sys.exit(result.returncode)
+
+
+def has_depender_tag(dep_path):
+    return run_tagger("has-marks", str(dep_path)).returncode == 0
+
+
+def remove_dep_links(dep_path):
+    # 依赖包保留了整棵目录，bin/ 下可能有多个可执行文件，
+    # 因此按软链接指向反查，清掉所有指向该依赖目录的链接。
+    if not LINKS_DIR.is_dir():
+        return
+
+    resolved_dep = dep_path.resolve()
+
+    for link in LINKS_DIR.iterdir():
+        if not link.is_symlink():
+            continue
+        try:
+            target = (link.parent / os.readlink(link)).resolve()
+        except OSError:
+            continue
+        if target == resolved_dep or resolved_dep in target.parents:
+            link.unlink()
+
+
+def remove_dependency(artifact_dir, depender_kind, depender_name, depender_version):
+    # 递归清理：删除自己的依赖者标记，没有其他依赖者时连同其依赖一起删除
+    for ref in read_deps_file(artifact_dir):
+        dep_name, dep_version = parse_dep_ref(ref)
+        dep_path = dep_dir(dep_name, dep_version)
+
+        if not dep_path.is_dir():
+            continue
+
+        delete_depender_tag(dep_path, depender_kind, depender_name, depender_version)
+
+        if has_depender_tag(dep_path):
+            continue
+
+        # 已无任何依赖者：先清软链接与它自己的依赖，再删除目录
+        print(f"🌊 Removing orphan dependency {dep_name}@{dep_version}...")
+
+        remove_dep_links(dep_path)
+
+        remove_dependency(dep_path, "dep", dep_name, dep_version)
+        shutil.rmtree(dep_path)
+
+        owner_dir = dep_path.parent
+        if owner_dir.is_dir() and not any(owner_dir.iterdir()):
+            owner_dir.rmdir()
+
+
 def remove_one(pkg_name, version, installed):
     # 删除单个 <包名>@<版本号>（bin 下的目录 + links 下的软链接，含 .bak），
     # 并同步 installed.json
@@ -116,6 +212,8 @@ def remove_one(pkg_name, version, installed):
     print(f"🌊 Deleting {to_tilde(display_path)}...")
 
     if target.is_dir():
+        # 先按 _DEPS 清理依赖标记与孤立依赖，再删除整个目录
+        remove_dependency(target, "pkg", pkg_name, version)
         shutil.rmtree(target)
     elif target.exists():
         target.unlink()

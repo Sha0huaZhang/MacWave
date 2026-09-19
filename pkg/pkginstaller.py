@@ -81,6 +81,14 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+try:
+    from depsinstaller import (
+        install_dependencies, parse_common_fields, get_field, get_deps,
+    )
+except ImportError as error:
+    print(f"{RED_BOLD}🌊 Error: 'surfboard' module is not available ({error}).{RESET}")
+    sys.exit(1)
+
 
 # -------------------- 辅助函数 --------------------
 
@@ -227,11 +235,10 @@ def download_file(url, temp_path, config, input_string, display_name):
             mode = "ab"
 
     download_success = False
-    attempt = 0
     while not download_success:
-        attempt += 1
         try:
-            response = requests.get(url, **request_kwargs)
+            # 30 秒无响应即超时，交给下面的重试询问处理，避免永久挂起
+            response = requests.get(url, timeout=30, **request_kwargs)
 
             if response.status_code == 416:
                 download_success = True
@@ -312,18 +319,20 @@ def download_file(url, temp_path, config, input_string, display_name):
             break
 
         except (ConnectionError, Timeout) as e:
-            if attempt < 2:
-                print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
-                print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
+            # 超时或连接失败：每次都询问是否重试，不再直接放弃
+            print(f"{RED_BOLD}🌊 Download failed: {e}{RESET}")
+            print(f"{RED_BOLD}🌊 Do you want to retry? [y/N]: {RESET}")
+
+            try:
                 retry = input().strip().lower()
-                if retry == 'y':
-                    continue
-                else:
-                    print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
-                    sys.exit(1)
-            else:
-                print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
-                sys.exit(1)
+            except (EOFError, KeyboardInterrupt):
+                retry = ""
+
+            if retry == 'y':
+                continue
+
+            print(f"{RED_BOLD}🌊 Error: Failed to download package{RESET}")
+            sys.exit(1)
 
         except HTTPError as e:
             status_code = e.response.status_code if e.response is not None else 1
@@ -410,7 +419,7 @@ def handle_install(input_string):
     # 4. 获取 bin_name（从 @common 文件）
     common_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/_{ParsePkgName}@common"
     try:
-        common_resp = requests.get(common_url)
+        common_resp = requests.get(common_url, timeout=30)
         if common_resp.status_code != 200:
             print(f"{RED_BOLD}🌊 Error: Cannot fetch @common file.{RESET}")
             sys.exit(1)
@@ -418,16 +427,19 @@ def handle_install(input_string):
         print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
         sys.exit(1)
 
-    bin_name_match = re.search(r'bin_name:\s*"([^"]+)"', common_resp.text)
-    if not bin_name_match:
+    common_fields = parse_common_fields(common_resp.text)
+    bin_name = get_field(common_fields, "bin_name")
+    if not bin_name:
         print(f"{RED_BOLD}🌊 Missing \"bin_name\" field, Please contact the administrator.{RESET}")
         sys.exit(1)
-    bin_name = bin_name_match.group(1)
+
+    # 4.1 解析 deps 字段（可能多行），缺失视为无依赖
+    dep_refs = get_deps(common_fields)
 
     # 5. 获取 URL 和 SHA256
     pkg_version_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/_{ParsePkgName}@{ParsePkgVersion}"
     try:
-        resp = requests.get(pkg_version_url)
+        resp = requests.get(pkg_version_url, timeout=30)
         if resp.status_code != 200:
             if config["verbose"]:
                 print(resp.text)
@@ -472,27 +484,38 @@ def handle_install(input_string):
     final_download_path = DOWNLOAD_TMP / original_filename
     temp_path.rename(final_download_path)
 
-    # 9. 拼接长字符串并传给 pkginstaller.sh
-    parse_dir_value = f"{BASE_DIR}/bin/{bin_name}@{ParsePkgVersion}"
-    pkg_info_string = (
-        f"{ParsePkgName}\n{ParsePkgVersion}\n{ParsePkgSHA256}\n{parse_dir_value}"
-    )
+    # 9. 拼接长字符串并传给 pkginstaller.sh（同时带上依赖列表）
+    target_dir = BASE_DIR / "bin" / f"{bin_name}@{ParsePkgVersion}"
+    pkg_info_string = "\n".join([
+        ParsePkgName,
+        ParsePkgVersion,
+        ParsePkgSHA256 or "",
+        str(target_dir),
+        str(BASE_DIR),
+        bin_name,
+        "",
+        original_filename,
+    ])
+    deps_string = "\n".join(dep_refs)
 
     try:
         script_path = os.path.join(os.path.dirname(__file__), 'pkginstaller.sh')
         result = subprocess.run(
-            ['bash', script_path, pkg_info_string],
-            capture_output=True, text=True
+            ['bash', script_path, pkg_info_string, deps_string],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
         )
         if result.stdout.strip():
             print(result.stdout.strip())
-        if result.stderr.strip():
-            print(result.stderr.strip())
         if result.returncode != 0:
             sys.exit(result.returncode)
     except Exception as e:
         print(f"{RED_BOLD}🌊 Error: Failed to invoke shell script: {e}{RESET}")
         sys.exit(1)
+
+    # 10. 安装依赖（递归处理依赖的依赖，进度条与软件包一致）
+    if dep_refs:
+        install_dependencies(dep_refs, ARCH, config, input_string,
+                             ("pkg", bin_name, ParsePkgVersion))
 
 
 if __name__ == "__main__":

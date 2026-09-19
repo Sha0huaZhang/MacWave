@@ -196,6 +196,7 @@ fi
 INSTALL_DIR="$BASE_DIR/bin"
 LINKS_DIR="$BASE_DIR/links"
 REPO_DIR="$BASE_DIR/pkg"
+SURFBOARD_DIR="$BASE_DIR/surfboard"
 LIB_DIR="$BASE_DIR/lib"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
 CONFIG_DIR="/opt/macwave_config"
@@ -205,10 +206,9 @@ VERSION_FILE="$CONFIG_DIR/VERSION.json"
 run_cmd mkdir -p "$INSTALL_DIR"
 run_cmd mkdir -p "$LINKS_DIR"
 run_cmd mkdir -p "$REPO_DIR"
+run_cmd mkdir -p "$SURFBOARD_DIR"
 run_cmd mkdir -p "$LIB_DIR"
 run_cmd mkdir -p "$DOWNLOAD_DIR"
-
-# /opt/macwave_config 始终需要 sudo（在 $HOME 之外）
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
@@ -224,10 +224,10 @@ EOF
 
 sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "components": {
-    "installer": "2.1.0",
-    "parser": "2.1.0"
+    "installer": "2.2.0",
+    "parser": "2.2.0"
   }
 }
 EOF
@@ -272,6 +272,15 @@ UNINSTALLER_URL="$BASE_URL/pkg/uninstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 
+# 依赖处理相关文件全部从 2.2.0 分支拉取
+DEPSINSTALLER_URL="$BASE_URL/surfboard/depsinstaller.py"
+DEPSINSTALLER_SH_URL="$BASE_URL/surfboard/depsinstaller.sh"
+DEPSMANAGER_SH_URL="$BASE_URL/surfboard/depsmanager.sh"
+DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
+QUERIER_URL="$BASE_URL/surfboard/querier.py"
+TAGGER_SH_URL="$BASE_URL/surfboard/tagger.sh"
+
+# 纯数据从 infosource 拉取（下载时动态生成）
 DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
 
 # ==========================================
@@ -307,6 +316,27 @@ run_cmd curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
 echo "🌊 Downloading pkgunzip.sh..."
 run_cmd curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
 run_cmd chmod +x "$REPO_DIR/pkgunzip.sh"
+
+echo "🌊 Downloading surfboard/depsinstaller.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsinstaller.py" "$DEPSINSTALLER_URL"
+
+echo "🌊 Downloading surfboard/depsinstaller.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsinstaller.sh" "$DEPSINSTALLER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/depsinstaller.sh"
+
+echo "🌊 Downloading surfboard/depsmanager.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsmanager.sh" "$DEPSMANAGER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/depsmanager.sh"
+
+echo "🌊 Downloading surfboard/depsversionparser.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
+
+echo "🌊 Downloading surfboard/querier.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/querier.py" "$QUERIER_URL"
+
+echo "🌊 Downloading surfboard/tagger.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/tagger.sh" "$TAGGER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/tagger.sh"
 
 # ==========================================
 # 把所有权交还给用户（下载后再次确保）
