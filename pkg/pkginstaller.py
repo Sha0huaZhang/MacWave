@@ -349,11 +349,14 @@ def download_file(url, temp_path, config, input_string, display_name):
 # -------------------- 获取最高版本（GitHub API） --------------------
 
 def fetch_max_version(package_name, arch):
-    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{package_name}"
+    # 数据在 infosource 分支，API 必须显式带 ref，
+    # 否则默认分支（main）下没有 pkginfo_{arch} 目录，会直接 404
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{package_name}?ref=infosource"
     try:
         response = requests.get(api_url, timeout=30)
         if response.status_code != 200:
             print(f"{RED_BOLD}🌊 Error: Cannot fetch package list.{RESET}")
+            print(f"{RED_BOLD}🌊 URL: {api_url}{RESET}")
             sys.exit(1)
 
         file_list = response.json()

@@ -79,8 +79,9 @@ def parse_pkg_from_bin(dirname):
 def fetch_remote_versions(pkg_name, arch):
     
     # 通过 GitHub API 遍历 infosource 中的版本文件，返回所有可安装版本号列表。
+    # API 必须显式带 ref=infosource，否则查到默认分支（main）会 404。
     
-    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}"
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
     try:
         resp = requests.get(api_url, timeout=30)
         if resp.status_code != 200:
@@ -145,12 +146,15 @@ def handle_search(query):
     # 远程搜索 infosource 分支下所有包名，匹配查询词。
     
     arch = get_arch()
-    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}"
+
+    # API 必须显式带 ref=infosource，否则查到默认分支（main）会 404
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}?ref=infosource"
 
     try:
         resp = requests.get(api_url, timeout=30)
         if resp.status_code != 200:
             print(f"{RED_BOLD}🌊 Error: Cannot fetch package list.{RESET}")
+            print(f"{RED_BOLD}🌊 URL: {api_url}{RESET}")
             sys.exit(1)
     except Exception as e:
         print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
