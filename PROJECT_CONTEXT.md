@@ -1,6 +1,6 @@
 # 🌊 MacWave 项目结构
 
-面向 macOS / Linux 软件开发者的包管理器，主要托管 iOS/iPadOS 越狱相关软件包。
+面向 macOS / Linux 软件开发者的包管理器，主要托管 iOS/iPadOS 相关软件包。
 技术栈：Python + Shell。
 
 - `2.2.0` 等版本分支：程序代码
