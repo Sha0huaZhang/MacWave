@@ -433,10 +433,7 @@ def handle_install(input_string):
         print(f"{RED_BOLD}🌊 Missing \"bin_name\" field, Please contact the administrator.{RESET}")
         sys.exit(1)
 
-    # 4.1 解析 deps 字段（可能多行），缺失视为无依赖
-    dep_refs = get_deps(common_fields)
-
-    # 5. 获取 URL 和 SHA256
+    # 5. 获取 URL 和 SHA256（deps 也写在该版本文件里）
     pkg_version_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{ARCH}/{ParsePkgName}/_{ParsePkgName}@{ParsePkgVersion}"
     try:
         resp = requests.get(pkg_version_url, timeout=30)
@@ -463,6 +460,9 @@ def handle_install(input_string):
         sys.exit(1)
 
     ParsePkgSHA256 = sha_match.group(1) if sha_match else None
+
+    # 5.1 解析 deps 字段（写在版本文件里，可能多行），缺失视为无依赖
+    dep_refs = get_deps(parse_common_fields(resp.text))
 
     # 6. 简单 URL 检查，避免低级错误
     if not ParsePkgURL.startswith("https://"):

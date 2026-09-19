@@ -257,7 +257,7 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
         add_depender_tag(target_dir, depender)
         return
 
-    # 2. 拉取 @common，拿依赖的真实名字与它自己的 deps
+    # 2. 拉取 @common，拿依赖的真实名字（dep_name）
     status, common_text = fetch_text(dep_common_url(dep_name, arch))
     if status == 404:
         report_not_found(dep_ref)
@@ -266,9 +266,8 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
 
     fields = parse_common_fields(common_text)
     dep_display_name = get_field(fields, "dep_name", dep_name)
-    dep_refs = get_deps(fields)
 
-    # 3. 拉取版本文件，拿下载地址与校验值
+    # 3. 拉取版本文件，拿下载地址、校验值，以及它自己的 deps
     status, version_text = fetch_text(dep_version_url(dep_name, dep_version, arch))
     if status == 404:
         report_not_found(dep_ref)
@@ -278,6 +277,7 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
     version_fields = parse_common_fields(version_text)
     dep_url = get_field(version_fields, "url")
     dep_sha256 = get_field(version_fields, "sha256")
+    dep_refs = get_deps(version_fields)
 
     if not dep_url:
         print(f"{RED_BOLD}🌊 Error: URL field not found.{RESET}")
