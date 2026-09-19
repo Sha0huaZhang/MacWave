@@ -1,0 +1,5 @@
+des: "libc++ - LLVM C++ standard library"
+hom: "https://libcxx.llvm.org/"
+lic: "Apache-2.0 WITH LLVM-exception"
+aut: "LLVM Project"
+dep_name: "libcxx"

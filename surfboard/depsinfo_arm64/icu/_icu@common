@@ -1,0 +1,5 @@
+des: "ICU - International Components for Unicode"
+hom: "https://icu.unicode.org/"
+lic: "Unicode-3.0"
+aut: "Unicode Consortium"
+dep_name: "icu"

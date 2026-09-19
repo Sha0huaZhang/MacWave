@@ -1,0 +1,5 @@
+des: "LLVM OpenMP runtime library (libomp)"
+hom: "https://openmp.llvm.org/"
+lic: "Apache-2.0 WITH LLVM-exception"
+aut: "LLVM Project"
+dep_name: "llvm-openmp"

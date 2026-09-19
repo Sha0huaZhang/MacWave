@@ -1,0 +1,5 @@
+des: "libxml2 - XML C parser and toolkit"
+hom: "https://gitlab.gnome.org/GNOME/libxml2"
+lic: "MIT"
+aut: "GNOME Project"
+dep_name: "libxml2"

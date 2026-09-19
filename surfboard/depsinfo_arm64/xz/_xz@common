@@ -1,0 +1,5 @@
+des: "XZ Utils - LZMA compression library (liblzma)"
+hom: "https://tukaani.org/xz/"
+lic: "LGPL-2.1"
+aut: "Lasse Collin"
+dep_name: "xz"

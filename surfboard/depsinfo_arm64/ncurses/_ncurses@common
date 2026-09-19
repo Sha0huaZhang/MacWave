@@ -1,0 +1,5 @@
+des: "ncurses - terminal handling library"
+hom: "https://invisible-island.net/ncurses/"
+lic: "X11"
+aut: "Thomas E. Dickey"
+dep_name: "ncurses"

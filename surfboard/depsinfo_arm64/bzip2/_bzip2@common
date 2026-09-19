@@ -1,0 +1,5 @@
+des: "bzip2 - block-sorting compression library (libbz2)"
+hom: "https://sourceware.org/bzip2/"
+lic: "BSD-4-Clause"
+aut: "Julian Seward"
+dep_name: "bzip2"
