@@ -1,3 +1,7 @@
 sha256: "c6ea63036005734f56ad1e9bd0e54f0b5d41cd8fd5da6dbf91ac499093269067"
 url: "https://repo.continuum.io/pkgs/main/osx-arm64/gettext-0.21.0-h826f4ad_0.tar.bz2"
-deps: "libiconv@1.16, libcxx@17.0.6, llvm-openmp@17.0.6, libxml2@2.9.14, ncurses@6.4"
+deps: "libiconv@1.16"
+      "libcxx@17.0.6"
+      "llvm-openmp@17.0.6"
+      "libxml2@2.9.14"
+      "ncurses@6.4"
