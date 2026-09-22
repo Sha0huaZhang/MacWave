@@ -72,7 +72,7 @@ Usage:
   wave <command> [package] [flags]
 
 Commands:
-  install     Install a package
+  install     Install a package (Latest Version)
   uninstall   Uninstall a package
   list        List installed packages
   search      Search for a package in the index
