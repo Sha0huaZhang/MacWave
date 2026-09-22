@@ -25,6 +25,7 @@ MacWave is a **package manager** that runs on **macOS/Linux**, designed to host 
 5. **Verify first, extract later.** SHA256 is checked before extraction.
 6. **Resumable downloads.** Interrupted? Resume with `-C`.
 7. **Lightweight and transparent.** Pure Python + Shell. No heavy runtime, no hidden behavior.
+8.**Automatically manage dependencies.** Support for software packages with dependencies, using reference counting and automatic dependency management, with no need to handle dependencies manually.
 
 ## 🌊 Install MacWave
 
@@ -61,7 +62,7 @@ To completely remove MacWave from your system, run the following command in your
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.2.0/lib/uninstall.sh)"
 ```
 
-## 🌊 Run Pacakges
+## 🌊 Run Packages
 To run a package, run the following commands in your terminal:
 ```
 {package_name}@{version}
