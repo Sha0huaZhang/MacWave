@@ -106,7 +106,7 @@ wave install <pkgname>@<version>   Download certain version(s) of a package
 </p>
 
 <p align="center">
-  <img src="images/demo.png" alt="demo" width="80%" style="max-width: 720px;">
+  <img src="images/demo3.png" alt="demo" width="80%" style="max-width: 720px;">
 </p>
 
 ## 🌊 Supported Packages
