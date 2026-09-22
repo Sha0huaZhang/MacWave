@@ -27,6 +27,7 @@ fi
 
 BASE_DIR=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE'))['base_dir'])")
 BIN_DIR="$BASE_DIR/bin"
+LINKS_DIR="$BASE_DIR/links"
 
 PKGS=(
     "test_bin_no_ext|no-extension"
@@ -53,14 +54,28 @@ for entry in "${PKGS[@]}"; do
         continue
     fi
 
-    if [[ ! -x "$BIN_DIR/${pkg}@1.0" ]]; then
-        echo -e "${RED_BOLD}🌊 FAIL: ${pkg}@1.0 not executable${RESET}"
+    if [[ ! -x "$BIN_DIR/${pkg}@1.0/${pkg}" ]]; then
+        echo -e "${RED_BOLD}🌊 FAIL: ${pkg}@1.0/${pkg} not executable${RESET}"
         FAILED=$((FAILED + 1))
         python3 "$WAVE_BIN" uninstall "${pkg}@1.0" || true
         continue
     fi
 
-    OUTPUT=$("$BIN_DIR/${pkg}@1.0")
+    if [[ ! -L "$LINKS_DIR/${pkg}@1.0" ]]; then
+        echo -e "${RED_BOLD}🌊 FAIL: ${pkg}@1.0 link not found${RESET}"
+        FAILED=$((FAILED + 1))
+        python3 "$WAVE_BIN" uninstall "${pkg}@1.0" || true
+        continue
+    fi
+
+    if [[ ! -x "$LINKS_DIR/${pkg}@1.0" ]]; then
+        echo -e "${RED_BOLD}🌊 FAIL: ${pkg}@1.0 link not executable${RESET}"
+        FAILED=$((FAILED + 1))
+        python3 "$WAVE_BIN" uninstall "${pkg}@1.0" || true
+        continue
+    fi
+
+    OUTPUT=$("$BIN_DIR/${pkg}@1.0/${pkg}")
     if [[ "$OUTPUT" != *"Test Successful! ($fmt)"* ]]; then
         echo -e "${RED_BOLD}🌊 FAIL: unexpected output: $OUTPUT${RESET}"
         FAILED=$((FAILED + 1))

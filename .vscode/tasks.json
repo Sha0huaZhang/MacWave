@@ -22,7 +22,7 @@
         {
             "label": "Test all formats",
             "type": "shell",
-            "command": "bash scripts/test_formats.sh",
+            "command": "bash scripts/format_test.sh",
             "problemMatcher": []
         }
     ]

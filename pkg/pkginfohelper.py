@@ -65,22 +65,23 @@ def get_arch():
         sys.exit(1)
 
 
-def parse_pkg_from_bin(filename):
+def parse_pkg_from_bin(dirname):
     
-    # 从 bin 目录的文件名解析出包名和版本。
+    # 从 bin 目录下的目录名解析出包名和版本。
     # 形如 ldid@2.1.5-procursus7 -> ("ldid", "2.1.5-procursus7")
     
-    if "@" in filename:
-        name, version = filename.split("@", 1)
+    if "@" in dirname:
+        name, version = dirname.split("@", 1)
         return name, version
-    return filename, None
+    return dirname, None
 
 
 def fetch_remote_versions(pkg_name, arch):
     
     # 通过 GitHub API 遍历 infosource 中的版本文件，返回所有可安装版本号列表。
+    # API 必须显式带 ref=infosource，否则查到默认分支（main）会 404。
     
-    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}"
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}/{pkg_name}?ref=infosource"
     try:
         resp = requests.get(api_url, timeout=30)
         if resp.status_code != 200:
@@ -104,7 +105,7 @@ def fetch_remote_info(pkg_name, arch):
     
     common_url = f"https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource/pkg/pkginfo_{arch}/{pkg_name}/_{pkg_name}@common"
     try:
-        resp = requests.get(common_url)
+        resp = requests.get(common_url, timeout=30)
         if resp.status_code != 200:
             return None
     except Exception:
@@ -122,13 +123,14 @@ def fetch_remote_info(pkg_name, arch):
 
 def handle_list():
     
-    # 直接扫描 BASE_DIR/bin 目录，列出所有已安装的包。
+    # 直接扫描 BASE_DIR/bin 目录下的子目录，列出所有已安装的包
+    # （2.2 起每个包是一个 <包名>@<版本号> 目录）。
     
     if not BIN_DIR.exists():
         print("🌊 No packages installed yet.")
         return
 
-    entries = sorted([f.name for f in BIN_DIR.iterdir() if f.is_file()])
+    entries = sorted([f.name for f in BIN_DIR.iterdir() if f.is_dir()])
     if not entries:
         print("🌊 No packages installed yet.")
         return
@@ -144,12 +146,15 @@ def handle_search(query):
     # 远程搜索 infosource 分支下所有包名，匹配查询词。
     
     arch = get_arch()
-    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}"
+
+    # API 必须显式带 ref=infosource，否则查到默认分支（main）会 404
+    api_url = f"https://api.github.com/repos/Sha0huaZhang/MacWave/contents/pkg/pkginfo_{arch}?ref=infosource"
 
     try:
         resp = requests.get(api_url, timeout=30)
         if resp.status_code != 200:
             print(f"{RED_BOLD}🌊 Error: Cannot fetch package list.{RESET}")
+            print(f"{RED_BOLD}🌊 URL: {api_url}{RESET}")
             sys.exit(1)
     except Exception as e:
         print(f"{RED_BOLD}🌊 Error: {e}{RESET}")
@@ -182,10 +187,11 @@ def handle_info(pkg_name):
     arch = get_arch()
 
     # 1. 扫描本地 bin 目录，找出所有该包的已安装版本
+    # （2.2 起每个版本对应一个 <包名>@<版本号> 目录）
     installed_versions = []
     if BIN_DIR.exists():
         for f in BIN_DIR.iterdir():
-            if f.is_file():
+            if f.is_dir():
                 name, version = parse_pkg_from_bin(f.name)
                 if name.lower() == pkg_name.lower() and version:
                     installed_versions.append(version)

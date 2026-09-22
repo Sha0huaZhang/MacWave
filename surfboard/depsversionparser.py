@@ -1,74 +1,68 @@
 #!/usr/bin/env python3
-"""
-MacWave depsversionparser.py
-负责所有依赖版本号的解析、比较和排序逻辑。
-支持 alpha/beta/rc 预发布版本，遇到无数字后缀自动补 0。
-特殊版本（procursus, macwaveteam 等）由 pkgversionparser.py 提供。
-"""
 
-import re
-import logging
+# depsversionparser.py
+# 负责依赖引用的解析与依赖版本号的比较逻辑，版本比较复用 pkgversionparser.py。
+
 import sys
-from pathlib import Path
 
-# 确保能找到 pkg/ 目录下的 pkgversionparser.py
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pkg"))
+# -------------------- 颜色定义 --------------------
 
-from packaging.version import parse as parse_version, InvalidVersion
-from pkgversionparser import is_special_version, safe_parse_special_version
+RED_BOLD = '\033[1;31m'
+RESET = '\033[0m'
 
+# -------------------- 依赖库检查 --------------------
 
-def handle_pre_release(v: str) -> str:
-    """处理 alpha/beta/rc 后缀，无数字时按 0 处理"""
-    v = str(v)
-    v = re.sub(r'-(alpha|beta|rc)$', r'-\1 0', v)
-    v = v.replace(' 0', '0')
-    return v
-
-
-def safe_parse_deps_version(v):
-    v = str(v)
-    if is_special_version(v):
-        return safe_parse_special_version(v)
-
-    v = handle_pre_release(v)
-    try:
-        return parse_version(v)
-    except InvalidVersion:
-        pass
-
-    base_match = re.search(r'(\d+\.\d+\.\d+|\d+\.\d+)', v)
-    if base_match:
-        base_version = base_match.group(1)
-        if base_version.count('.') == 1:
-            base_version += '.0'
-        try:
-            return parse_version(base_version)
-        except InvalidVersion:
-            pass
-
-    logging.warning(f"Invalid dependency version string '{v}', falling back to 0.0.0")
-    return parse_version("0.0.0")
+try:
+    from pkgversionparser import (
+        is_special_version,
+        safe_parse_pkg_version,
+        sort_versions,
+        get_max_version,
+    )
+except ImportError:
+    print(f"{RED_BOLD}🌊 Error: 'pkgversionparser' module is not available.{RESET}")
+    sys.exit(1)
 
 
-def sort_deps_versions(versions, reverse=True):
-    return sorted(versions, key=lambda v: safe_parse_deps_version(v), reverse=reverse)
+# -------------------- 引用解析 --------------------
+
+def parse_dep_ref(dep_ref):
+
+    # 依赖引用强制为 {依赖名}@{版本号}，不合法直接报错退出。
+
+    text = str(dep_ref).strip().strip('"').strip()
+
+    if '@' not in text:
+        print(f"{RED_BOLD}🌊 Error: Invalid dependency '{dep_ref}' in deps field.{RESET}")
+        print(f"{RED_BOLD}🌊 Expected format: {{dep}}@{{version}}{RESET}")
+        sys.exit(1)
+
+    dep_name, dep_version = text.split('@', 1)
+    dep_name = dep_name.strip()
+    dep_version = dep_version.strip()
+
+    if not dep_name or not dep_version:
+        print(f"{RED_BOLD}🌊 Error: Invalid dependency '{dep_ref}' in deps field.{RESET}")
+        print(f"{RED_BOLD}🌊 Expected format: {{dep}}@{{version}}{RESET}")
+        sys.exit(1)
+
+    return dep_name, dep_version
 
 
-def get_max_deps_version(versions):
-    if not versions:
-        return None
-    sorted_versions = sort_deps_versions(versions)
-    return sorted_versions[0]
+def parse_dep_refs(dep_refs):
+
+    # 批量解析依赖引用，跳过空行，返回按原顺序排列的 (名字, 版本号) 列表。
+
+    parsed = []
+    for dep_ref in dep_refs:
+        if not str(dep_ref).strip():
+            continue
+        parsed.append(parse_dep_ref(dep_ref))
+    return parsed
 
 
-def main():
-    test_versions = ["1.0.0-rc", "1.0.0", "1.0.0-alpha", "1.0.0-beta", "2.0.0", "0.9.0"]
-    print("原始依赖版本列表:", test_versions)
-    sorted_versions = sort_deps_versions(test_versions)
-    print("排序后的依赖版本:", sorted_versions)
-    print("最高依赖版本:", get_max_deps_version(test_versions))
+def get_latest_version(versions):
 
+    # 取最高版本号，复用 pkgversionparser.py 的排序规则。
 
-if __name__ == "__main__":
-    main()
+    return get_max_version(versions)

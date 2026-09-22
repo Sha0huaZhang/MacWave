@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# MacWave 🌊 Official Installer (2.1.0)
+# MacWave 🌊 Official Installer (2.2.0)
 # This script downloads wave.py, installs dependencies, and configures PATH.
-# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
+# Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.2.0/lib/install.sh)"
 
 set -e
 
-BRANCH="2.1.0"
+BRANCH="2.2.0"
 BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/$BRANCH"
-DATA_BASE_URL="https://raw.githubusercontent.com/Sha0huaZhang/MacWave/infosource"
 
 # ==========================================
 # 颜色定义
@@ -33,10 +32,59 @@ home_to_tilde() {
 }
 
 # ==========================================
+# 辅助函数：校验自定义目录，防止路径穿越
+# ==========================================
+
+validate_custom_dir() {
+    local dir="$1"
+
+    if [[ -z "$dir" ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Empty path is not allowed.${RESET}" >&2
+        return 1
+    fi
+
+    if [[ "$dir" == *".."* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Path traversal ('..') is not allowed.${RESET}" >&2
+        return 1
+    fi
+
+    if [[ "$dir" == *$'\n'* ]] || [[ "$dir" == *$'\r'* ]] || [[ "$dir" == *$'\t'* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Invalid control characters in path.${RESET}" >&2
+        return 1
+    fi
+
+    if LC_ALL=C grep -q '[^a-zA-Z0-9/_.~ -]' <<< "$dir"; then
+        echo -e "${RED_BOLD}🌊 Error: Path contains non-ASCII or invalid characters.${RESET}" >&2
+        echo -e "${RED_BOLD}🌊 Only ASCII letters, digits, '/', '-', '_', '.', '~', and spaces are allowed.${RESET}" >&2
+        return 1
+    fi
+
+    local expanded="${dir/#\~/$HOME}"
+
+    if [[ "$expanded" != /* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Please use an absolute path (starting with / or ~).${RESET}" >&2
+        return 1
+    fi
+
+    if [[ "$expanded" == *"//"* ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Path contains consecutive slashes.${RESET}" >&2
+        return 1
+    fi
+
+    if [[ "$expanded" == "/" ]]; then
+        echo -e "${RED_BOLD}🌊 Error: Cannot install to root directory.${RESET}" >&2
+        return 1
+    fi
+
+    echo "$expanded"
+    return 0
+}
+
+# ==========================================
 # 显示欢迎信息
 # ==========================================
 
-echo "🌊 Welcome to MacWave 2.1.0!"
+echo "🌊 Welcome to MacWave $BRANCH!"
 echo "🌊 Installing from branch: $BRANCH"
 echo ""
 
@@ -52,7 +100,6 @@ echo "🌊 Detected architecture: $ARCH"
 # ==========================================
 
 if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
-    # Intel Mac：显示 /usr/local/macwave 选项
     echo -e "${YELLOW}Where do you want to install MacWave? (Enter the number)${RESET}"
     echo "1. ~/.local/macwave"
     echo "2. /opt/macwave"
@@ -76,7 +123,8 @@ if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
         4)
             echo -e "${YELLOW}Please enter the installation directory:${RESET}"
             read -r custom_dir < /dev/tty
-            BASE_DIR="${custom_dir/#\~/$HOME}"
+            validated=$(validate_custom_dir "$custom_dir") || exit 1
+            BASE_DIR="$validated"
             ;;
         *)
             echo -e "${RED_BOLD}🌊 Invalid choice. Using default: ~/.local/macwave${RESET}"
@@ -84,7 +132,6 @@ if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "amd64" ]]; then
             ;;
     esac
 else
-    # Apple Silicon：不显示 /usr/local（不可写）
     echo -e "${YELLOW}Where do you want to install MacWave? (Enter the number)${RESET}"
     echo "1. ~/.local/macwave"
     echo "2. /opt/macwave"
@@ -104,7 +151,8 @@ else
         3)
             echo -e "${YELLOW}Please enter the installation directory:${RESET}"
             read -r custom_dir < /dev/tty
-            BASE_DIR="${custom_dir/#\~/$HOME}"
+            validated=$(validate_custom_dir "$custom_dir") || exit 1
+            BASE_DIR="$validated"
             ;;
         *)
             echo -e "${RED_BOLD}🌊 Invalid choice. Using default: ~/.local/macwave${RESET}"
@@ -116,34 +164,57 @@ fi
 DISPLAY_DIR=$(home_to_tilde "$BASE_DIR")
 
 # ==========================================
-# 判断是否需要 sudo（无论安装到哪，只要涉及 /opt 都强制获取）
+# 判断是否需要 sudo
 # ==========================================
 
-echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
-sudo -v
-USE_SUDO="sudo"
+CURRENT_USER=$(whoami)
+
+if [[ "$BASE_DIR" == "$HOME"* ]]; then
+    NEED_SUDO=false
+else
+    NEED_SUDO=true
+fi
+
+run_cmd() {
+    if [[ "$NEED_SUDO" == "true" ]]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+if [[ "$NEED_SUDO" == "true" ]]; then
+    echo -e "${YELLOW}🌊 Granting temporary administrator access for installation...${RESET}"
+    sudo -v
+fi
 
 # ==========================================
-# 创建目录（全用 sudo 创建）
+# 创建目录
 # ==========================================
 
 INSTALL_DIR="$BASE_DIR/bin"
+LINKS_DIR="$BASE_DIR/links"
 REPO_DIR="$BASE_DIR/pkg"
+SURFBOARD_DIR="$BASE_DIR/surfboard"
 LIB_DIR="$BASE_DIR/lib"
+DEPS_DIR="$BASE_DIR/deps"
 DOWNLOAD_DIR="$BASE_DIR/downloads/tmp"
 CONFIG_DIR="/opt/macwave_config"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 VERSION_FILE="$CONFIG_DIR/VERSION.json"
 
-sudo mkdir -p "$INSTALL_DIR"
-sudo mkdir -p "$REPO_DIR"
-sudo mkdir -p "$LIB_DIR"
-sudo mkdir -p "$DOWNLOAD_DIR"
+run_cmd mkdir -p "$INSTALL_DIR"
+run_cmd mkdir -p "$LINKS_DIR"
+run_cmd mkdir -p "$REPO_DIR"
+run_cmd mkdir -p "$SURFBOARD_DIR"
+run_cmd mkdir -p "$LIB_DIR"
+run_cmd mkdir -p "$DEPS_DIR"
+run_cmd mkdir -p "$DOWNLOAD_DIR"
 sudo mkdir -p "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 
 # ==========================================
-# 写入配置文件（使用 sudo tee 写入）
+# 写入配置文件
 # ==========================================
 
 sudo tee "$CONFIG_FILE" > /dev/null << EOF
@@ -154,21 +225,22 @@ EOF
 
 sudo tee "$VERSION_FILE" > /dev/null << EOF
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "components": {
-    "installer": "2.1.0",
-    "parser": "2.1.0"
+    "installer": "2.2.0",
+    "parser": "2.2.0"
   }
 }
 EOF
 
 # ==========================================
-# 关键：把所有权交还给当前真实用户
+# 把所有权交还给当前真实用户
 # ==========================================
 
-CURRENT_USER=$(whoami)
+if [[ "$NEED_SUDO" == "true" ]]; then
+    sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+fi
 
-sudo chown -R "$CURRENT_USER": "$BASE_DIR"
 sudo chown -R "$CURRENT_USER": "$CONFIG_DIR"
 sudo chmod 755 "$CONFIG_DIR"
 sudo chmod 644 "$CONFIG_FILE"
@@ -178,23 +250,51 @@ echo "🌊 Configuration saved to /opt/macwave_config/config.json"
 echo "🌊 Version saved to /opt/macwave_config/VERSION.json"
 
 # ==========================================
-# 删除旧版 repo.json（如果存在）
+# 删除旧版 repo.json
 # ==========================================
 
 OLD_JSON="$REPO_DIR/repo.json"
 if [ -f "$OLD_JSON" ]; then
     echo "🌊 Removing old repo.json (legacy format)..."
-    sudo rm -f "$OLD_JSON"
+    run_cmd rm -f "$OLD_JSON"
 fi
 
 # ==========================================
-# 文件 URL（全部适配新的 GitHub 目录结构）
+# 清理旧版（2.1.0）遗留的平铺 bin/ 文件
 # ==========================================
 
-# 程序文件全部从 2.1.0 分支拉取
-# 注：2.1.0 暂不处理 deps（依赖），相关文件留待后续版本引入
+LEGACY_BINS=$(find "$INSTALL_DIR" -maxdepth 1 -type f 2>/dev/null || true)
+if [[ -n "$LEGACY_BINS" ]]; then
+    echo -e "${YELLOW}🌊 Removing files installed by an older version in $DISPLAY_DIR/bin:${RESET}"
+    while IFS= read -r legacy_file; do
+        echo -e "${YELLOW}    $(basename "$legacy_file")${RESET}"
+    done <<< "$LEGACY_BINS"
+    while IFS= read -r legacy_file; do
+        run_cmd rm -f "$legacy_file"
+    done <<< "$LEGACY_BINS"
+    echo -e "${YELLOW}🌊 2.2.0 keeps packages in bin/{name}@{version}/ directories.${RESET}"
+    echo -e "${YELLOW}🌊 Please reinstall the packages: wave install {name}${RESET}"
+fi
+
+# ==========================================
+# 检查动态库路径替换所需的工具
+# ==========================================
+
+if command -v otool > /dev/null 2>&1 && command -v install_name_tool > /dev/null 2>&1 && command -v codesign > /dev/null 2>&1; then
+    echo "🌊 Xcode Command Line Tools detected (otool / install_name_tool / codesign)."
+else
+    echo -e "${YELLOW}🌊 Warning: Xcode Command Line Tools not found.${RESET}"
+    echo -e "${YELLOW}🌊 Dependency libraries cannot be relocated, so some packages may fail to run.${RESET}"
+    echo "🌊 You can install them later with: xcode-select --install"
+fi
+
+# ==========================================
+# 文件 URL
+# ==========================================
+
 WAVE_URL="$BASE_URL/lib/wave.py"
 HELP_URL="$BASE_URL/lib/help.py"
+CONFIGERROR_URL="$BASE_URL/lib/configerror.py"
 PKGINSTALLER_URL="$BASE_URL/pkg/pkginstaller.py"
 PKGINSTALLER_SH_URL="$BASE_URL/pkg/pkginstaller.sh"
 PKGINFOHELPER_URL="$BASE_URL/pkg/pkginfohelper.py"
@@ -202,45 +302,81 @@ UNINSTALLER_URL="$BASE_URL/pkg/uninstaller.py"
 PKGVERSIONPARSER_URL="$BASE_URL/pkg/pkgversionparser.py"
 PKGUNZIP_URL="$BASE_URL/pkg/pkgunzip.sh"
 
-# 纯数据从 infosource 拉取（下载时动态生成）
-DATA_PREFIX="$DATA_BASE_URL/pkg/pkginfo_${ARCH}"
+# 依赖处理相关文件全部从 2.2.0 分支拉取
+DEPSINSTALLER_URL="$BASE_URL/surfboard/depsinstaller.py"
+DEPSINSTALLER_SH_URL="$BASE_URL/surfboard/depsinstaller.sh"
+DEPSMANAGER_SH_URL="$BASE_URL/surfboard/depsmanager.sh"
+DEPSVERSIONPARSER_URL="$BASE_URL/surfboard/depsversionparser.py"
+QUERIER_URL="$BASE_URL/surfboard/querier.py"
+TAGGER_SH_URL="$BASE_URL/surfboard/tagger.sh"
+TRANSFER_SH_URL="$BASE_URL/surfboard/transfer.sh"
 
 # ==========================================
-# 下载文件（根据新目录放置）
+# 下载文件
 # ==========================================
 
 echo "🌊 Downloading wave..."
-sudo curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
-sudo chmod +x "$LIB_DIR/wave"
+run_cmd curl -fsSL -o "$LIB_DIR/wave" "$WAVE_URL"
+run_cmd chmod +x "$LIB_DIR/wave"
 
 echo "🌊 Downloading help.py..."
-sudo curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
+run_cmd curl -fsSL -o "$LIB_DIR/help.py" "$HELP_URL"
+
+echo "🌊 Downloading configerror.py..."
+run_cmd curl -fsSL -o "$LIB_DIR/configerror.py" "$CONFIGERROR_URL"
 
 echo "🌊 Downloading pkginstaller.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginstaller.py" "$PKGINSTALLER_URL"
 
 echo "🌊 Downloading pkginstaller.sh..."
-sudo curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
-sudo chmod +x "$REPO_DIR/pkginstaller.sh"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginstaller.sh" "$PKGINSTALLER_SH_URL"
+run_cmd chmod +x "$REPO_DIR/pkginstaller.sh"
 
 echo "🌊 Downloading pkginfohelper.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkginfohelper.py" "$PKGINFOHELPER_URL"
 
 echo "🌊 Downloading uninstaller.py..."
-sudo curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/uninstaller.py" "$UNINSTALLER_URL"
 
 echo "🌊 Downloading pkgversionparser.py..."
-sudo curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
+run_cmd curl -fsSL -o "$REPO_DIR/pkgversionparser.py" "$PKGVERSIONPARSER_URL"
 
 echo "🌊 Downloading pkgunzip.sh..."
-sudo curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
-sudo chmod +x "$REPO_DIR/pkgunzip.sh"
+run_cmd curl -fsSL -o "$REPO_DIR/pkgunzip.sh" "$PKGUNZIP_URL"
+run_cmd chmod +x "$REPO_DIR/pkgunzip.sh"
+
+echo "🌊 Downloading surfboard/depsinstaller.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsinstaller.py" "$DEPSINSTALLER_URL"
+
+echo "🌊 Downloading surfboard/depsinstaller.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsinstaller.sh" "$DEPSINSTALLER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/depsinstaller.sh"
+
+echo "🌊 Downloading surfboard/depsmanager.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsmanager.sh" "$DEPSMANAGER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/depsmanager.sh"
+
+echo "🌊 Downloading surfboard/depsversionparser.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/depsversionparser.py" "$DEPSVERSIONPARSER_URL"
+
+echo "🌊 Downloading surfboard/querier.py..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/querier.py" "$QUERIER_URL"
+
+echo "🌊 Downloading surfboard/tagger.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/tagger.sh" "$TAGGER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/tagger.sh"
+
+echo "🌊 Downloading surfboard/transfer.sh..."
+run_cmd curl -fsSL -o "$SURFBOARD_DIR/transfer.sh" "$TRANSFER_SH_URL"
+run_cmd chmod +x "$SURFBOARD_DIR/transfer.sh"
 
 # ==========================================
-# 下载完成后，立刻把所有权交还给用户（至关重要）
+# 把所有权交还给用户（下载后再次确保）
 # ==========================================
 
-sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+if [[ "$NEED_SUDO" == "true" ]]; then
+    sudo chown -R "$CURRENT_USER": "$BASE_DIR"
+fi
 
 # ==========================================
 # 安装 Python 依赖
@@ -274,7 +410,7 @@ else
 fi
 
 # ==========================================
-# 添加到 PATH（bin 和 lib 目录都要加）
+# 添加到 PATH
 # ==========================================
 
 if [[ "$SHELL" == *"zsh"* ]]; then
@@ -285,13 +421,24 @@ else
     RC_FILE="$HOME/.profile"
 fi
 
-if ! grep -q "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
-    echo "🌊 Adding MacWave to PATH in $RC_FILE..."
-    echo "" >> "$RC_FILE"
-    echo "# MacWave" >> "$RC_FILE"
-    echo "export PATH=\"$INSTALL_DIR:$LIB_DIR:\$PATH\"" >> "$RC_FILE"
-else
+PATH_LINE="export PATH=\"$INSTALL_DIR:$LINKS_DIR:$LIB_DIR:\$PATH\""
+
+if grep -qF "$PATH_LINE" "$RC_FILE" 2>/dev/null; then
     echo "🌊 MacWave is already in your PATH."
+else
+    if grep -qF "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
+        # 旧版本（如 2.1.0）的 PATH 行只有 bin/ 与 lib/，升级后需要换成含 links/ 的新行
+        echo "🌊 Replacing old MacWave PATH entry in $RC_FILE..."
+        grep -v -F "export PATH=\"$INSTALL_DIR" "$RC_FILE" > "$RC_FILE.macwave.tmp" || true
+        cat "$RC_FILE.macwave.tmp" > "$RC_FILE"
+        rm -f "$RC_FILE.macwave.tmp"
+    else
+        echo "🌊 Adding MacWave to PATH in $RC_FILE..."
+        echo "" >> "$RC_FILE"
+        echo "# MacWave" >> "$RC_FILE"
+    fi
+
+    echo "$PATH_LINE" >> "$RC_FILE"
 fi
 
 # ==========================================
@@ -308,8 +455,6 @@ echo "🌊 To use 'wave' immediately in this terminal, run:"
 echo -e "${YELLOW}    source $RC_DISPLAY${RESET}"
 echo "🌊 Or simply open a new terminal window."
 echo ""
-echo "🌊 Try it now:"
-echo "    wave install test_001"
 
 # ==========================================
 # 许可协议确认
@@ -319,12 +464,12 @@ echo ""
 echo -e "${YELLOW}Please read the agreement before use (see bottom of https://macwave.org).${RESET}"
 echo -e "${YELLOW}Have you read and agreed to the agreement? [Y/n]${RESET}"
 read -r agreement < /dev/tty
-if [[ $agreement =~ ^[Yy]$ ]]; then
+if [[ -z "$agreement" || "$agreement" =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}You have agreed to the agreement. Installation continues.${RESET}"
 else
     echo -e "${RED_BOLD}You do not agree to the agreement. Installation stopped.${RESET}"
     echo -e "${RED_BOLD}🌊 Cleaning up downloaded files...${RESET}"
-    sudo rm -rf "$BASE_DIR"
+    run_cmd rm -rf "$BASE_DIR"
     sudo rm -rf "$CONFIG_DIR"
     echo -e "${RED_BOLD}🌊 All files have been deleted.${RESET}"
     exit 1
