@@ -370,6 +370,20 @@
                 max-width: 100% !important;
             }
         }
+
+        /* ===== 新增：环境要求粗体样式 ===== */
+        .env-requirements {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.9;
+            max-width: 800px;
+            text-align: left;
+            color: #ffffff;
+            font-weight: bold;
+            margin: 10px 0 20px 0;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -447,6 +461,10 @@
         </div>
         <p style="margin: 10px 0 0 0; font-size: 1rem; line-height: 1.5; color: #a0b0d0; font-style: italic;">
             (If you are using bash instead of zsh, run <code style="background-color: #0f1a30; padding: 2px 6px; border-radius: 4px;">source ~/.bashrc</code>)
+        </p>
+
+        <p class="env-requirements">
+            Requirements: Python (3.13 and above), Xcode Command Line Tools (14.0 and above).
         </p>
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Uninstall MacWave</h2>
