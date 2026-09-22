@@ -10,7 +10,7 @@ A package manager for macOS software developers.
 macOS Sonoma14 and above
 ## 🌊 Latest Version
 
-2.1.0, Release on 2026-09-13
+2.2.0, Release on 2026-09-22
 
 ## 🌊 What is MacWave?
 
@@ -31,13 +31,16 @@ MacWave is a **package manager** that runs on **macOS/Linux**, designed to host 
 In the terminal, run:
 
 ```
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.2.0/lib/install.sh)"
 ```
 ```
 source ~/.zshrc
 ```
 
 (If you are using bash instead of zsh, run ```source ~/.bashrc```)
+
+**Requirements: Python (3.13 and above), Xcode Command Line Tools (14.0 and above).**
+
 ## 🌊 Download Directory 
 Installed binaries are stored in:    
 ```
@@ -55,7 +58,7 @@ Config file is stored in:
 To completely remove MacWave from your system, run the following command in your terminal:
 
 ```
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.1.0/lib/uninstall.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Sha0huaZhang/MacWave/2.2.0/lib/uninstall.sh)"
 ```
 
 ## 🌊 Run Pacakges
