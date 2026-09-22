@@ -342,15 +342,22 @@
             }
         }
 
-        /* ===== 新增：Demo 图片样式 ===== */
+        /* ===== 新增：Demo 图片样式（已修正居中） ===== */
         .demo-pictures {
             margin-top: 10px;
+            width: 100%;
+            text-align: center;
         }
         .demo-pictures p {
-            text-align: center;
+            text-align: center !important;
             margin: 16px 0;
+            display: block;
+            width: 100%;
         }
         .demo-pictures img {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
             max-width: 100%;
             height: auto;
             border-radius: 8px;
@@ -514,13 +521,13 @@ wave install &lt;pkgname&gt;@&lt;version&gt;   Download certain version(s) of a 
 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Demo Pictures</h2>
         <div class="demo-pictures">
-            <p align="center">
+            <p>
                 <img src="images/demo1.png" alt="demo1" width="80%" style="max-width: 720px;">
             </p>
-            <p align="center">
+            <p>
                 <img src="images/demo2.png" alt="demo2" width="80%" style="max-width: 720px;">
             </p>
-            <p align="center">
+            <p>
                 <img src="images/demo3.png" alt="demo3" width="80%" style="max-width: 720px;">
             </p>
         </div>
