@@ -281,17 +281,43 @@ def install_dependency_shell(dep_name, dep_version, dep_sha256, dep_display_name
 
 # -------------------- 依赖安装 --------------------
 
-def ensure_dependency(dep_ref, arch, config, input_string, depender):
+def ensure_dependency(dep_ref, arch, config, input_string, depender, visited=None):
 
     # 安装单个依赖（已安装则直接补标记），并递归处理它自己的依赖。
+    # visited 记录本轮已处理过的依赖目录，避免循环依赖导致无限递归。
+
+    if visited is None:
+        visited = set()
 
     dep_name, dep_version = parse_dep_ref(dep_ref)
     target_dir = dep_dir(dep_name, dep_version)
+    marker = str(target_dir)
+    already_installed = is_installed(dep_name, dep_version)
 
-    # 1. 已安装：跳过下载，只补上“谁依赖了我”的标记
-    if is_installed(dep_name, dep_version):
+    # 1. 已安装：跳过下载，只补上“谁依赖了我”的标记（随后仍会检查它自己的依赖）
+    if already_installed:
         print(f"🌊 Dependency {dep_name}@{dep_version} is already installed, skipping.")
         add_depender_tag(target_dir, depender)
+
+    # 循环依赖保护：本轮已经在处理这个目录，补完标记就返回
+    if marker in visited:
+        return
+    visited.add(marker)
+
+    # 已安装的依赖也要按数据检查一遍它自己的依赖：新补上的依赖边或上次中断的安装
+    # 都在这里补齐，否则运行时可能缺库（只多一次版本文件请求，不会重新下载）
+    if already_installed:
+        status, version_text = fetch_text(dep_version_url(dep_name, dep_version, arch))
+        if status == 404:
+            print(f"{YELLOW}🌊 Warning: {dep_name}@{dep_version} has no version file, "
+                  f"skipping its own dependencies.{RESET}")
+            return
+        if status != 200:
+            report_service_unavailable()
+        child_refs = get_deps(parse_common_fields(version_text))
+        if child_refs:
+            install_dependencies(child_refs, arch, config, input_string,
+                                 ("dep", dep_name, dep_version), visited)
         return
 
     # 2. 拉取 @common，拿依赖的真实名字（dep_name）
@@ -325,7 +351,7 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
     # 4. 先递归安装它自己的依赖：路径替换时这些库必须已经在磁盘上
     if dep_refs:
         install_dependencies(dep_refs, arch, config, input_string,
-                             ("dep", dep_name, dep_version))
+                             ("dep", dep_name, dep_version), visited)
 
     # 5. 下载 + 安装自己（安装脚本会写入 _DEPS 与依赖者标记）
     original_filename = download_dependency(dep_url, dep_display_name, config, input_string)
@@ -333,11 +359,14 @@ def ensure_dependency(dep_ref, arch, config, input_string, depender):
                              target_dir, dep_refs, depender, original_filename)
 
 
-def install_dependencies(dep_refs, arch, config, input_string, depender):
+def install_dependencies(dep_refs, arch, config, input_string, depender, visited=None):
 
     # 依次安装 deps 列表里的所有依赖。
+
+    if visited is None:
+        visited = set()
 
     for dep_ref in dep_refs:
         if not str(dep_ref).strip():
             continue
-        ensure_dependency(dep_ref, arch, config, input_string, depender)
+        ensure_dependency(dep_ref, arch, config, input_string, depender, visited)

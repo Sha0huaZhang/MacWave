@@ -45,12 +45,13 @@ jobs:
           chmod +x /tmp/macwave-test/lib/wave
 
       - name: Audit dependency data
-        # 数据里尚有历史遗留问题（palera1n 的 url 跨行损坏、部分 @common 缺 bin_name 等），
-        # 暂不阻塞 CI；数据清理干净后删掉 continue-on-error 即可变成强制检查。
-        continue-on-error: true
         run: |
           python3 scripts/audit_deps.py data
 
       - name: Run format tests
         run: |
           bash scripts/format_test.sh
+
+      - name: Run dependency chain test
+        run: |
+          bash scripts/deps_test.sh

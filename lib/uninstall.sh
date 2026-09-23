@@ -29,7 +29,7 @@ fi
 echo -e "\033[1;31mYou are deleting MacWave, are you sure? [Y/n]\033[0m"
 read -n 1 -r
 echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if [[ -n "$REPLY" && ! "$REPLY" =~ ^[Yy]$ ]]; then
     echo "🌊 Uninstall cancelled."
     exit 0
 fi
@@ -54,11 +54,29 @@ if [ -d "$CONFIG_DIR" ]; then
     sudo rm -rf "$CONFIG_DIR"
 fi
 
-# 清理 PATH 配置
-for RC_FILE in "$HOME/.zshrc" "$HOME/.bashrc"; do
+# 清理 PATH 配置（含自定义安装目录：删掉“# MacWave”注释行与紧跟在它后面的 PATH 行）
+for RC_FILE in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
     if [ -f "$RC_FILE" ]; then
-        sed -i '' '/# MacWave/d' "$RC_FILE" 2>/dev/null || true
-        sed -i '' '/export PATH=".*macwave\/bin/d' "$RC_FILE" 2>/dev/null || true
+        python3 - "$RC_FILE" << 'PYEOF'
+import sys
+from pathlib import Path
+
+rc_file = Path(sys.argv[1])
+kept = []
+skip_next = False
+for line in rc_file.read_text().splitlines():
+    if line.strip() == "# MacWave":
+        skip_next = True
+        continue
+    if skip_next and line.startswith("export PATH="):
+        skip_next = False
+        continue
+    skip_next = False
+    kept.append(line)
+rc_file.write_text("\n".join(kept) + ("\n" if kept else ""))
+PYEOF
+        # 兜底：注释行缺失时，仍按旧版写法删掉 macwave 的 PATH 行
+        sed -i '' '/export PATH=".*macwave\//d' "$RC_FILE" 2>/dev/null || true
         echo "🌊 Removed MacWave PATH entries from $RC_FILE"
     fi
 done
