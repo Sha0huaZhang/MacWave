@@ -1,0 +1,5 @@
+des: "libevent - an event notification library"
+hom: "https://libevent.org/"
+lic: "BSD-3-Clause"
+aut: "Nick Mathewson and contributors"
+dep_name: "libevent"

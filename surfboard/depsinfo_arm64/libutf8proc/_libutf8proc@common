@@ -1,0 +1,5 @@
+des: "libutf8proc - a library for processing UTF-8 encoded Unicode strings"
+hom: "https://juliastrings.github.io/utf8proc/"
+lic: "MIT"
+aut: "JuliaStrings"
+dep_name: "libutf8proc"

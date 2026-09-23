@@ -1,0 +1,5 @@
+des: "tmux - a terminal multiplexer"
+hom: "https://github.com/tmux/tmux"
+lic: "ISC"
+aut: "Nicholas Marriott and contributors"
+bin_name: "tmux"

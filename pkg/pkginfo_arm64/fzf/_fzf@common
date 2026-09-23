@@ -1,0 +1,5 @@
+des: "fzf - a command-line fuzzy finder"
+hom: "https://github.com/junegunn/fzf"
+lic: "MIT"
+aut: "Junegunn Choi"
+bin_name: "fzf"
