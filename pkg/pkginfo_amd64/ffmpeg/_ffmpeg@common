@@ -1,0 +1,5 @@
+des: "FFmpeg - record, convert and stream audio and video"
+hom: "https://ffmpeg.org/"
+lic: "GPL-3.0"
+aut: "FFmpeg Team"
+bin_name: "ffmpeg"
