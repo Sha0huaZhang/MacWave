@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # transfer.sh
-# MacWave 🌊 路径替换（Homebrew 式）：把安装好的产物里所有 Mach-O 文件的
+# MacWave 🌊 路径替换 ：把安装好的产物里所有 Mach-O 文件的
 # 动态库引用（LC_LOAD_DYLIB）与自身 install name（LC_ID_DYLIB）改写成
 # BASE_DIR 下的绝对路径，让运行时 dyld 能真正加载依赖包里的库。
 #
