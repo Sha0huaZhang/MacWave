@@ -5,7 +5,7 @@
 # 动态库引用（LC_LOAD_DYLIB）与自身 install name（LC_ID_DYLIB）改写成
 # BASE_DIR 下的绝对路径，让运行时 dyld 能真正加载依赖包里的库。
 #
-# 用法: bash transfer.sh <目标目录> <BASE_DIR>
+# 用法: bash transfer.sh <目标目录> <BASE_DIR> 或 /bin/bash bash transfer.sh <目标目录> <BASE_DIR>
 #
 # 解析优先级：
 #   1. 目标目录内部的库（产物自己的 lib/，含子目录）
