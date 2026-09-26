@@ -354,16 +354,22 @@
             display: block;
             width: 100%;
         }
+
+        /* ----- 核心修改：让图片宽度与代码块容器一致 ----- */
         .demo-pictures img {
             display: block;
             margin-left: auto;
             margin-right: auto;
-            max-width: 100%;
+            /* 宽度100%会继承父容器宽度，父容器是.demo-pictures，宽度100% */
+            width: 100% !important;          /* 强制与代码块容器同宽 */
+            max-width: 100% !important;       /* 避免溢出 */
             height: auto;
             border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.4);
             border: 1px solid #2a3a5a;
+            box-sizing: border-box;           /* 边框包含在宽度内 */
         }
+
         @media (max-width: 690.98px) {
             .demo-pictures img {
                 width: 100% !important;
@@ -383,6 +389,11 @@
             margin: 10px 0 20px 0;
             word-break: break-word;
             overflow-wrap: break-word;
+        }
+
+        /* 额外：为了确保所有代码块宽度一致，限制content-section的最大宽度 */
+        .content-section {
+            max-width: 100%;
         }
     </style>
 </head>
@@ -542,7 +553,8 @@ wave install &lt;pkgname&gt;@&lt;version&gt;   Download certain version(s) of a 
         <h2 style="font-size: 1.8rem; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-top: 40px;">Demo Pictures</h2>
         <div class="demo-pictures">
             <p>
-                <img src="images/demo1.png" alt="demo1" width="80%" style="max-width: 720px;">
+                <!-- 图片宽度设置为100%，与父容器同宽，父容器与code-container同宽（均在content-section内，默认宽度一致） -->
+                <img src="images/demo1.png" alt="demo1" width="100%" style="width: 100%; max-width: 100%;">
             </p>
         </div>
 
