@@ -43,7 +43,7 @@ source ~/.zshrc
 **Requirements: Python (3.13 and above), Xcode Command Line Tools (14.0 and above).**
 
 ## 🌊 Download Directory 
-Installed binaries are stored in:    
+Installed binaries are stored in (options):    
 ```
 1. ~/.local/macwave
 2. /opt/macwave
@@ -123,6 +123,8 @@ ldid          by Jay Freeman (saurik) / Procursus Team
 trollrestore  by JJTech (@JJTech0130)
 wget          by GNU Project
 ffmpeg        by FFmpeg Team
+fd            by David Pete
+rg            by Andrew Gallant
 ```
 ## 🌊 License
 
