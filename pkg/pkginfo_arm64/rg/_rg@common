@@ -1,0 +1,5 @@
+des: "ripgrep - a line-oriented search tool that recursively searches for a regex pattern"
+hom: "https://github.com/BurntSushi/ripgrep"
+lic: "MIT OR Unlicense"
+aut: "Andrew Gallant"
+bin_name: "rg"

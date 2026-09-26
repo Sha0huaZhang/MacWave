@@ -1,0 +1,5 @@
+des: "fd - a simple, fast and user-friendly alternative to find"
+hom: "https://github.com/sharkdp/fd"
+lic: "Apache-2.0 OR MIT"
+aut: "David Peter"
+bin_name: "fd"
