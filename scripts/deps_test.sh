@@ -159,10 +159,14 @@ run_case() {
 
     # 2. 二进制要能真正跑起来（relink 漏改会在这里以 dyld 报错暴露）
     echo "========== run $PKG =========="
-    if "$ARTIFACT_LINK" --version > /dev/null 2>&1; then
+    local RUN_OUT
+    local RUN_RC=0
+    RUN_OUT=$("$ARTIFACT_LINK" --version 2>&1) || RUN_RC=$?
+    if [[ "$RUN_RC" -eq 0 ]]; then
         echo -e "${GREEN}🌊 OK: $PKG --version${RESET}"
     else
-        echo -e "${RED_BOLD}🌊 FAIL: $PKG --version${RESET}"
+        echo -e "${RED_BOLD}🌊 FAIL: $PKG --version (rc=$RUN_RC)${RESET}"
+        echo "$RUN_OUT" | head -12 | sed 's/^/   /'
         FAILED=$((FAILED + 1))
     fi
 
@@ -202,6 +206,10 @@ run_case() {
 
     if [[ "$FAILED" -gt "$before" ]]; then
         echo -e "${RED_BOLD}🌊 $PKG: FAILED${RESET}"
+        # 失败时把依赖树里的库文件（含软链接指向）打出来，否则看不出是"没装上"
+        # 还是"装上了但索引不到"
+        echo -e "${YELLOW}🌊 诊断：$PKG 的依赖树里的库文件${RESET}"
+        find "$DEPS_DIR" -maxdepth 4 -name '*.dylib' -exec ls -la {} \; 2>/dev/null | sed 's/^/   /' | head -30
         CASE_FAILED=$((CASE_FAILED + 1))
     else
         echo -e "${GREEN}🌊 $PKG: OK${RESET}"
